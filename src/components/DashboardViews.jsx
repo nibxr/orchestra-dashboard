@@ -1,127 +1,460 @@
-import React from 'react';
-import { ArrowDownRight, ArrowUpRight, Plus, MoreHorizontal } from 'lucide-react';
-import { Badge } from './Shared';
+import React, { useState } from 'react';
+import { Search, Filter, MoreHorizontal, Wallet, TrendingUp, X, Calendar, CreditCard, Database, CheckCircle2, AlertCircle, Upload, Building2, DollarSign, Plus, ExternalLink } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
+// --- Analytics View (Placeholder) ---
 export const AnalyticsView = () => (
-  <div className="p-8 max-w-6xl mx-auto w-full animate-fade-in">
-    <h2 className="text-2xl font-bold text-white mb-6">Analytics</h2>
-    
-    <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 mb-6">
-      <div className="flex justify-between items-start mb-8">
-        <div>
-          <div className="text-neutral-400 text-sm mb-1 flex items-center gap-2">MRR <span className="bg-neutral-800 rounded-full px-2 py-0.5 text-[10px]">Verified</span></div>
-          <div className="text-3xl font-bold text-white flex items-baseline gap-2">
-            €62,933.33 <span className="text-red-500 text-sm font-medium -translate-y-1 flex items-center">-10% <ArrowDownRight size={14}/></span>
-          </div>
-        </div>
-        <div className="flex bg-neutral-900 rounded-lg p-1">
-          {['1y', '3m', '1m', '7d'].map(range => (
-            <button key={range} className={`px-3 py-1 text-xs rounded-md ${range === '7d' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}>
-              {range}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Mock Chart */}
-      <div className="h-64 w-full relative">
-          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-               {[1,2,3,4,5].map(i => <div key={i} className="border-t border-neutral-800 w-full h-0"></div>)}
-          </div>
-          <svg className="w-full h-full overflow-visible" preserveAspectRatio="none">
-              <path d="M0 100 C 200 100, 400 100, 600 110 S 800 80, 1200 80" fill="none" stroke="#4ade80" strokeWidth="2" />
-              <path d="M0 150 C 200 150, 400 150, 600 140 S 800 130, 1200 130" fill="none" stroke="#eab308" strokeWidth="2" />
-          </svg>
-      </div>
+  <div className="p-10 flex flex-col items-center justify-center h-full text-neutral-500 animate-fade-in">
+    <div className="w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center mb-6 border border-neutral-800">
+      <TrendingUp size={32} className="text-neutral-700" />
     </div>
-
-    <div className="grid grid-cols-4 gap-6">
-      {[
-        { label: 'Active subscribers', value: '12', change: '-8%', trend: 'down', sub: '13 previous period' },
-        { label: 'Paused subscribers', value: '7', change: '17%', trend: 'down', sub: '6 previous period' }, 
-        { label: 'Tasks worked on', value: '1', change: '0%', trend: 'flat', sub: '1 previous period' },
-        { label: 'Median task completion', value: '6.78d', change: '-86%', trend: 'up', sub: '47.63d previous period', good: true },
-      ].map((kpi, i) => (
-        <div key={i} className="bg-[#141414] border border-neutral-800 rounded-xl p-5">
-          <div className="text-neutral-400 text-xs font-medium mb-2 flex items-center gap-2">
-            {kpi.label}
-            <span className={`flex items-center ${kpi.good ? 'text-green-500' : (kpi.trend === 'down' ? 'text-red-500' : 'text-neutral-500')}`}>
-               {kpi.change} {kpi.trend === 'down' ? <ArrowDownRight size={12}/> : (kpi.trend === 'up' ? <ArrowUpRight size={12}/> : null)}
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-white mb-1">{kpi.value}</div>
-          <div className="text-neutral-600 text-[10px]">{kpi.sub}</div>
-        </div>
-      ))}
-    </div>
+    <h3 className="text-xl font-medium text-white mb-3">Analytics Dashboard</h3>
+    <p className="max-w-md text-center text-neutral-500 leading-relaxed">
+      Visualize your agency's performance, track revenue growth, and monitor team utilization rates over time.
+    </p>
   </div>
 );
 
+// --- Payments View (Placeholder) ---
 export const PaymentsView = () => (
-    <div className="p-8 max-w-4xl mx-auto w-full">
-        <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold text-white">Payments</h2>
-            <button className="bg-neutral-800 text-neutral-300 text-xs px-3 py-2 rounded-lg border border-neutral-700 hover:bg-neutral-700">Load more upcoming payments</button>
-        </div>
+  <div className="p-10 flex flex-col items-center justify-center h-full text-neutral-500 animate-fade-in">
+    <div className="w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center mb-6 border border-neutral-800">
+      <Wallet size={32} className="text-neutral-700" />
+    </div>
+    <h3 className="text-xl font-medium text-white mb-3">Payments & Invoices</h3>
+    <p className="max-w-md text-center text-neutral-500 leading-relaxed">
+      Manage client subscriptions, view invoice history, and handle payment methods securely.
+    </p>
+  </div>
+);
 
-        <div className="space-y-8">
-            {[
-                { date: 'December 3rd, 2025', amount: '4,000.00', client: 'Start | Peoplespheres' },
-                { date: 'December 2nd, 2025', amount: '5,000.00', client: 'Grow | Yampa' },
-                { date: 'November 30th, 2025', amount: '5,000.00', client: 'Grow | Hikoala' },
-            ].map((payment, i) => (
-                <div key={i} className="group">
-                    <div className="text-neutral-500 text-xs mb-3">{payment.date}</div>
-                    <div className="flex justify-between items-center py-2">
-                        <div>
-                            <div className="text-lg font-bold text-white">€{payment.amount}</div>
-                            <div className="text-neutral-400 text-sm">for {payment.client}</div>
+// --- Client Details Slide-over (UPDATED) ---
+const ClientDetails = ({ client, onClose, onOpenPortal }) => {
+    if (!client) return null;
+
+    const formatCurrency = (amount) => {
+        if (!amount) return '-';
+        return new Intl.NumberFormat('fr-FR', {
+            style: 'currency',
+            currency: 'EUR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(amount);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div 
+                className="w-full max-w-md h-full bg-[#0f0f0f] shadow-2xl border-l border-neutral-800 flex flex-col animate-slide-in-right"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="h-16 border-b border-neutral-800 flex items-center justify-between px-6 bg-[#0f0f0f] shrink-0">
+                    <h2 className="text-lg font-bold text-white">Client Details</h2>
+                    <div className="flex items-center gap-4">
+                         {/* PORTAL BUTTON */}
+                        <button 
+                            onClick={() => onOpenPortal(client)}
+                            className="text-[10px] font-bold text-blue-500 hover:text-blue-400 uppercase tracking-wide flex items-center gap-1 transition-colors"
+                        >
+                            Open portal as customer <ExternalLink size={10} />
+                        </button>
+                        <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors bg-neutral-900 p-1.5 rounded-full">
+                            <X size={18}/>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                    <div className="flex flex-col items-center mb-8">
+                        <div className="w-20 h-20 rounded-2xl bg-neutral-800 border border-neutral-700 flex items-center justify-center text-white font-bold text-3xl shadow-inner mb-4">
+                            {client.client_name ? client.client_name[0].toUpperCase() : '?'}
                         </div>
-                        <div className="bg-neutral-800/50 border border-neutral-700 text-neutral-300 text-xs px-3 py-1 rounded-full">
-                            Upcoming
+                        <h1 className="text-2xl font-bold text-white text-center">{client.client_name}</h1>
+                        <div className="flex items-center gap-2 mt-2">
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-neutral-800 text-neutral-400 border border-neutral-700">Member</span>
+                            {client.status === 'En cours' && (
+                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Active
+                                </span>
+                            )}
                         </div>
                     </div>
-                    <div className="h-px bg-neutral-800 w-full mt-4 group-last:hidden"></div>
-                </div>
-            ))}
-        </div>
-    </div>
-);
 
-export const CustomersView = ({ clients }) => (
-    <div className="p-6 w-full h-full flex flex-col">
-         <div className="flex justify-between items-center mb-6">
-             <div className="flex gap-1 bg-neutral-900 p-1 rounded-lg">
-                 <button className="bg-neutral-800 text-white px-4 py-1.5 rounded-md text-xs font-medium shadow-sm">Customers</button>
-                 <button className="text-neutral-500 hover:text-white px-4 py-1.5 rounded-md text-xs font-medium">Archived</button>
-             </div>
-             <div className="flex gap-3">
-                 <button className="text-neutral-400 hover:text-white text-xs font-medium flex items-center gap-2 px-3 py-2 border border-neutral-800 rounded-md">
-                     <ArrowDownRight size={14} /> Import from Stripe
-                 </button>
-                 <button className="bg-white text-black text-xs font-bold px-4 py-2 rounded-md hover:bg-neutral-200 flex items-center gap-2">
-                     <Plus size={14} /> Create
-                 </button>
-             </div>
-         </div>
-         <div className="flex-1 overflow-y-auto bg-[#141414] border border-neutral-800 rounded-xl">
-             <div className="p-3 text-[10px] font-bold text-neutral-500 border-b border-neutral-800 uppercase tracking-wider">Active</div>
-             <div className="divide-y divide-neutral-800">
-                 {clients.map(client => (
-                     <div key={client.id} className="flex items-center justify-between px-4 py-3 hover:bg-neutral-800/30 transition-colors group">
-                         <div className="flex items-center gap-3">
-                             <div className="w-8 h-8 rounded-md bg-neutral-800 flex items-center justify-center text-lg border border-neutral-700 shadow-inner">
-                                 {client.logo || '🏢'}
-                             </div>
-                             <span className="text-neutral-200 text-sm font-medium">{client.name}</span>
-                         </div>
-                         <div className="flex items-center gap-4">
-                             <Badge color="green"><div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Active</Badge>
-                             <button className="text-neutral-600 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal size={16} /></button>
-                         </div>
-                     </div>
-                 ))}
-             </div>
-         </div>
+                    <div className="space-y-6">
+                        {/* General Information Group */}
+                        <div>
+                            <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-4 px-1">Subscription Information</h3>
+                            <div className="bg-[#141414] rounded-xl border border-neutral-800 overflow-hidden">
+                                <div className="p-4 border-b border-neutral-800/50 flex justify-between items-center">
+                                    <div className="flex items-center gap-3 text-sm text-neutral-400">
+                                        <Wallet size={16} /> Monthly Revenue (MRR)
+                                    </div>
+                                    <span className="text-white font-mono font-medium">{formatCurrency(client.monthly_amount_cents)}</span>
+                                </div>
+                                <div className="p-4 border-b border-neutral-800/50 flex justify-between items-center">
+                                    <div className="flex items-center gap-3 text-sm text-neutral-400">
+                                        <CheckCircle2 size={16} /> Offer Type
+                                    </div>
+                                    <span className="text-white font-medium">{client.offer_type || 'Custom'}</span>
+                                </div>
+                                <div className="p-4 border-b border-neutral-800/50 flex justify-between items-center">
+                                    <div className="flex items-center gap-3 text-sm text-neutral-400">
+                                        <Calendar size={16} /> Start Date
+                                    </div>
+                                    <span className="text-white">{client.start_date ? new Date(client.start_date).toLocaleDateString() : 'N/A'}</span>
+                                </div>
+                                <div className="p-4 flex justify-between items-center">
+                                    <div className="flex items-center gap-3 text-sm text-neutral-400">
+                                        <AlertCircle size={16} /> Next Renewal
+                                    </div>
+                                    <span className="text-white">{client.next_cycle_end_date ? new Date(client.next_cycle_end_date).toLocaleDateString() : 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Technical IDs Group */}
+                        <div>
+                            <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-4 px-1">Technical Details</h3>
+                            <div className="bg-[#141414] rounded-xl border border-neutral-800 overflow-hidden">
+                                <div className="p-4 border-b border-neutral-800/50 flex flex-col gap-1">
+                                    <div className="flex items-center gap-3 text-sm text-neutral-400 mb-1">
+                                        <CreditCard size={16} /> Stripe Customer ID
+                                    </div>
+                                    <span className="text-xs text-neutral-500 font-mono break-all">{client.stripe_customer_id || 'N/A'}</span>
+                                </div>
+                                <div className="p-4 flex flex-col gap-1">
+                                    <div className="flex items-center gap-3 text-sm text-neutral-400 mb-1">
+                                        <Database size={16} /> Airtable Record ID
+                                    </div>
+                                    <span className="text-xs text-neutral-500 font-mono break-all">{client.airtable_record_id || 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- New Client Modal ---
+const NewClientModal = ({ isOpen, onClose, onClientAdded }) => {
+    const [formData, setFormData] = useState({
+        client_name: '',
+        offer_type: 'Scale',
+        status: 'En cours',
+        monthly_amount: '',
+        start_date: new Date().toISOString().split('T')[0],
+        stripe_customer_id: ''
+    });
+    const [loading, setLoading] = useState(false);
+
+    if (!isOpen) return null;
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            // Convert amount to cents for storage
+            const amountCents = formData.monthly_amount ? parseInt(formData.monthly_amount) * 100 : 0; 
+
+            const payload = {
+                client_name: formData.client_name,
+                offer_type: formData.offer_type,
+                status: formData.status,
+                monthly_amount_cents: amountCents, // Use correct column name from schema
+                start_date: formData.start_date,
+                stripe_customer_id: formData.stripe_customer_id,
+                orchestra_id: `ORCH-${Date.now().toString(36).toUpperCase()}`
+            };
+
+            const { data, error } = await supabase.from('client_memberships').insert([payload]).select();
+
+            if (error) throw error;
+            
+            if (onClientAdded && data) {
+                onClientAdded(data[0]);
+            }
+            onClose();
+        } catch (error) {
+            console.error("Error adding client:", error);
+            alert("Failed to add client: " + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-4">
+            <div className="bg-[#0f0f0f] border border-neutral-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-scale-up">
+                <div className="px-6 py-5 border-b border-neutral-800 flex justify-between items-center bg-[#141414]">
+                    <div>
+                        <h2 className="text-lg font-bold text-white">New Client</h2>
+                        <p className="text-neutral-500 text-xs mt-0.5">Add a new company to your agency.</p>
+                    </div>
+                    <button onClick={onClose} className="text-neutral-400 hover:text-white p-1 hover:bg-neutral-800 rounded-lg transition-colors"><X size={20}/></button>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                    {/* Name Input */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1">Company Name</label>
+                        <div className="relative group">
+                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-white transition-colors" size={18} />
+                            <input 
+                                type="text" 
+                                required
+                                placeholder="e.g. Acme Corp"
+                                className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 focus:ring-1 focus:ring-neutral-600 transition-all"
+                                value={formData.client_name}
+                                onChange={e => setFormData({...formData, client_name: e.target.value})}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                        {/* Offer Type */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1">Offer Plan</label>
+                            <select 
+                                className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-neutral-600 transition-all appearance-none cursor-pointer"
+                                value={formData.offer_type}
+                                onChange={e => setFormData({...formData, offer_type: e.target.value})}
+                            >
+                                <option value="Scale">Scale</option>
+                                <option value="Grow">Grow</option>
+                                <option value="Enterprise">Enterprise</option>
+                                <option value="Custom">Custom</option>
+                            </select>
+                        </div>
+
+                        {/* Status */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1">Initial Status</label>
+                            <select 
+                                className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-neutral-600 transition-all appearance-none cursor-pointer"
+                                value={formData.status}
+                                onChange={e => setFormData({...formData, status: e.target.value})}
+                            >
+                                <option value="En cours">Active (En cours)</option>
+                                <option value="Start">Onboarding (Start)</option>
+                                <option value="Pause">Paused</option>
+                                <option value="Finito">Churned</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                        {/* MRR Input */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1">Monthly Revenue (€)</label>
+                            <div className="relative group">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-emerald-500 transition-colors" size={16} />
+                                <input 
+                                    type="number" 
+                                    required
+                                    min="0"
+                                    placeholder="5000"
+                                    className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all font-mono"
+                                    value={formData.monthly_amount}
+                                    onChange={e => setFormData({...formData, monthly_amount: e.target.value})}
+                                />
+                            </div>
+                        </div>
+
+                         {/* Start Date */}
+                         <div className="space-y-2">
+                            <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1">Start Date</label>
+                            <div className="relative group">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-white transition-colors" size={16} />
+                                <input 
+                                    type="date" 
+                                    required
+                                    className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-neutral-600 transition-all [color-scheme:dark]"
+                                    value={formData.start_date}
+                                    onChange={e => setFormData({...formData, start_date: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Stripe ID (Optional) */}
+                    <div className="space-y-2 pt-2 border-t border-neutral-800/50">
+                        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide ml-1">Stripe Customer ID (Optional)</label>
+                        <div className="relative group">
+                            <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-neutral-400 transition-colors" size={16} />
+                            <input 
+                                type="text" 
+                                placeholder="cus_..."
+                                className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-xl py-3 pl-10 pr-4 text-sm text-neutral-300 placeholder-neutral-700 focus:outline-none focus:border-neutral-600 transition-all font-mono text-xs"
+                                value={formData.stripe_customer_id}
+                                onChange={e => setFormData({...formData, stripe_customer_id: e.target.value})}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="pt-4 flex gap-3">
+                        <button 
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 py-3 rounded-xl border border-neutral-800 text-neutral-400 text-sm font-medium hover:bg-neutral-900 hover:text-white transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            type="submit"
+                            disabled={loading}
+                            className="flex-[2] py-3 rounded-xl bg-white text-black text-sm font-bold hover:bg-neutral-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {loading ? 'Creating...' : 'Create Client'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// --- Customers View (Main Implementation) ---
+export const CustomersView = ({ clients: initialClients, onOpenPortal }) => {
+  const [clients, setClients] = useState(initialClients);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  React.useEffect(() => {
+      if(initialClients) setClients(initialClients);
+  }, [initialClients]);
+
+  const handleClientAdded = (newClient) => {
+      setClients(prev => [...prev, newClient]);
+  };
+
+  const formatCurrency = (amount) => {
+    if (!amount && amount !== 0) return '-';
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR', 
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const getStatusStyle = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s.includes('en cours') || s.includes('active') || s.includes('start')) {
+        return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+    }
+    if (s.includes('finito') || s.includes('churn') || s.includes('cancel') || s.includes('inactive')) {
+        return 'bg-neutral-800 text-neutral-400 border-neutral-700';
+    }
+    if (s.includes('pause')) {
+        return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+    }
+    return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+  };
+
+  const sortedClients = [...clients].sort((a, b) => {
+      const isAActive = (a.status || '').toLowerCase().includes('en cours');
+      const isBActive = (b.status || '').toLowerCase().includes('en cours');
+      if (isAActive && !isBActive) return -1;
+      if (!isAActive && isBActive) return 1;
+      return 0;
+  });
+
+  return (
+    <div className="p-8 max-w-[1600px] mx-auto h-full overflow-y-auto custom-scrollbar animate-fade-in">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+            <h2 className="text-2xl font-bold text-white mb-1">Clients</h2>
+            <p className="text-neutral-500 text-sm">Manage your client relationships and subscriptions.</p>
+        </div>
+        <div className="flex gap-3">
+            <div className="flex items-center gap-3 bg-[#1a1a1a] border border-neutral-800 rounded-lg px-4 py-2 w-64 focus-within:border-neutral-600 transition-colors">
+                <Search size={16} className="text-neutral-500" />
+                <input 
+                    type="text" 
+                    placeholder="Search clients..." 
+                    className="bg-transparent border-none outline-none text-sm text-white w-full placeholder-neutral-600"
+                />
+            </div>
+            <button className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] border border-neutral-800 rounded-lg text-sm text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors">
+                <Filter size={14} /> Filter
+            </button>
+            <button 
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-colors active:scale-95"
+            >
+                <Plus size={16} /> Add Client
+            </button>
+        </div>
+      </div>
+
+      <div className="bg-[#0f0f0f] border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
+        <table className="w-full text-left text-sm border-collapse">
+          <thead className="bg-[#141414] text-neutral-500 font-medium text-xs uppercase tracking-wider border-b border-neutral-800">
+            <tr>
+              <th className="px-6 py-4 font-medium w-1/2">Company</th>
+              <th className="px-6 py-4 font-medium">Status</th>
+              <th className="px-6 py-4 font-medium">MRR</th>
+              <th className="px-6 py-4 text-right font-medium">Start Date</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-800/50">
+            {sortedClients.map((client) => (
+              <tr 
+                key={client.id} 
+                onClick={() => setSelectedClient(client)}
+                className="group hover:bg-[#1a1a1a] transition-colors cursor-pointer"
+              >
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center text-white font-bold text-base shadow-inner">
+                      {client.client_name ? client.client_name[0].toUpperCase() : '?'}
+                    </div>
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                          <span className="font-medium text-white text-base">{client.client_name || 'Unnamed Client'}</span>
+                          {client.offer_type && (
+                              <span className="text-neutral-500 text-xs uppercase tracking-wide font-medium border-l border-neutral-700 pl-2">
+                                  {client.offer_type}
+                              </span>
+                          )}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${getStatusStyle(client.status)} capitalize`}>
+                    <span className={`w-1.5 h-1.5 rounded-full mr-2 ${client.status === 'En cours' ? 'bg-emerald-500' : 'bg-current opacity-50'}`}></span>
+                    {client.status || 'Unknown'}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                    <div className="text-white font-mono">{formatCurrency(client.monthly_amount_cents)}</div>
+                </td>
+                <td className="px-6 py-4 text-right text-neutral-500">
+                    {client.start_date ? new Date(client.start_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      
+      {/* PASS THE PORTAL HANDLER HERE */}
+      <ClientDetails 
+        client={selectedClient} 
+        onClose={() => setSelectedClient(null)} 
+        onOpenPortal={onOpenPortal} // Wired up
+      />
+      
+      <NewClientModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        onClientAdded={handleClientAdded} 
+      />
     </div>
-);
+  );
+};

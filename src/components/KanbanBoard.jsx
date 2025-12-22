@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
-import { Plus, MessageSquare, ArrowUpRight } from 'lucide-react';
+import { Plus, MessageSquare, ArrowUpRight, Calendar, Hash } from 'lucide-react';
 import { STATUS_CONFIG } from '../utils/constants';
 import { ContextMenu } from './CustomUI';
-import { Avatar } from './Shared'; // Ensure Avatar is imported
 
-export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask }) => {
+export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask, displaySettings }) => {
   const [contextMenu, setContextMenu] = useState(null);
+
+  // Check which properties should be visible based on displaySettings
+  const visibleProperties = displaySettings?.visibleProperties || [];
+  const showClient = visibleProperties.includes('client') || visibleProperties.includes('project');
+  const showAssignee = visibleProperties.includes('assignee');
+  const showDueDate = visibleProperties.includes('dueDate') || visibleProperties.includes('due_date');
+  const showReference = visibleProperties.includes('reference') || visibleProperties.includes('id');
 
   const handleContextMenu = (e, task) => {
     e.preventDefault();
@@ -45,24 +51,57 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask 
                   className="group bg-[#1a1a1a] border border-neutral-800 hover:border-neutral-600 rounded-lg p-4 cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 relative select-none"
                 >
                   <div className="flex justify-between items-start mb-2">
-                     {/* Display Mapped Client Name */}
-                     <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider truncate max-w-[120px]">
-                         {task.clientName || 'Internal'}
-                     </span>
-                     <div className="flex gap-2 items-center">
-                        {/* Display Mapped Assignee Avatar */}
-                        {task.assigneeAvatar ? (
-                            <img src={task.assigneeAvatar} alt={task.assigneeName} className="w-5 h-5 rounded-full border border-neutral-700 object-cover" />
-                        ) : (
-                            task.assigneeName && <div className="text-[10px] bg-neutral-800 text-neutral-400 w-5 h-5 rounded-full flex items-center justify-center border border-neutral-700">{task.assigneeName[0]}</div>
-                        )}
-                     </div>
+                     {/* CLIENT NAME: Only show if 'client' or 'project' is toggled in Display menu */}
+                     {showClient && (
+                         <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider truncate max-w-[120px]">
+                             {task.clientName || 'Internal'}
+                         </span>
+                     )}
+                     
+                     {/* Spacer if client name is hidden but we need layout stability, or just flex gap */}
+                     {!showClient && <div />}
+
+                     {/* ASSIGNEE: Only show if 'assignee' is toggled in Display menu */}
+                     {showAssignee && (
+                        <div className="flex gap-2 items-center">
+                            {task.assigneeAvatar ? (
+                                <img src={task.assigneeAvatar} alt={task.assigneeName} className="w-5 h-5 rounded-full border border-neutral-700 object-cover" />
+                            ) : (
+                                task.assigneeName && <div className="text-[10px] bg-neutral-800 text-neutral-400 w-5 h-5 rounded-full flex items-center justify-center border border-neutral-700">{task.assigneeName[0]}</div>
+                            )}
+                        </div>
+                     )}
                   </div>
-                  <h4 className="text-sm text-neutral-200 font-medium mb-3 leading-snug line-clamp-2">{task.title}</h4>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-neutral-800/50">
-                    <div className="flex items-center gap-3 text-neutral-600">
-                      <div className="flex items-center gap-1 text-[10px]"><MessageSquare size={10} /> {task.comments?.length || 0}</div>
+                  
+                  <h4 className="text-sm text-neutral-200 font-medium mb-2 leading-snug line-clamp-2">{task.title}</h4>
+                  
+                  {task.description && (
+                      <p className="text-xs text-neutral-500 mb-3 line-clamp-2 break-words leading-relaxed">
+                          {task.description}
+                      </p>
+                  )}
+
+                  <div className="flex items-center gap-3 mt-3 pt-2 border-t border-neutral-800/50 text-neutral-600">
+                    <div className="flex items-center gap-1 text-[10px]">
+                        <MessageSquare size={10} /> 
+                        {task.commentCount || 0}
                     </div>
+
+                    {/* DUE DATE: Show if toggled */}
+                    {showDueDate && task.due_date && (
+                        <div className="flex items-center gap-1 text-[10px] text-neutral-500">
+                            <Calendar size={10} />
+                            {new Date(task.due_date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}
+                        </div>
+                    )}
+
+                    {/* REFERENCE ID: Show if toggled */}
+                    {showReference && task.orchestra_task_id && (
+                        <div className="flex items-center gap-1 text-[10px] text-neutral-500">
+                            <Hash size={10} />
+                            {task.orchestra_task_id.slice(-4)}
+                        </div>
+                    )}
                   </div>
                 </div>
               ))}

@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { 
   X, Circle, User, Calendar, Plus, MoreHorizontal, 
-  Paperclip, Smile, Mic, 
+  Paperclip, Smile, Mic, Briefcase,
   Clock, CheckCircle2, Link as LinkIcon, ArrowUpRight, ToggleLeft 
 } from 'lucide-react';
 import { Avatar } from './Shared';
-import { supabase } from '../supabaseClient'; // Import supabase to post comments
+import { supabase } from '../supabaseClient'; 
 
 export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
     const [comment, setComment] = useState('');
 
     const properties = [
+        // Added Client Field
+        { label: 'Client', value: task.clientName || 'Internal', icon: Briefcase, type: 'text' },
         { label: 'Status', value: task.status, icon: Circle, type: 'badge' },
         { label: 'Assignee', value: task.assigneeName || 'Unassigned', icon: User, type: 'user', avatar: task.assigneeAvatar },
         { label: 'Due Date', value: task.dueDate || 'Empty', icon: Calendar, type: 'text' },
@@ -24,7 +26,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                 content: comment,
                 task_id: task.id,
                 // author_designer_id: ... (Current user ID from Auth)
-                orchestra_comment_id: `COM-${Date.now()}`, // Mock ID for schema requirement
+                orchestra_comment_id: `COM-${Date.now()}`, 
                 created_at: new Date().toISOString(),
             };
 
@@ -36,7 +38,6 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
             if (error) throw error;
             
             // Optimistic update: add to local state for immediate feedback
-            // Note: We manually shape it to match the "enriched" structure used in App.jsx
             const createdComment = {
                 ...data[0],
                 authorName: 'You', // Placeholder until we have auth
@@ -44,7 +45,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
             };
 
             const updatedComments = [...(task.comments || []), createdComment];
-            onUpdate(task.id, { comments: updatedComments }); // This updates parent state
+            onUpdate(task.id, { comments: updatedComments }); 
             setComment('');
         } catch (e) {
             console.error("Error posting comment:", e);
