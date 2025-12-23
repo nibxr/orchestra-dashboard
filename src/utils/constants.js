@@ -11,11 +11,13 @@ export const APP_MODES = {
 export const DASHBOARD_VIEWS = {
     BOARD: 'board',
     CUSTOMERS: 'customers',
+    CYCLES: 'cycles',
     ANALYTICS: 'analytics',
     PAYMENTS: 'payments'
 };
 
 export const SETTINGS_VIEWS = {
+    PROFILE: 'profile',
     AGENCY: 'agency',
     TEAM: 'team',
     WORKFLOW: 'workflow',

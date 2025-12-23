@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { 
-  X, Circle, User, Calendar, Plus, MoreHorizontal, 
+import {
+  X, Circle, User, Calendar, Plus, MoreHorizontal,
   Paperclip, Smile, Mic, Briefcase,
-  Clock, CheckCircle2, Link as LinkIcon, ArrowUpRight, ToggleLeft 
+  Clock, CheckCircle2, Link as LinkIcon, ArrowUpRight, ToggleLeft
 } from 'lucide-react';
 import { Avatar } from './Shared';
-import { supabase } from '../supabaseClient'; 
+import { supabase } from '../supabaseClient';
+import { useAuth } from '../contexts/AuthContext'; 
 
 export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
+    const { user } = useAuth();
     const [comment, setComment] = useState('');
 
     const properties = [
@@ -20,13 +22,13 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
 
     const handleSendComment = async () => {
         if (!comment.trim()) return;
-        
+
         try {
             const newCommentPayload = {
                 content: comment,
                 task_id: task.id,
-                // author_designer_id: ... (Current user ID from Auth)
-                orchestra_comment_id: `COM-${Date.now()}`, 
+                author_designer_id: user.id,
+                orchestra_comment_id: `COM-${Date.now()}`,
                 created_at: new Date().toISOString(),
             };
 
@@ -36,16 +38,16 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                 .select();
 
             if (error) throw error;
-            
+
             // Optimistic update: add to local state for immediate feedback
             const createdComment = {
                 ...data[0],
-                authorName: 'You', // Placeholder until we have auth
-                authorAvatar: null
+                authorName: user.user_metadata?.full_name || user.email,
+                authorAvatar: user.user_metadata?.avatar_url || null
             };
 
             const updatedComments = [...(task.comments || []), createdComment];
-            onUpdate(task.id, { comments: updatedComments }); 
+            onUpdate(task.id, { comments: updatedComments });
             setComment('');
         } catch (e) {
             console.error("Error posting comment:", e);

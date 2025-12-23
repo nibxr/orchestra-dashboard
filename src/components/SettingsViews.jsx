@@ -1,13 +1,233 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Upload, Building2, Globe, Mail, Palette, Save, 
-  UserPlus, MoreHorizontal, Trash2, Check, X, 
+import {
+  Upload, Building2, Globe, Mail, Palette, Save,
+  UserPlus, MoreHorizontal, Trash2, Check, X,
   Columns, Plus, GripVertical, ArrowUp, ArrowDown,
-  CreditCard, Layout, Zap, 
-  Link as LinkIcon,
+  CreditCard, Layout, Zap,
+  Link as LinkIcon, User, Lock, LogOut, AlertCircle,
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { STATUS_CONFIG } from '../utils/constants';
+import { useAuth } from '../contexts/AuthContext';
+import { Avatar } from './Shared';
+
+// --- PROFILE SETTINGS ---
+export const ProfileSettingsView = () => {
+    const { user, updateProfile, updatePassword, signOut } = useAuth();
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState({ type: '', text: '' });
+    const [profileData, setProfileData] = useState({
+        full_name: user?.user_metadata?.full_name || '',
+        avatar_url: user?.user_metadata?.avatar_url || ''
+    });
+    const [passwordData, setPasswordData] = useState({
+        newPassword: '',
+        confirmPassword: ''
+    });
+
+    const handleUpdateProfile = async () => {
+        setLoading(true);
+        setMessage({ type: '', text: '' });
+
+        try {
+            const { error } = await updateProfile(profileData);
+            if (error) throw error;
+
+            setMessage({ type: 'success', text: 'Profile updated successfully!' });
+        } catch (err) {
+            setMessage({ type: 'error', text: err.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpdatePassword = async () => {
+        setLoading(true);
+        setMessage({ type: '', text: '' });
+
+        try {
+            if (passwordData.newPassword !== passwordData.confirmPassword) {
+                throw new Error('Passwords do not match');
+            }
+            if (passwordData.newPassword.length < 6) {
+                throw new Error('Password must be at least 6 characters');
+            }
+
+            const { error } = await updatePassword(passwordData.newPassword);
+            if (error) throw error;
+
+            setMessage({ type: 'success', text: 'Password updated successfully!' });
+            setPasswordData({ newPassword: '', confirmPassword: '' });
+        } catch (err) {
+            setMessage({ type: 'error', text: err.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSignOut = async () => {
+        if (confirm('Are you sure you want to sign out?')) {
+            await signOut();
+        }
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto p-8 animate-fade-in pb-24">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-white mb-2">Profile Settings</h1>
+                <p className="text-neutral-500 text-sm">Manage your personal account settings and preferences.</p>
+            </div>
+
+            {/* Message */}
+            {message.text && (
+                <div className={`mb-6 p-4 rounded-lg flex items-start gap-3 ${
+                    message.type === 'success'
+                        ? 'bg-green-500/10 border border-green-500/50'
+                        : 'bg-red-500/10 border border-red-500/50'
+                }`}>
+                    <AlertCircle size={18} className={message.type === 'success' ? 'text-green-500' : 'text-red-500'} />
+                    <p className={`text-sm ${message.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+                        {message.text}
+                    </p>
+                </div>
+            )}
+
+            {/* Profile Information */}
+            <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 mb-8">
+                <h3 className="text-sm font-bold text-white mb-4">Profile Information</h3>
+
+                {/* Avatar */}
+                <div className="mb-6">
+                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
+                        Profile Picture
+                    </label>
+                    <div className="flex items-center gap-4">
+                        <Avatar
+                            name={profileData.full_name || user?.email}
+                            url={profileData.avatar_url}
+                            size="lg"
+                        />
+                        <div className="flex flex-col gap-2">
+                            <input
+                                type="text"
+                                value={profileData.avatar_url}
+                                onChange={(e) => setProfileData({...profileData, avatar_url: e.target.value})}
+                                placeholder="Avatar URL"
+                                className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-neutral-600"
+                            />
+                            <p className="text-[10px] text-neutral-600">Enter a URL for your profile picture</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Email (read-only) */}
+                <div className="mb-6">
+                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
+                        Email Address
+                    </label>
+                    <input
+                        type="email"
+                        value={user?.email || ''}
+                        disabled
+                        className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-500 cursor-not-allowed"
+                    />
+                    <p className="text-[10px] text-neutral-600 mt-1">Email cannot be changed</p>
+                </div>
+
+                {/* Full Name */}
+                <div className="mb-6">
+                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
+                        Full Name
+                    </label>
+                    <input
+                        type="text"
+                        value={profileData.full_name}
+                        onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
+                        placeholder="John Doe"
+                        className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neutral-600"
+                    />
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-neutral-800">
+                    <button
+                        onClick={handleUpdateProfile}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                        {loading ? (
+                            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                        ) : (
+                            <Save size={16} />
+                        )}
+                        Save Profile
+                    </button>
+                </div>
+            </div>
+
+            {/* Change Password */}
+            <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 mb-8">
+                <h3 className="text-sm font-bold text-white mb-4">Change Password</h3>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
+                            New Password
+                        </label>
+                        <input
+                            type="password"
+                            value={passwordData.newPassword}
+                            onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                            placeholder="••••••••"
+                            className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neutral-600"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
+                            Confirm Password
+                        </label>
+                        <input
+                            type="password"
+                            value={passwordData.confirmPassword}
+                            onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                            placeholder="••••••••"
+                            className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neutral-600"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-neutral-800 mt-6">
+                    <button
+                        onClick={handleUpdatePassword}
+                        disabled={loading || !passwordData.newPassword}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                        {loading ? (
+                            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                        ) : (
+                            <Lock size={16} />
+                        )}
+                        Update Password
+                    </button>
+                </div>
+            </div>
+
+            {/* Sign Out */}
+            <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
+                <h3 className="text-sm font-bold text-white mb-2">Sign Out</h3>
+                <p className="text-xs text-neutral-500 mb-4">
+                    Sign out of your account on this device.
+                </p>
+                <button
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-red-500/10 text-red-500 border border-red-500/50 rounded-lg text-sm font-bold hover:bg-red-500/20 transition-all active:scale-95"
+                >
+                    <LogOut size={16} />
+                    Sign Out
+                </button>
+            </div>
+        </div>
+    );
+};
 
 // --- AGENCY SETTINGS (Branding) ---
 export const AgencySettingsView = () => {
