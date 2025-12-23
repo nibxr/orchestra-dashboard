@@ -1,11 +1,12 @@
 import React from 'react';
-import { 
-  LayoutDashboard, BarChart3, CreditCard, Users, Briefcase, 
-  Globe, Workflow, LayoutTemplate, Terminal, User, Bell, 
-  Search, ArrowUpRight, ChevronLeft 
+import {
+  LayoutDashboard, BarChart3, CreditCard, Users, Briefcase,
+  Globe, Workflow, LayoutTemplate, Terminal, User, Bell,
+  Search, ArrowUpRight, ChevronLeft, RefreshCw
 } from 'lucide-react';
 import { DASHBOARD_VIEWS, SETTINGS_VIEWS, APP_MODES } from '../utils/constants';
 import { Avatar } from './Shared';
+import { useAuth } from '../contexts/AuthContext';
 
 const NavItem = ({ icon: Icon, label, active, onClick }) => (
   <button onClick={onClick} className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm ${active ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-800/30'}`}>
@@ -31,6 +32,7 @@ export const DashboardSidebar = ({ currentView, setView, setMode, clients }) => 
         <NavItem icon={BarChart3} label="Analytics" active={currentView === DASHBOARD_VIEWS.ANALYTICS} onClick={() => setView(DASHBOARD_VIEWS.ANALYTICS)} />
         <NavItem icon={CreditCard} label="Payments" active={currentView === DASHBOARD_VIEWS.PAYMENTS} onClick={() => setView(DASHBOARD_VIEWS.PAYMENTS)} />
         <NavItem icon={Users} label="Customers" active={currentView === DASHBOARD_VIEWS.CUSTOMERS} onClick={() => setView(DASHBOARD_VIEWS.CUSTOMERS)} />
+        <NavItem icon={RefreshCw} label="Cycles" active={currentView === DASHBOARD_VIEWS.CYCLES} onClick={() => setView(DASHBOARD_VIEWS.CYCLES)} />
       </nav>
 
       <div>
@@ -64,9 +66,9 @@ export const SettingsSidebar = ({ currentView, setView, setMode }) => (
 
     <div className="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-8">
       <div>
-          <div className="px-3 mb-2 text-neutral-500 text-[10px] font-bold uppercase tracking-wider">Robin</div>
+          <div className="px-3 mb-2 text-neutral-500 text-[10px] font-bold uppercase tracking-wider">Personal</div>
           <nav className="space-y-0.5">
-              <NavItem icon={User} label="Profile" />
+              <NavItem icon={User} label="Profile" active={currentView === SETTINGS_VIEWS.PROFILE} onClick={() => setView(SETTINGS_VIEWS.PROFILE)} />
               <NavItem icon={Bell} label="Notifications" />
           </nav>
       </div>
@@ -88,14 +90,23 @@ export const SettingsSidebar = ({ currentView, setView, setMode }) => (
   </div>
 );
 
-const UserFooter = () => (
-  <div className="p-3 border-t border-neutral-800 mt-auto">
-    <div className="flex items-center gap-3 px-2 py-2 hover:bg-neutral-800 rounded-md cursor-pointer">
-      <Avatar name="Robin" />
-      <div className="flex flex-col">
-        <span className="text-white text-xs font-medium">Robin</span>
-        <span className="text-neutral-500 text-[10px]">robin@dafolle.io</span>
+const UserFooter = () => {
+  const { user } = useAuth();
+
+  return (
+    <div className="p-3 border-t border-neutral-800 mt-auto">
+      <div className="flex items-center gap-3 px-2 py-2 hover:bg-neutral-800 rounded-md cursor-pointer">
+        <Avatar
+          name={user?.user_metadata?.full_name || user?.email}
+          url={user?.user_metadata?.avatar_url}
+        />
+        <div className="flex flex-col">
+          <span className="text-white text-xs font-medium">
+            {user?.user_metadata?.full_name || 'User'}
+          </span>
+          <span className="text-neutral-500 text-[10px]">{user?.email}</span>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};

@@ -8,12 +8,16 @@ import { KanbanBoard } from './components/KanbanBoard';
 import { ListView } from './components/ListView';
 import { ClientPortal } from './components/ClientPortal'; // IMPORT PORTAL
 import { AnalyticsView, PaymentsView, CustomersView } from './components/DashboardViews';
-import { AgencySettingsView, TeamSettingsView, WorkflowSettingsView, TemplatesView, ClientPortalSettingsView, PlansSettingsView } from './components/SettingsViews';
+import { CyclesView } from './components/CyclesView';
+import { ProfileSettingsView, AgencySettingsView, TeamSettingsView, WorkflowSettingsView, TemplatesView, ClientPortalSettingsView, PlansSettingsView } from './components/SettingsViews';
 import { NewTaskModal } from './components/NewTaskModal';
 import { TaskDetails } from './components/TaskDetails';
 import { DisplayMenu, FilterMenu } from './components/Menus';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { useAuth } from './contexts/AuthContext';
 
 export default function App() {
+  const { user } = useAuth();
   const [mode, setMode] = useState(APP_MODES.DASHBOARD);
   const [dashboardView, setDashboardView] = useState(DASHBOARD_VIEWS.BOARD);
   const [settingsView, setSettingsView] = useState(SETTINGS_VIEWS.AGENCY);
@@ -106,7 +110,13 @@ export default function App() {
   };
 
   const handleAddTask = async (formData) => {
-      const newTaskPayload = { ...formData, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), orchestra_task_id: `TASK-${Date.now()}` };
+      const newTaskPayload = {
+          ...formData,
+          created_by: user?.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          orchestra_task_id: `TASK-${Date.now()}`
+      };
       const { data, error } = await supabase.from('tasks').insert([newTaskPayload]).select();
       if (!error && data) setIsNewTaskModalOpen(false);
   };
@@ -166,6 +176,7 @@ export default function App() {
   const activeFilterCount = (advancedFilters.assignee?.length || 0) + (advancedFilters.client?.length || 0);
 
   return (
+    <ProtectedRoute>
     <div className="flex h-screen w-full bg-[#0f0f0f] font-sans text-neutral-200 overflow-hidden" onClick={() => { setDisplayMenuOpen(false); setFilterMenuOpen(false); }}>
       {mode === APP_MODES.DASHBOARD ? <DashboardSidebar currentView={dashboardView} setView={setDashboardView} setMode={setMode} clients={clients} /> : <SettingsSidebar currentView={settingsView} setView={setSettingsView} setMode={setMode} />}
       <div className="flex-1 flex flex-col min-w-0 bg-black relative">
@@ -212,17 +223,19 @@ export default function App() {
                   </>
                 )}
                 {dashboardView === DASHBOARD_VIEWS.CUSTOMERS && (
-                    <CustomersView 
-                        clients={clients} 
+                    <CustomersView
+                        clients={clients}
                         onOpenPortal={handleOpenPortal} // Pass the handler
                     />
                 )}
+                {dashboardView === DASHBOARD_VIEWS.CYCLES && <CyclesView />}
                 {dashboardView === DASHBOARD_VIEWS.ANALYTICS && <AnalyticsView />}
                 {dashboardView === DASHBOARD_VIEWS.PAYMENTS && <PaymentsView />}
               </>
           )}
           {mode === APP_MODES.SETTINGS && (
               <div className="h-full overflow-y-auto custom-scrollbar">
+                  {settingsView === SETTINGS_VIEWS.PROFILE && <ProfileSettingsView />}
                   {settingsView === SETTINGS_VIEWS.AGENCY && <AgencySettingsView />}
                   {settingsView === SETTINGS_VIEWS.TEAM && <TeamSettingsView team={team} />}
                   {settingsView === SETTINGS_VIEWS.WORKFLOW && <WorkflowSettingsView />}
@@ -236,5 +249,6 @@ export default function App() {
       <NewTaskModal isOpen={isNewTaskModalOpen} onClose={() => setIsNewTaskModalOpen(false)} onAddTask={handleAddTask} clients={clients} team={team} initialStatus={newTaskStatus} />
       {activeTask && <TaskDetails task={activeTask} onClose={() => setActiveTask(null)} onUpdate={handleUpdateTask} team={team} />}
     </div>
+    </ProtectedRoute>
   );
 }
