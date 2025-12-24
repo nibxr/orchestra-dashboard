@@ -3,8 +3,10 @@ import { Plus, MessageSquare, ArrowUpRight, Calendar, Hash } from 'lucide-react'
 import { STATUS_CONFIG } from '../utils/constants';
 import { ContextMenu } from './CustomUI';
 
-export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask, displaySettings }) => {
+export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask, onUpdateTask, displaySettings }) => {
   const [contextMenu, setContextMenu] = useState(null);
+  const [draggedTask, setDraggedTask] = useState(null);
+  const [dragOverStatus, setDragOverStatus] = useState(null);
 
   // Check which properties should be visible based on displaySettings
   const visibleProperties = displaySettings?.visibleProperties || [];
@@ -26,11 +28,70 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
     setContextMenu(null);
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (e, task) => {
+    setDraggedTask(task);
+    e.dataTransfer.effectAllowed = 'move';
+
+    // Create a custom drag image that follows the cursor
+    const dragElement = e.currentTarget.cloneNode(true);
+    dragElement.style.position = 'absolute';
+    dragElement.style.top = '-9999px';
+    dragElement.style.width = e.currentTarget.offsetWidth + 'px';
+    dragElement.style.opacity = '1'; // Full opacity for maximum visibility
+    dragElement.style.transform = 'rotate(3deg)';
+    dragElement.style.pointerEvents = 'none';
+    dragElement.style.border = '2px solid white'; // White border highlight
+    dragElement.style.borderRadius = '0.5rem'; // Match the card's border radius
+    dragElement.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.3)'; // White glow
+    document.body.appendChild(dragElement);
+
+    // Set the custom drag image
+    e.dataTransfer.setDragImage(dragElement, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+
+    // Clean up the temporary element after drag starts
+    setTimeout(() => {
+      if (dragElement.parentNode) {
+        document.body.removeChild(dragElement);
+      }
+    }, 0);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTask(null);
+    setDragOverStatus(null);
+  };
+
+  const handleDragOver = (e, status) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverStatus(status);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverStatus(null);
+  };
+
+  const handleDrop = (e, newStatus) => {
+    e.preventDefault();
+    if (draggedTask && draggedTask.status !== newStatus && onUpdateTask) {
+      onUpdateTask(draggedTask.id, { status: newStatus });
+    }
+    setDraggedTask(null);
+    setDragOverStatus(null);
+  };
+
   return (
     <div className="flex-1 overflow-x-auto h-full p-6">
       <div className="flex gap-6 h-full min-w-max">
         {Object.keys(STATUS_CONFIG).map(status => (
-          <div key={status} className="w-80 flex flex-col h-full">
+          <div
+            key={status}
+            className="w-80 flex flex-col h-full"
+            onDragOver={(e) => handleDragOver(e, status)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, status)}
+          >
             <div className="flex items-center justify-between mb-4 px-1 group">
               <div className="flex items-center gap-2">
                 {React.createElement(STATUS_CONFIG[status].icon, { size: 14, className: STATUS_CONFIG[status].color.replace('text-', 'stroke-') })}
@@ -42,13 +103,16 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-20 custom-scrollbar">
+            <div className={`flex-1 overflow-y-auto space-y-3 pr-1 pb-20 custom-scrollbar transition-all duration-300 ${dragOverStatus === status ? 'bg-white/5 border-2 border-white rounded-lg shadow-lg shadow-white/30' : 'border-2 border-transparent'}`}>
               {tasks.filter(t => t.status === status).map(task => (
-                <div 
-                  key={task.id} 
+                <div
+                  key={task.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, task)}
+                  onDragEnd={handleDragEnd}
                   onClick={() => setActiveTask(task)}
                   onContextMenu={(e) => handleContextMenu(e, task)}
-                  className="group bg-[#1a1a1a] border border-neutral-800 hover:border-neutral-600 rounded-lg p-4 cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 relative select-none"
+                  className={`group bg-[#1a1a1a] border border-neutral-800 hover:border-neutral-600 rounded-lg p-4 cursor-move shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 relative select-none ${draggedTask?.id === task.id ? 'opacity-50' : ''}`}
                 >
                   <div className="flex justify-between items-start mb-2">
                      {/* CLIENT NAME: Only show if 'client' or 'project' is toggled in Display menu */}

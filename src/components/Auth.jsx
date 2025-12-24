@@ -62,10 +62,10 @@ export const AuthPage = () => {
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-lime-400 rounded-full mb-4">
-            <span className="text-black text-2xl font-bold">O</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-lime-400 to-green-500 rounded-full mb-4 shadow-lg shadow-lime-500/50">
+            <span className="text-black text-2xl font-bold">D</span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Orchestra</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Dafolle</h1>
           <p className="text-neutral-500 text-sm">
             {isLogin ? 'Sign in to your account' : 'Create your account'}
           </p>
@@ -213,7 +213,7 @@ export const AuthPage = () => {
 
         {/* Footer */}
         <p className="text-center text-neutral-600 text-xs mt-8">
-          By continuing, you agree to Orchestra's Terms of Service and Privacy Policy
+          By continuing, you agree to Dafolle's Terms of Service and Privacy Policy
         </p>
       </div>
     </div>
@@ -249,8 +249,8 @@ export const ForgotPasswordPage = () => {
     <div className="min-h-screen w-full bg-[#0f0f0f] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-lime-400 rounded-full mb-4">
-            <span className="text-black text-2xl font-bold">O</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-lime-400 to-green-500 rounded-full mb-4 shadow-lg shadow-lime-500/50">
+            <span className="text-black text-2xl font-bold">D</span>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Reset Password</h1>
           <p className="text-neutral-500 text-sm">

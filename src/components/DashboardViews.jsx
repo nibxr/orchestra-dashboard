@@ -2,31 +2,341 @@ import React, { useState } from 'react';
 import { Search, Filter, MoreHorizontal, Wallet, TrendingUp, X, Calendar, CreditCard, Database, CheckCircle2, AlertCircle, Upload, Building2, DollarSign, Plus, ExternalLink } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
-// --- Analytics View (Placeholder) ---
-export const AnalyticsView = () => (
-  <div className="p-10 flex flex-col items-center justify-center h-full text-neutral-500 animate-fade-in">
-    <div className="w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center mb-6 border border-neutral-800">
-      <TrendingUp size={32} className="text-neutral-700" />
-    </div>
-    <h3 className="text-xl font-medium text-white mb-3">Analytics Dashboard</h3>
-    <p className="max-w-md text-center text-neutral-500 leading-relaxed">
-      Visualize your agency's performance, track revenue growth, and monitor team utilization rates over time.
-    </p>
-  </div>
-);
+// --- Analytics View (Real Implementation) ---
+// Now receives filtered tasks, clients, and team as props from App.jsx
+export const AnalyticsView = ({ tasks = [], clients = [], team = [] }) => {
+  // Data is passed as props (already filtered by App.jsx based on user role and filters)
+  if (!tasks || tasks.length === 0) {
+    return <div className="h-full flex items-center justify-center text-neutral-500">No tasks to analyze</div>;
+  }
 
-// --- Payments View (Placeholder) ---
-export const PaymentsView = () => (
-  <div className="p-10 flex flex-col items-center justify-center h-full text-neutral-500 animate-fade-in">
-    <div className="w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center mb-6 border border-neutral-800">
-      <Wallet size={32} className="text-neutral-700" />
+  const totalTasks = tasks.length;
+  const activeTasks = tasks.filter(t => t.status === 'Active Task').length;
+  const completedTasks = tasks.filter(t => t.status === 'Done').length;
+  const activeClients = clients.filter(c => c.status === 'En cours' || c.status === 'Start' || c.status === 'Active').length;
+
+  // Calculate median task completion time
+  const completedTasksWithDates = tasks.filter(t => t.status === 'Done' && t.created_at && t.updated_at);
+  const completionTimes = completedTasksWithDates.map(t => {
+    const created = new Date(t.created_at);
+    const completed = new Date(t.updated_at);
+    return (completed - created) / (1000 * 60 * 60 * 24); // days
+  }).sort((a, b) => a - b);
+  const medianCompletionTime = completionTimes.length > 0
+    ? completionTimes[Math.floor(completionTimes.length / 2)].toFixed(2)
+    : 0;
+
+  // Tasks worked on (recently updated in last 7 days)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const tasksWorkedOn = tasks.filter(t => new Date(t.updated_at) > sevenDaysAgo).length;
+
+  // Paused clients
+  const pausedClients = clients.filter(c => (c.status || '').toLowerCase().includes('pause')).length;
+
+  const tasksByStatus = {
+    'Backlog': tasks.filter(t => t.status === 'Backlog').length,
+    'Active Task': activeTasks,
+    'To Review': tasks.filter(t => t.status === 'To Review').length,
+    'Done': completedTasks,
+    'Cancelled': tasks.filter(t => t.status === 'Cancelled').length,
+  };
+
+  const teamWorkload = team.map(member => ({
+    name: member.full_name || member.email,
+    tasks: tasks.filter(t => t.assigned_to_id === member.id).length
+  })).sort((a, b) => b.tasks - a.tasks);
+
+  const recentActivity = tasks
+    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+    .slice(0, 10);
+
+  return (
+    <div className="h-full overflow-y-auto custom-scrollbar bg-black p-8 animate-fade-in">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-white mb-8">Analytics</h1>
+
+        {/* Stats Grid - Row 1 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 hover:border-lime-400/50 hover:shadow-lg hover:shadow-lime-400/10 transition-all duration-300 cursor-pointer group">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-neutral-500 text-sm group-hover:text-neutral-400 transition-colors">Active subscribers</span>
+              <Building2 size={16} className="text-lime-400 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-3xl font-bold text-white">{activeClients}</div>
+            <p className="text-xs text-neutral-600 mt-1">Currently active clients</p>
+          </div>
+
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-300 cursor-pointer group">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-neutral-500 text-sm group-hover:text-neutral-400 transition-colors">Paused subscribers</span>
+              <AlertCircle size={16} className="text-amber-500 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-3xl font-bold text-white">{pausedClients}</div>
+            <p className="text-xs text-neutral-600 mt-1">On hold or paused</p>
+          </div>
+
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 cursor-pointer group">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-neutral-500 text-sm group-hover:text-neutral-400 transition-colors">Tasks worked on</span>
+              <Database size={16} className="text-blue-500 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-3xl font-bold text-white">{tasksWorkedOn}</div>
+            <p className="text-xs text-neutral-600 mt-1">Updated in last 7 days</p>
+          </div>
+
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 hover:border-green-500/50 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300 cursor-pointer group">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-neutral-500 text-sm group-hover:text-neutral-400 transition-colors">Median task completion time</span>
+              <CheckCircle2 size={16} className="text-green-500 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-3xl font-bold text-white">{medianCompletionTime}<span className="text-lg text-neutral-500">d</span></div>
+            <p className="text-xs text-neutral-600 mt-1">Average completion days</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Tasks by Status */}
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-white mb-4">Tasks by Status</h2>
+            <div className="space-y-3">
+              {Object.entries(tasksByStatus).map(([status, count]) => (
+                <div key={status} className="flex items-center justify-between">
+                  <span className="text-neutral-400 text-sm">{status}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-32 h-2 bg-neutral-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-lime-400 rounded-full"
+                        style={{ width: `${(count / totalTasks) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-white font-medium w-8 text-right">{count}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Team Workload */}
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-white mb-4">Team Workload</h2>
+            <div className="space-y-3">
+              {teamWorkload.slice(0, 8).map((member, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <span className="text-neutral-400 text-sm truncate">{member.name}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-24 h-2 bg-neutral-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full"
+                        style={{ width: `${Math.min((member.tasks / 10) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-white font-medium w-8 text-right">{member.tasks}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 lg:col-span-2">
+            <h2 className="text-lg font-bold text-white mb-4">Recent Activity</h2>
+            <div className="space-y-2">
+              {recentActivity.map((task) => (
+                <div key={task.id} className="flex items-center justify-between py-2 border-b border-neutral-800 last:border-0">
+                  <div className="flex-1">
+                    <p className="text-white text-sm">{task.title}</p>
+                    <p className="text-neutral-500 text-xs">
+                      {task.status} • {new Date(task.updated_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <h3 className="text-xl font-medium text-white mb-3">Payments & Invoices</h3>
-    <p className="max-w-md text-center text-neutral-500 leading-relaxed">
-      Manage client subscriptions, view invoice history, and handle payment methods securely.
-    </p>
-  </div>
-);
+  );
+};
+
+// --- Payments View (Real Implementation) ---
+export const PaymentsView = () => {
+  const [clients, setClients] = React.useState([]);
+  const [cycles, setCycles] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [clientsData, cyclesData] = await Promise.all([
+          supabase.from('client_memberships').select('*'),
+          supabase.from("Clara's V2 of 🔄 Cycles").select('*')
+        ]);
+
+        setClients(clientsData.data || []);
+        setCycles(cyclesData.data || []);
+      } catch (error) {
+        console.error('Error fetching payments data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) return <div className="h-full flex items-center justify-center text-neutral-500">Loading payments...</div>;
+
+  const activeClients = clients.filter(c => c.status === 'En cours' || c.status === 'Start' || c.status === 'Active');
+  const totalMRR = activeClients.reduce((sum, c) => sum + (c.monthly_amount_cents || 0), 0);
+  const totalARR = totalMRR * 12;
+
+  const activeCycles = cycles.filter(c => {
+    const status = (c.status_from_agreement?.[0] || '').toLowerCase();
+    return status.includes('active') || status.includes('en cours');
+  });
+
+  const formatCurrency = (cents) => {
+    if (!cents && cents !== 0) return '€0';
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(cents);
+  };
+
+  const getStatusStyle = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s.includes('en cours') || s.includes('active') || s.includes('start')) {
+      return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+    }
+    if (s.includes('pause')) {
+      return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+    }
+    return 'bg-neutral-800 text-neutral-400 border-neutral-700';
+  };
+
+  // Sort clients by MRR descending
+  const sortedClients = [...activeClients].sort((a, b) => (b.monthly_amount_cents || 0) - (a.monthly_amount_cents || 0));
+
+  return (
+    <div className="h-full overflow-y-auto custom-scrollbar bg-black p-8 animate-fade-in">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Payments & Revenue</h1>
+            <p className="text-sm text-neutral-500 mt-1">Track monthly recurring revenue and client billing</p>
+          </div>
+        </div>
+
+        {/* Revenue Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-neutral-500 text-sm">Monthly Recurring Revenue</span>
+              <TrendingUp size={16} className="text-lime-400" />
+            </div>
+            <div className="text-3xl font-bold text-white">{formatCurrency(totalMRR)}</div>
+            <p className="text-xs text-neutral-600 mt-1">MRR from {activeClients.length} active clients</p>
+          </div>
+
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-neutral-500 text-sm">Annual Recurring Revenue</span>
+              <Calendar size={16} className="text-blue-500" />
+            </div>
+            <div className="text-3xl font-bold text-white">{formatCurrency(totalARR)}</div>
+            <p className="text-xs text-neutral-600 mt-1">Projected annual revenue</p>
+          </div>
+
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-neutral-500 text-sm">Active Subscriptions</span>
+              <CheckCircle2 size={16} className="text-emerald-500" />
+            </div>
+            <div className="text-3xl font-bold text-white">{activeClients.length}</div>
+            <p className="text-xs text-neutral-600 mt-1">Clients with active billing</p>
+          </div>
+
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-neutral-500 text-sm">Active Cycles</span>
+              <AlertCircle size={16} className="text-amber-500" />
+            </div>
+            <div className="text-3xl font-bold text-white">{activeCycles.length}</div>
+            <p className="text-xs text-neutral-600 mt-1">Currently running cycles</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Client Revenue Breakdown */}
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-white mb-4">Revenue by Client</h2>
+            <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+              {sortedClients.map((client) => {
+                const percentage = totalMRR > 0 ? ((client.monthly_amount_cents || 0) / totalMRR) * 100 : 0;
+                return (
+                  <div key={client.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                        {client.client_name ? client.client_name[0].toUpperCase() : '?'}
+                      </div>
+                      <span className="text-neutral-300 text-sm truncate">{client.client_name || 'Unknown'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="w-24 h-2 bg-neutral-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-lime-400 rounded-full"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <span className="text-white font-medium font-mono text-sm w-20 text-right">
+                        {formatCurrency(client.monthly_amount_cents || 0)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recent Subscriptions */}
+          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-white mb-4">Recent Subscriptions</h2>
+            <div className="space-y-3">
+              {clients
+                .sort((a, b) => new Date(b.start_date || 0) - new Date(a.start_date || 0))
+                .slice(0, 8)
+                .map((client) => (
+                  <div key={client.id} className="flex items-center justify-between py-2 border-b border-neutral-800 last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-white text-sm font-medium truncate">{client.client_name || 'Unknown'}</p>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getStatusStyle(client.status)}`}>
+                          {client.status || 'Unknown'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-neutral-500 text-xs">
+                          {client.start_date ? new Date(client.start_date).toLocaleDateString() : 'N/A'}
+                        </p>
+                        <span className="text-neutral-700">•</span>
+                        <p className="text-neutral-500 text-xs">{client.offer_type || 'Custom'}</p>
+                      </div>
+                    </div>
+                    <div className="text-white font-mono font-medium text-sm shrink-0 ml-4">
+                      {formatCurrency(client.monthly_amount_cents || 0)}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- Client Details Slide-over (UPDATED) ---
 const ClientDetails = ({ client, onClose, onOpenPortal }) => {

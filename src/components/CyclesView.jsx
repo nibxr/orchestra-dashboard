@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
+import airtableBase from '../airtableClient';
 import {
   Calendar, User, DollarSign, Clock, TrendingUp, Filter,
   ChevronRight, AlertCircle, CheckCircle2, XCircle
@@ -21,45 +22,119 @@ export const CyclesView = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch cycles from Clara's V2 of 🔄 Cycles table
-      console.log('Fetching cycles from Supabase...');
-      const { data: cyclesData, error: cyclesError } = await supabase
-        .from("Clara's V2 of 🔄 Cycles")
-        .select('*')
-        .order('planned_start_date', { ascending: false });
+      // Fetch cycles from Airtable
+      console.log('Fetching cycles from Airtable...');
+      const cyclesData = [];
+      const agreementIds = new Set();
 
-      console.log('Cycles query result:', { data: cyclesData, error: cyclesError });
+      // Fetch records from Airtable "Clara's V2 of 🔄 Cycles" table
+      await airtableBase("Clara's V2 of 🔄 Cycles")
+        .select({
+          sort: [{ field: 'Planned start date', direction: 'desc' }]
+        })
+        .eachPage((records, fetchNextPage) => {
+          records.forEach(record => {
+            const agreementId = record.get('🔄 Agreement')?.[0];
+            if (agreementId) {
+              agreementIds.add(agreementId);
+            }
 
-      if (cyclesError) {
-        console.error('Cycles fetch error:', cyclesError);
-        throw cyclesError;
-      }
+            // Transform Airtable record to match your data structure
+            cyclesData.push({
+              id: record.id,
+              whalesync_postgres_id: record.id,
+              cycleid: record.get('CycleID'),
+              planned_start_date: record.get('Planned start date'),
+              schedule_ending_date_txt: record.get('Schedule ending date - txt'),
+              actual_business_days: record.get('Actual business days'),
+              scheduled_business_days: record.get('Scheduled business days'),
+              extension_days: record.get('Extension days') || 0,
+              value: record.get('Value'),
+              status_from_agreement: record.get('Status (from 🔄 Agreement)'),
+              agreement_id: agreementId,
+              team_project_owner_from_team: record.get('👥 Team - Project owner (From 👥 Team)')?.[0],
+            });
+          });
+          fetchNextPage();
+        });
 
-      // Fetch clients
-      const { data: clientsData, error: clientsError } = await supabase
-        .from('client_memberships')
-        .select('*');
+      console.log('Cycles fetched from Airtable:', cyclesData.length);
 
-      if (clientsError) throw clientsError;
+      // Fetch agreements from Airtable to get client membership links
+      console.log('Fetching agreements from Airtable...');
+      const agreementsData = [];
+      const clientMembershipIds = new Set();
 
-      // Fetch team
+      await airtableBase('🔄 Agreements')
+        .select({
+          filterByFormula: `OR(${Array.from(agreementIds).map(id => `RECORD_ID()='${id}'`).join(',')})`
+        })
+        .eachPage((records, fetchNextPage) => {
+          records.forEach(record => {
+            const clientMembershipId = record.get('🔄 Client memberships')?.[0];
+            if (clientMembershipId) {
+              clientMembershipIds.add(clientMembershipId);
+            }
+
+            agreementsData.push({
+              id: record.id,
+              client_membership_id: clientMembershipId,
+              status: record.get('Status'),
+            });
+          });
+          fetchNextPage();
+        });
+
+      console.log('Agreements fetched:', agreementsData.length);
+
+      // Fetch client memberships from Airtable
+      console.log('Fetching client memberships from Airtable...');
+      const clientMembershipsData = [];
+
+      await airtableBase('🔄 Client Memberships')
+        .select({
+          filterByFormula: `OR(${Array.from(clientMembershipIds).map(id => `RECORD_ID()='${id}'`).join(',')})`
+        })
+        .eachPage((records, fetchNextPage) => {
+          records.forEach(record => {
+            clientMembershipsData.push({
+              id: record.id,
+              client_name: record.get('Client name'),
+              status: record.get('Statut opérationnel'),
+              orchestra_id: record.get('Orchestra ID'),
+            });
+          });
+          fetchNextPage();
+        });
+
+      console.log('Client memberships fetched:', clientMembershipsData.length);
+
+      // Fetch team from Supabase (for project owner enrichment)
       const { data: teamData, error: teamError } = await supabase
         .from('team')
         .select('*');
 
       if (teamError) throw teamError;
 
-      // Enrich cycles with client and team info
+      // Enrich cycles with client and team info from Airtable
       const enrichedCycles = cyclesData.map(cycle => {
-        const client = clientsData?.find(c => c.id === cycle.client_memberships_from_agreement);
+        // Find agreement for this cycle
+        const agreement = agreementsData.find(a => a.id === cycle.agreement_id);
+
+        // Find client membership from Airtable data
+        const clientMembership = clientMembershipsData.find(c => c.id === agreement?.client_membership_id);
+
+        // Find project owner from Supabase team table
         const projectOwner = teamData?.find(t => t.id === cycle.team_project_owner_from_team);
 
         return {
           ...cycle,
-          clientName: client?.client_name || 'Unknown Client',
-          clientStatus: client?.status || 'Unknown',
+          client_memberships_from_agreement: agreement?.client_membership_id,
+          clientName: clientMembership?.client_name || 'Unknown Client',
+          clientStatus: agreement?.status || clientMembership?.status || 'Unknown',
           projectOwnerName: projectOwner?.full_name || 'Unassigned',
           projectOwnerAvatar: projectOwner?.avatar_url || null,
+          status_from_agreement: cycle.status_from_agreement || [agreement?.status],
         };
       });
 
@@ -67,7 +142,7 @@ export const CyclesView = () => {
       console.log('Total cycles found:', enrichedCycles.length);
 
       setCycles(enrichedCycles);
-      setClients(clientsData || []);
+      setClients(clientMembershipsData || []);
       setTeam(teamData || []);
     } catch (error) {
       console.error('Error fetching cycles:', error);

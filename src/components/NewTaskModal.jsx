@@ -16,6 +16,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
    
    const [properties, setProperties] = useState({
      status: initialStatus,
+     createdById: null,
      assigneeId: null,
      dueDate: '',
      clientId: null,
@@ -39,7 +40,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
      setTitle('');
      setDescription('');
      setIsPrivate(false);
-     setProperties({ status: 'Backlog', assigneeId: null, dueDate: '', clientId: null, type: null });
+     setProperties({ status: 'Backlog', createdById: null, assigneeId: null, dueDate: '', clientId: null, type: null });
    };
 
    const statusOptions = Object.keys(STATUS_CONFIG).map(s => ({ value: s, label: s }));
@@ -123,20 +124,30 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                            placeholder="Add customer"
                        />
 
-                       <CustomSelect 
-                           label="Status" 
-                           icon={Circle} 
-                           value={properties.status} 
-                           options={statusOptions} 
-                           onChange={v => setProperties({...properties, status: v})} 
+                       <CustomSelect
+                           label="Status"
+                           icon={Circle}
+                           value={properties.status}
+                           options={statusOptions}
+                           onChange={v => setProperties({...properties, status: v})}
                        />
 
-                       <CustomSelect 
-                           label="Assignee" 
-                           icon={User} 
-                           value={properties.assigneeId} 
-                           options={assigneeOptions} 
-                           onChange={v => setProperties({...properties, assigneeId: v})} 
+                       <CustomSelect
+                           label="Created By"
+                           icon={User}
+                           value={properties.createdById}
+                           options={assigneeOptions}
+                           onChange={v => setProperties({...properties, createdById: v})}
+                           type="user"
+                           placeholder="Select creator"
+                       />
+
+                       <CustomSelect
+                           label="Assignee"
+                           icon={User}
+                           value={properties.assigneeId}
+                           options={assigneeOptions}
+                           onChange={v => setProperties({...properties, assigneeId: v})}
                            type="user"
                            placeholder="Unassigned"
                        />

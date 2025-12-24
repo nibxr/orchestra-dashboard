@@ -2,23 +2,76 @@ import React, { useState } from 'react';
 import {
   X, Circle, User, Calendar, Plus, MoreHorizontal,
   Paperclip, Smile, Mic, Briefcase,
-  Clock, CheckCircle2, Link as LinkIcon, ArrowUpRight, ToggleLeft
+  Clock, CheckCircle2, Link as LinkIcon, ArrowUpRight, ToggleLeft,
+  Trash2, Archive, Copy, Edit3
 } from 'lucide-react';
 import { Avatar } from './Shared';
+import { CustomSelect } from './CustomUI';
 import { supabase } from '../supabaseClient';
-import { useAuth } from '../contexts/AuthContext'; 
+import { useAuth } from '../contexts/AuthContext';
 
 export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
     const { user } = useAuth();
     const [comment, setComment] = useState('');
+    const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-    const properties = [
-        // Added Client Field
-        { label: 'Client', value: task.clientName || 'Internal', icon: Briefcase, type: 'text' },
-        { label: 'Status', value: task.status, icon: Circle, type: 'badge' },
-        { label: 'Assignee', value: task.assigneeName || 'Unassigned', icon: User, type: 'user', avatar: task.assigneeAvatar },
-        { label: 'Due Date', value: task.dueDate || 'Empty', icon: Calendar, type: 'text' },
-    ];
+    // Find creator from team
+    const creator = team?.find(t => t.id === task.created_by_id);
+    const creatorName = creator?.full_name || 'Unknown';
+    const creatorAvatar = creator?.avatar_url;
+
+    // Prepare team options for created_by and assigned_to selectors
+    const teamOptions = team?.map(member => ({
+        value: member.id,
+        label: member.full_name || member.email || 'Unknown',
+        avatar: member.avatar_url
+    })) || [];
+
+    console.log('[TaskDetails] Team options:', teamOptions);
+    console.log('[TaskDetails] Current created_by_id:', task.created_by_id);
+    console.log('[TaskDetails] Current assigned_to_id:', task.assigned_to_id);
+
+    const handleUpdateCreatedBy = async (newCreatedById) => {
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .update({ created_by_id: newCreatedById })
+                .eq('id', task.id);
+
+            if (error) throw error;
+
+            const newCreator = team?.find(t => t.id === newCreatedById);
+            onUpdate(task.id, {
+                created_by_id: newCreatedById,
+                creatorName: newCreator?.full_name,
+                creatorAvatar: newCreator?.avatar_url
+            });
+        } catch (e) {
+            console.error("Error updating created_by:", e);
+            alert(`Failed to update creator: ${e.message}`);
+        }
+    };
+
+    const handleUpdateAssignee = async (newAssigneeId) => {
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .update({ assigned_to_id: newAssigneeId })
+                .eq('id', task.id);
+
+            if (error) throw error;
+
+            const newAssignee = team?.find(t => t.id === newAssigneeId);
+            onUpdate(task.id, {
+                assigned_to_id: newAssigneeId,
+                assigneeName: newAssignee?.full_name,
+                assigneeAvatar: newAssignee?.avatar_url
+            });
+        } catch (e) {
+            console.error("Error updating assignee:", e);
+            alert(`Failed to update assignee: ${e.message}`);
+        }
+    };
 
     const handleSendComment = async () => {
         if (!comment.trim()) return;
@@ -55,6 +108,73 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
         }
     };
 
+    const handleDeleteTask = async () => {
+        if (!confirm('Are you sure you want to delete this task? This action cannot be undone.')) return;
+
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .delete()
+                .eq('id', task.id);
+
+            if (error) throw error;
+
+            alert('Task deleted successfully');
+            onClose();
+            window.location.reload(); // Refresh to update task list
+        } catch (e) {
+            console.error("Error deleting task:", e);
+            alert(`Failed to delete task: ${e.message}`);
+        }
+    };
+
+    const handleArchiveTask = async () => {
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .update({ archived_at: new Date().toISOString() })
+                .eq('id', task.id);
+
+            if (error) throw error;
+
+            alert('Task archived successfully');
+            onClose();
+            window.location.reload();
+        } catch (e) {
+            console.error("Error archiving task:", e);
+            alert(`Failed to archive task: ${e.message}`);
+        }
+    };
+
+    const handleDuplicateTask = async () => {
+        try {
+            const duplicatePayload = {
+                title: `${task.title} (Copy)`,
+                description: task.description,
+                content: task.content,
+                status: 'Backlog',
+                assigned_to_id: task.assigned_to_id,
+                membership_id: task.membership_id,
+                created_by_id: user?.id,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                orchestra_task_id: `TASK-${Date.now()}`,
+            };
+
+            const { error } = await supabase
+                .from('tasks')
+                .insert([duplicatePayload]);
+
+            if (error) throw error;
+
+            alert('Task duplicated successfully');
+            window.location.reload();
+        } catch (e) {
+            console.error("Error duplicating task:", e);
+            alert(`Failed to duplicate task: ${e.message}`);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
             <div 
@@ -72,7 +192,46 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button className="text-neutral-400 hover:text-white transition-colors"><MoreHorizontal size={18}/></button>
+                        <div className="relative">
+                            <button
+                                onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                                className="text-neutral-400 hover:text-white transition-colors"
+                            >
+                                <MoreHorizontal size={18}/>
+                            </button>
+                            {moreMenuOpen && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setMoreMenuOpen(false)}
+                                    />
+                                    <div className="absolute right-0 top-full mt-2 w-48 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
+                                        <button
+                                            onClick={() => {handleDuplicateTask(); setMoreMenuOpen(false);}}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 transition-colors"
+                                        >
+                                            <Copy size={16} />
+                                            <span>Duplicate</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {handleArchiveTask(); setMoreMenuOpen(false);}}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 transition-colors"
+                                        >
+                                            <Archive size={16} />
+                                            <span>Archive</span>
+                                        </button>
+                                        <div className="h-px bg-neutral-800" />
+                                        <button
+                                            onClick={() => {handleDeleteTask(); setMoreMenuOpen(false);}}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-neutral-800 transition-colors"
+                                        >
+                                            <Trash2 size={16} />
+                                            <span>Delete</span>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                         <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors"><X size={18}/></button>
                     </div>
                 </div>
@@ -84,26 +243,59 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
 
                         {/* Properties */}
                         <div className="grid grid-cols-1 gap-1 mb-12 border-b border-neutral-800 pb-8">
-                            {properties.map((prop, i) => (
-                                <div key={i} className="flex items-center py-1.5 group">
-                                    <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
-                                        <prop.icon size={14} /> {prop.label}
-                                    </div>
-                                    <div className="flex-1 text-neutral-300 text-sm hover:bg-neutral-900/50 p-1 rounded -ml-1 cursor-pointer transition-colors">
-                                        {prop.type === 'user' && (
-                                            <div className="flex items-center gap-2">
-                                                <Avatar name={prop.value} url={prop.avatar} size="xs" /> {prop.value}
-                                            </div>
-                                        )}
-                                        {prop.type === 'badge' && (
-                                            <div className="flex items-center gap-2">
-                                                <Circle size={12} className="text-neutral-500 stroke-dashed" /> {prop.value}
-                                            </div>
-                                        )}
-                                        {prop.type === 'text' && <span className="text-neutral-500">{prop.value}</span>}
+                            {/* Client */}
+                            <div className="flex items-center py-1.5 group">
+                                <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
+                                    <Briefcase size={14} /> Customer
+                                </div>
+                                <div className="flex-1 text-neutral-300 text-sm">
+                                    <span className="text-neutral-500">{task.clientName || 'Internal'}</span>
+                                </div>
+                            </div>
+
+                            {/* Status */}
+                            <div className="flex items-center py-1.5 group">
+                                <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
+                                    <Circle size={14} /> Status
+                                </div>
+                                <div className="flex-1 text-neutral-300 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <Circle size={12} className="text-neutral-500 stroke-dashed" /> {task.status}
                                     </div>
                                 </div>
-                            ))}
+                            </div>
+
+                            {/* Created By - Interactive */}
+                            <CustomSelect
+                                label="Created By"
+                                icon={User}
+                                value={task.created_by_id}
+                                options={teamOptions}
+                                onChange={handleUpdateCreatedBy}
+                                type="user"
+                                placeholder="Unknown"
+                            />
+
+                            {/* Assigned To - Interactive */}
+                            <CustomSelect
+                                label="Assignee"
+                                icon={User}
+                                value={task.assigned_to_id}
+                                options={teamOptions}
+                                onChange={handleUpdateAssignee}
+                                type="user"
+                                placeholder="Unassigned"
+                            />
+
+                            {/* Due Date */}
+                            <div className="flex items-center py-1.5 group">
+                                <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
+                                    <Calendar size={14} /> Due Date
+                                </div>
+                                <div className="flex-1 text-neutral-300 text-sm">
+                                    <span className="text-neutral-500">{task.dueDate || 'Empty'}</span>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="prose prose-invert max-w-none text-neutral-300 space-y-6 min-h-[100px]">
