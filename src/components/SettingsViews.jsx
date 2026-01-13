@@ -414,25 +414,32 @@ export const TeamSettingsView = ({ team }) => {
                 <div><h1 className="text-2xl font-bold text-white mb-2">Team Members</h1><p className="text-neutral-500 text-sm">Manage access and roles.</p></div>
                 <button onClick={() => setIsInviteOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-colors"><UserPlus size={16} /> Invite Member</button>
             </div>
-            <div className="bg-[#0f0f0f] border border-neutral-800 rounded-xl overflow-hidden flex-1">
-                <table className="w-full text-left text-sm border-collapse">
-                    <thead className="bg-[#141414] text-neutral-500 font-medium text-xs uppercase tracking-wider border-b border-neutral-800"><tr><th className="px-6 py-4 font-medium w-1/3">Name</th><th className="px-6 py-4 font-medium">Email</th><th className="px-6 py-4 font-medium">Status</th><th className="px-6 py-4 font-medium text-right">Actions</th></tr></thead>
-                    <tbody className="divide-y divide-neutral-800/50">
+            <div className="bg-[#0f0f0f] border border-neutral-800 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
+                <div className="bg-[#141414] text-neutral-500 font-medium text-xs uppercase tracking-wider border-b border-neutral-800">
+                    <div className="flex">
+                        <div className="px-6 py-4 font-medium w-1/3">Name</div>
+                        <div className="px-6 py-4 font-medium flex-1">Email</div>
+                        <div className="px-6 py-4 font-medium w-32">Status</div>
+                        <div className="px-6 py-4 font-medium text-right w-24">Actions</div>
+                    </div>
+                </div>
+                <div className="overflow-y-auto flex-1 custom-scrollbar">
+                    <div className="divide-y divide-neutral-800/50">
                         {localTeam.map((member) => (
-                            <tr key={member.id} className="group hover:bg-[#1a1a1a] transition-colors">
-                                <td className="px-6 py-4">
+                            <div key={member.id} className="flex group hover:bg-[#1a1a1a] transition-colors">
+                                <div className="px-6 py-4 w-1/3">
                                     <div className="flex items-center gap-3">
                                         <div className="w-9 h-9 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400 font-bold text-xs border border-neutral-700">{member.full_name ? member.full_name[0] : '?'}</div>
                                         <div><div className="text-white font-medium">{member.full_name}</div><div className="text-neutral-500 text-xs">{member.notes ? member.notes.replace('Role: ', '') : 'Member'}</div></div>
                                     </div>
-                                </td>
-                                <td className="px-6 py-4 text-neutral-400">{member.email}</td>
-                                <td className="px-6 py-4"><span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Active</span></td>
-                                <td className="px-6 py-4 text-right"><button onClick={() => handleDelete(member.id)} className="p-2 text-neutral-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button></td>
-                            </tr>
+                                </div>
+                                <div className="px-6 py-4 text-neutral-400 flex-1">{member.email}</div>
+                                <div className="px-6 py-4 w-32"><span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Active</span></div>
+                                <div className="px-6 py-4 text-right w-24"><button onClick={() => handleDelete(member.id)} className="p-2 text-neutral-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button></div>
+                            </div>
                         ))}
-                    </tbody>
-                </table>
+                    </div>
+                </div>
             </div>
             {isInviteOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">

@@ -275,6 +275,13 @@ export default function App() {
           clients={clients}
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
+          onClientClick={(clientId) => {
+            setDashboardView(DASHBOARD_VIEWS.BOARD);
+            setAdvancedFilters({ assignee: [], client: [clientId] });
+          }}
+          onClearFilters={() => {
+            setAdvancedFilters({ assignee: [], client: [] });
+          }}
         />
       ) : (
         <SettingsSidebar currentView={settingsView} setView={setSettingsView} setMode={setMode} />

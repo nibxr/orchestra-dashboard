@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X, Circle, User, Calendar, Plus, MoreHorizontal,
   Paperclip, Smile, Mic, Briefcase,
@@ -12,10 +12,22 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from './Toast';
 
 export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
-    const { user } = useAuth();
+    const { user, teamMemberId, clientContactId } = useAuth();
     const toast = useToast();
     const [comment, setComment] = useState('');
     const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [editedTitle, setEditedTitle] = useState(task.title);
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [editedDescription, setEditedDescription] = useState(task.description || '');
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editedCommentContent, setEditedCommentContent] = useState('');
+
+    // Sync local state with task prop updates
+    useEffect(() => {
+        setEditedTitle(task.title);
+        setEditedDescription(task.description || '');
+    }, [task.title, task.description, task.comments]);
 
     // Find creator from team
     const creator = team?.find(t => t.id === task.created_by_id);
@@ -78,13 +90,46 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
     const handleSendComment = async () => {
         if (!comment.trim()) return;
 
+        // Optimistically update UI first
+        const tempId = `temp-${Date.now()}`;
+        let authorName = 'Unknown';
+        let authorAvatar = null;
+
+        if (teamMemberId) {
+            const designer = team?.find(t => t.id === teamMemberId);
+            if (designer) {
+                authorName = designer.full_name || designer.email;
+                authorAvatar = designer.avatar_url;
+            }
+        } else if (clientContactId) {
+            authorName = user.user_metadata?.full_name || user.email;
+            authorAvatar = user.user_metadata?.avatar_url || null;
+        }
+
+        const optimisticComment = {
+            id: tempId,
+            content: comment,
+            task_id: task.id,
+            author_designer_id: teamMemberId || null,
+            author_contact_id: clientContactId || null,
+            orchestra_comment_id: `COM-${Date.now()}`,
+            created_at: new Date().toISOString(),
+            authorName,
+            authorAvatar
+        };
+
+        const updatedComments = [...(task.comments || []), optimisticComment];
+        onUpdate(task.id, { comments: updatedComments });
+        setComment('');
+
         try {
             const newCommentPayload = {
-                content: comment,
+                content: optimisticComment.content,
                 task_id: task.id,
-                author_designer_id: user.id,
-                orchestra_comment_id: `COM-${Date.now()}`,
-                created_at: new Date().toISOString(),
+                author_designer_id: teamMemberId || null,
+                author_contact_id: clientContactId || null,
+                orchestra_comment_id: optimisticComment.orchestra_comment_id,
+                created_at: optimisticComment.created_at,
             };
 
             const { data, error } = await supabase
@@ -94,18 +139,21 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
 
             if (error) throw error;
 
-            // Optimistic update: add to local state for immediate feedback
-            const createdComment = {
+            // Replace temp comment with real one
+            const realComment = {
                 ...data[0],
-                authorName: user.user_metadata?.full_name || user.email,
-                authorAvatar: user.user_metadata?.avatar_url || null
+                authorName,
+                authorAvatar
             };
+            const finalComments = updatedComments.map(c => c.id === tempId ? realComment : c);
+            onUpdate(task.id, { comments: finalComments });
 
-            const updatedComments = [...(task.comments || []), createdComment];
-            onUpdate(task.id, { comments: updatedComments });
-            setComment('');
+            toast.success('Comment posted');
         } catch (e) {
             console.error("Error posting comment:", e);
+            // Remove optimistic comment on error
+            const revertedComments = updatedComments.filter(c => c.id !== tempId);
+            onUpdate(task.id, { comments: revertedComments });
             toast.error("Failed to post comment");
         }
     };
@@ -177,6 +225,107 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
         }
     };
 
+    const handleUpdateTitle = async () => {
+        if (!editedTitle.trim() || editedTitle === task.title) {
+            setIsEditingTitle(false);
+            setEditedTitle(task.title);
+            return;
+        }
+
+        try {
+            // Let parent handle the database update
+            await onUpdate(task.id, { title: editedTitle });
+            setIsEditingTitle(false);
+            toast.success('Task title updated');
+        } catch (e) {
+            console.error("Error updating title:", e);
+            toast.error(`Failed to update title: ${e.message}`);
+        }
+    };
+
+    const handleUpdateDescription = async () => {
+        if (editedDescription === task.description) {
+            setIsEditingDescription(false);
+            return;
+        }
+
+        try {
+            // Let parent handle the database update
+            await onUpdate(task.id, { description: editedDescription });
+            setIsEditingDescription(false);
+            toast.success('Task description updated');
+        } catch (e) {
+            console.error("Error updating description:", e);
+            toast.error(`Failed to update description: ${e.message}`);
+        }
+    };
+
+    const handleStartEditComment = (commentId, currentContent) => {
+        setEditingCommentId(commentId);
+        setEditedCommentContent(currentContent);
+    };
+
+    const handleCancelEditComment = () => {
+        setEditingCommentId(null);
+        setEditedCommentContent('');
+    };
+
+    const handleUpdateComment = async (commentId) => {
+        if (!editedCommentContent.trim()) {
+            handleCancelEditComment();
+            return;
+        }
+
+        // Optimistically update UI first
+        const previousComments = [...task.comments];
+        const updatedComments = task.comments.map(c =>
+            c.id === commentId ? { ...c, content: editedCommentContent, text: editedCommentContent } : c
+        );
+        onUpdate(task.id, { comments: updatedComments });
+        handleCancelEditComment();
+
+        try {
+            const { error } = await supabase
+                .from('comments')
+                .update({ content: editedCommentContent })
+                .eq('id', commentId);
+
+            if (error) throw error;
+
+            toast.success('Comment updated');
+        } catch (e) {
+            console.error("Error updating comment:", e);
+            // Revert on error
+            onUpdate(task.id, { comments: previousComments });
+            toast.error(`Failed to update comment: ${e.message}`);
+        }
+    };
+
+    const handleDeleteComment = async (commentId) => {
+        if (!confirm('Are you sure you want to delete this comment?')) return;
+
+        // Optimistically update UI first
+        const previousComments = [...task.comments];
+        const updatedComments = task.comments.filter(c => c.id !== commentId);
+        onUpdate(task.id, { comments: updatedComments });
+
+        try {
+            const { error } = await supabase
+                .from('comments')
+                .delete()
+                .eq('id', commentId);
+
+            if (error) throw error;
+
+            toast.success('Comment deleted');
+        } catch (e) {
+            console.error("Error deleting comment:", e);
+            // Revert on error
+            onUpdate(task.id, { comments: previousComments });
+            toast.error(`Failed to delete comment: ${e.message}`);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
             <div 
@@ -241,7 +390,38 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#0f0f0f]">
                     <div className="max-w-3xl mx-auto w-full p-12 pb-32">
-                        <h1 className="text-4xl font-bold text-white mb-8 leading-tight">{task.title}</h1>
+                        {isEditingTitle ? (
+                            <div className="mb-8">
+                                <textarea
+                                    value={editedTitle}
+                                    onChange={(e) => setEditedTitle(e.target.value)}
+                                    onBlur={handleUpdateTitle}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleUpdateTitle();
+                                        }
+                                        if (e.key === 'Escape') {
+                                            setEditedTitle(task.title);
+                                            setIsEditingTitle(false);
+                                        }
+                                    }}
+                                    autoFocus
+                                    className="w-full text-4xl font-bold text-white bg-transparent border border-neutral-700 rounded-lg p-3 focus:outline-none focus:border-neutral-500 resize-none leading-tight"
+                                    rows={2}
+                                />
+                            </div>
+                        ) : (
+                            <div className="group mb-8 flex items-start gap-3">
+                                <h1 className="text-4xl font-bold text-white leading-tight flex-1">{task.title}</h1>
+                                <button
+                                    onClick={() => setIsEditingTitle(true)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-neutral-500 hover:text-white p-2 rounded"
+                                >
+                                    <Edit3 size={18} />
+                                </button>
+                            </div>
+                        )}
 
                         {/* Properties */}
                         <div className="grid grid-cols-1 gap-1 mb-12 border-b border-neutral-800 pb-8">
@@ -300,13 +480,41 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                             </div>
                         </div>
 
-                        <div className="prose prose-invert max-w-none text-neutral-300 space-y-6 min-h-[100px]">
-                            {task.description ? (
-                                <div className="whitespace-pre-wrap">{task.description}</div>
-                            ) : (
-                                <p className="text-neutral-600 italic text-sm">No description provided.</p>
-                            )}
-                        </div>
+                        {isEditingDescription ? (
+                            <div className="mb-12">
+                                <textarea
+                                    value={editedDescription}
+                                    onChange={(e) => setEditedDescription(e.target.value)}
+                                    onBlur={handleUpdateDescription}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Escape') {
+                                            setEditedDescription(task.description || '');
+                                            setIsEditingDescription(false);
+                                        }
+                                    }}
+                                    autoFocus
+                                    placeholder="Add a description..."
+                                    className="w-full text-neutral-300 bg-transparent border border-neutral-700 rounded-lg p-4 focus:outline-none focus:border-neutral-500 resize-none min-h-[100px]"
+                                    rows={6}
+                                />
+                            </div>
+                        ) : (
+                            <div className="group mb-12">
+                                <div className="prose prose-invert max-w-none text-neutral-300 space-y-6 min-h-[100px] relative">
+                                    {task.description ? (
+                                        <div className="whitespace-pre-wrap">{task.description}</div>
+                                    ) : (
+                                        <p className="text-neutral-600 italic text-sm">No description provided.</p>
+                                    )}
+                                    <button
+                                        onClick={() => setIsEditingDescription(true)}
+                                        className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-neutral-500 hover:text-white p-2 rounded"
+                                    >
+                                        <Edit3 size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Feed / Activity */}
                         <div className="mt-16 pt-8 border-t border-neutral-800">
@@ -326,23 +534,84 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                                     </div>
                                 </div>
 
-                                {task.comments && task.comments.map((c) => (
-                                    <div key={c.id} className="flex gap-4 relative animate-fade-in group">
-                                        <div className="absolute left-0 z-10">
-                                            <Avatar name={c.authorName || "User"} url={c.authorAvatar} size="sm" />
-                                        </div>
-                                        <div className="pl-10 w-full">
-                                            <div className="flex items-baseline gap-2 mb-1">
-                                                <span className="text-sm font-bold text-white">{c.authorName || "User"}</span>
-                                                <span className="text-xs text-neutral-600">{new Date(c.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                {task.comments && task.comments.map((c) => {
+                                    const isOwnComment = (teamMemberId && c.author_designer_id === teamMemberId) ||
+                                                        (clientContactId && c.author_contact_id === clientContactId);
+                                    const isEditingThisComment = editingCommentId === c.id;
+
+                                    return (
+                                        <div key={c.id} className="flex gap-4 relative animate-fade-in group">
+                                            <div className="absolute left-0 z-10">
+                                                <Avatar name={c.authorName || "User"} url={c.authorAvatar} size="sm" />
                                             </div>
-                                            <div
-                                                className="text-neutral-300 text-sm leading-relaxed bg-[#1a1a1a] p-3 rounded-lg rounded-tl-none border border-neutral-800"
-                                                dangerouslySetInnerHTML={{ __html: (c.content || c.text || '').replace(/<br>/gi, '<br />') }}
-                                            />
+                                            <div className="pl-10 w-full">
+                                                <div className="flex items-baseline gap-2 mb-1">
+                                                    <span className="text-sm font-bold text-white">{c.authorName || "User"}</span>
+                                                    <span className="text-xs text-neutral-600">{new Date(c.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                </div>
+                                                {isEditingThisComment ? (
+                                                    <div className="space-y-2">
+                                                        <textarea
+                                                            value={editedCommentContent}
+                                                            onChange={(e) => setEditedCommentContent(e.target.value)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                                    e.preventDefault();
+                                                                    handleUpdateComment(c.id);
+                                                                }
+                                                                if (e.key === 'Escape') {
+                                                                    handleCancelEditComment();
+                                                                }
+                                                            }}
+                                                            autoFocus
+                                                            className="w-full text-neutral-300 text-sm leading-relaxed bg-[#1a1a1a] p-3 rounded-lg border border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none"
+                                                            rows={3}
+                                                        />
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => handleUpdateComment(c.id)}
+                                                                className="px-3 py-1.5 bg-white text-black text-xs font-bold rounded hover:bg-neutral-200"
+                                                            >
+                                                                Save
+                                                            </button>
+                                                            <button
+                                                                onClick={handleCancelEditComment}
+                                                                className="px-3 py-1.5 bg-neutral-800 text-neutral-300 text-xs font-bold rounded hover:bg-neutral-700"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="relative group/comment">
+                                                        <div
+                                                            className="text-neutral-300 text-sm leading-relaxed bg-[#1a1a1a] p-3 rounded-lg rounded-tl-none border border-neutral-800"
+                                                            dangerouslySetInnerHTML={{ __html: (c.content || c.text || '').replace(/<br>/gi, '<br />') }}
+                                                        />
+                                                        {isOwnComment && (
+                                                            <div className="absolute top-2 right-2 opacity-0 group-hover/comment:opacity-100 transition-opacity flex gap-1">
+                                                                <button
+                                                                    onClick={() => handleStartEditComment(c.id, c.content || c.text || '')}
+                                                                    className="text-neutral-500 hover:text-white p-1 rounded bg-[#0f0f0f]"
+                                                                    title="Edit comment"
+                                                                >
+                                                                    <Edit3 size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteComment(c.id)}
+                                                                    className="text-neutral-500 hover:text-red-400 p-1 rounded bg-[#0f0f0f]"
+                                                                    title="Delete comment"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>

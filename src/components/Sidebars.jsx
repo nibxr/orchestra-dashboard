@@ -15,7 +15,7 @@ const NavItem = ({ icon: Icon, label, active, onClick }) => (
   </button>
 );
 
-export const DashboardSidebar = ({ currentView, setView, setMode, clients, onOpenSearch, onOpenNotifications }) => {
+export const DashboardSidebar = ({ currentView, setView, setMode, clients, onOpenSearch, onOpenNotifications, onClientClick, onClearFilters }) => {
   const { userRole } = useAuth();
   const isCustomer = userRole === 'customer';
 
@@ -34,7 +34,7 @@ export const DashboardSidebar = ({ currentView, setView, setMode, clients, onOpe
 
     <div className="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-6">
       <nav className="space-y-0.5">
-        <NavItem icon={LayoutDashboard} label="Tasks" active={currentView === DASHBOARD_VIEWS.BOARD} onClick={() => setView(DASHBOARD_VIEWS.BOARD)} />
+        <NavItem icon={LayoutDashboard} label="Tasks" active={currentView === DASHBOARD_VIEWS.BOARD} onClick={() => { setView(DASHBOARD_VIEWS.BOARD); onClearFilters && onClearFilters(); }} />
         {!isCustomer && (
           <>
             <NavItem icon={BarChart3} label="Analytics" active={currentView === DASHBOARD_VIEWS.ANALYTICS} onClick={() => setView(DASHBOARD_VIEWS.ANALYTICS)} />
@@ -46,14 +46,18 @@ export const DashboardSidebar = ({ currentView, setView, setMode, clients, onOpe
       </nav>
 
       {!isCustomer && (
-        <div>
+        <div className="flex flex-col min-h-0">
           <div className="px-3 mb-2 flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
             <span>Active</span>
           </div>
-          <div className="space-y-0.5">
+          <div className="space-y-0.5 overflow-y-auto custom-scrollbar flex-1">
             {/* Filter only active clients ('En cours' or 'Start' based on CSV) */}
             {clients.filter(c => c.status === 'En cours' || c.status === 'Start').map(client => (
-              <button key={client.id} className="w-full text-left px-3 py-2 rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800/50 flex items-center gap-2 transition-colors text-xs">
+              <button
+                key={client.id}
+                onClick={() => onClientClick && onClientClick(client.id)}
+                className="w-full text-left px-3 py-2 rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800/50 flex items-center gap-2 transition-colors text-xs"
+              >
                 <div className="w-5 h-5 rounded bg-neutral-800 flex items-center justify-center text-[10px] text-white font-bold">
                     {client.client_name ? client.client_name[0] : 'C'}
                 </div>
@@ -70,6 +74,9 @@ export const DashboardSidebar = ({ currentView, setView, setMode, clients, onOpe
 };
 
 export const SettingsSidebar = ({ currentView, setView, setMode }) => {
+  const { userRole } = useAuth();
+  const isCustomer = userRole === 'customer';
+
   return (
   <div className="w-64 bg-[#0f0f0f] border-r border-neutral-800 flex flex-col h-full text-sm shrink-0">
     <div className="p-4 mb-6">
@@ -87,16 +94,18 @@ export const SettingsSidebar = ({ currentView, setView, setMode }) => {
           </nav>
       </div>
 
-      <div>
-          <div className="px-3 mb-2 text-neutral-500 text-[10px] font-bold uppercase tracking-wider">Dafolle</div>
-          <nav className="space-y-0.5">
-              <NavItem icon={Briefcase} label="Agency account" active={currentView === SETTINGS_VIEWS.AGENCY} onClick={() => setView(SETTINGS_VIEWS.AGENCY)} />
-              <NavItem icon={Users} label="Team" active={currentView === SETTINGS_VIEWS.TEAM} onClick={() => setView(SETTINGS_VIEWS.TEAM)} />
-              <NavItem icon={Globe} label="Client portal & branding" active={currentView === SETTINGS_VIEWS.PORTAL} onClick={() => setView(SETTINGS_VIEWS.PORTAL)} />
-              <NavItem icon={CreditCard} label="Plans and add-ons" active={currentView === SETTINGS_VIEWS.PLANS} onClick={() => setView(SETTINGS_VIEWS.PLANS)} />
-              <NavItem icon={Workflow} label="Workflow" active={currentView === SETTINGS_VIEWS.WORKFLOW} onClick={() => setView(SETTINGS_VIEWS.WORKFLOW)} />
-          </nav>
-      </div>
+      {!isCustomer && (
+        <div>
+            <div className="px-3 mb-2 text-neutral-500 text-[10px] font-bold uppercase tracking-wider">Dafolle</div>
+            <nav className="space-y-0.5">
+                <NavItem icon={Briefcase} label="Agency account" active={currentView === SETTINGS_VIEWS.AGENCY} onClick={() => setView(SETTINGS_VIEWS.AGENCY)} />
+                <NavItem icon={Users} label="Team" active={currentView === SETTINGS_VIEWS.TEAM} onClick={() => setView(SETTINGS_VIEWS.TEAM)} />
+                <NavItem icon={Globe} label="Client portal & branding" active={currentView === SETTINGS_VIEWS.PORTAL} onClick={() => setView(SETTINGS_VIEWS.PORTAL)} />
+                <NavItem icon={CreditCard} label="Plans and add-ons" active={currentView === SETTINGS_VIEWS.PLANS} onClick={() => setView(SETTINGS_VIEWS.PLANS)} />
+                <NavItem icon={Workflow} label="Workflow" active={currentView === SETTINGS_VIEWS.WORKFLOW} onClick={() => setView(SETTINGS_VIEWS.WORKFLOW)} />
+            </nav>
+        </div>
+      )}
     </div>
     <UserFooter setMode={setMode} />
   </div>

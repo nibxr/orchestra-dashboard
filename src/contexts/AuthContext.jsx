@@ -17,6 +17,8 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [userRole, setUserRole] = useState(null); // 'team', 'customer', or null
   const [userMembership, setUserMembership] = useState(null); // Client membership for customers
+  const [teamMemberId, setTeamMemberId] = useState(null); // Team member ID for team users
+  const [clientContactId, setClientContactId] = useState(null); // Client contact ID for customers
   const isInitializedRef = useRef(false);
   const lastUserIdRef = useRef(null); // Track the last authenticated user ID
 
@@ -27,6 +29,8 @@ export const AuthProvider = ({ children }) => {
       console.log('[detectUserRole] No email provided, clearing role');
       setUserRole(null);
       setUserMembership(null);
+      setTeamMemberId(null);
+      setClientContactId(null);
       return;
     }
 
@@ -45,6 +49,8 @@ export const AuthProvider = ({ children }) => {
         console.log('[detectUserRole] Setting role to TEAM');
         setUserRole('team');
         setUserMembership(null);
+        setTeamMemberId(teamData.id);
+        setClientContactId(null);
         console.log('[detectUserRole] User detected as team member:', teamData);
         return;
       }
@@ -63,6 +69,8 @@ export const AuthProvider = ({ children }) => {
         console.log('[detectUserRole] Setting role to CUSTOMER with membership_id:', contactData.membership_id);
         setUserRole('customer');
         setUserMembership(contactData.membership_id);
+        setTeamMemberId(null);
+        setClientContactId(contactData.id);
         console.log('[detectUserRole] User detected as customer:', contactData);
         return;
       }
@@ -71,10 +79,14 @@ export const AuthProvider = ({ children }) => {
       console.log('[detectUserRole] User not found in team or contacts, defaulting to team role');
       setUserRole('team');
       setUserMembership(null);
+      setTeamMemberId(null);
+      setClientContactId(null);
     } catch (error) {
       console.error('[detectUserRole] Error detecting user role:', error);
       setUserRole('team'); // Default to team on error
       setUserMembership(null);
+      setTeamMemberId(null);
+      setClientContactId(null);
     }
 
     console.log('[detectUserRole] Function complete');
@@ -152,6 +164,8 @@ export const AuthProvider = ({ children }) => {
           lastUserIdRef.current = null;
           setUserRole(null);
           setUserMembership(null);
+          setTeamMemberId(null);
+          setClientContactId(null);
         }
       } catch (error) {
         console.error('[AuthContext] Error in auth state change:', error);
@@ -245,6 +259,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     userRole,
     userMembership,
+    teamMemberId,
+    clientContactId,
     signUp,
     signIn,
     signOut,
