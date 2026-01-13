@@ -6,8 +6,10 @@ import {
   ChevronRight, AlertCircle, CheckCircle2, XCircle
 } from 'lucide-react';
 import { Avatar } from './Shared';
+import { useToast } from './Toast';
 
 export const CyclesView = () => {
+  const toast = useToast();
   const [cycles, setCycles] = useState([]);
   const [clients, setClients] = useState([]);
   const [team, setTeam] = useState([]);
@@ -146,7 +148,7 @@ export const CyclesView = () => {
       setTeam(teamData || []);
     } catch (error) {
       console.error('Error fetching cycles:', error);
-      alert(`Error fetching cycles: ${error.message}`);
+      toast.error(`Error fetching cycles: ${error.message}`);
     } finally {
       setLoading(false);
     }

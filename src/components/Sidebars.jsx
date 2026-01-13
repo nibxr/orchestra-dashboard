@@ -95,8 +95,6 @@ export const SettingsSidebar = ({ currentView, setView, setMode }) => {
               <NavItem icon={Globe} label="Client portal & branding" active={currentView === SETTINGS_VIEWS.PORTAL} onClick={() => setView(SETTINGS_VIEWS.PORTAL)} />
               <NavItem icon={CreditCard} label="Plans and add-ons" active={currentView === SETTINGS_VIEWS.PLANS} onClick={() => setView(SETTINGS_VIEWS.PLANS)} />
               <NavItem icon={Workflow} label="Workflow" active={currentView === SETTINGS_VIEWS.WORKFLOW} onClick={() => setView(SETTINGS_VIEWS.WORKFLOW)} />
-              <NavItem icon={LayoutTemplate} label="Templates" active={currentView === SETTINGS_VIEWS.TEMPLATES} onClick={() => setView(SETTINGS_VIEWS.TEMPLATES)} />
-              <NavItem icon={Terminal} label="API" />
           </nav>
       </div>
     </div>

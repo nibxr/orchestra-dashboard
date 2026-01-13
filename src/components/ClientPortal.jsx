@@ -1,34 +1,202 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, FileText, CreditCard, LogOut, Clock, CheckCircle2, ArrowRight, Download, Folder, List as ListIcon, ArrowUpRight } from 'lucide-react';
+import { LayoutGrid, FileText, CreditCard, LogOut, Clock, CheckCircle2, ArrowRight, Download, Folder, List as ListIcon, ArrowUpRight, Plus, X } from 'lucide-react';
 // Correct relative paths based on standard src/ structure
 import { supabase } from '../supabaseClient';
 import { STATUS_CONFIG } from '../utils/constants';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from './Toast';
 
 export const ClientPortal = ({ client, onExit }) => {
+    const toast = useToast();
     const [view, setView] = useState('home');
     const [taskViewMode, setTaskViewMode] = useState('kanban'); // 'list' or 'kanban'
     const [tasks, setTasks] = useState([]);
     const [portalSettings, setPortalSettings] = useState({});
     const [agencySettings, setAgencySettings] = useState({});
+    const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
+    const [newRequestTitle, setNewRequestTitle] = useState('');
+    const [newRequestDescription, setNewRequestDescription] = useState('');
+    const [activeTask, setActiveTask] = useState(null);
+    const [comments, setComments] = useState([]);
+    const [newComment, setNewComment] = useState('');
+    const [draggedTask, setDraggedTask] = useState(null);
+    const [dragOverStatus, setDragOverStatus] = useState(null);
+    const { user } = useAuth();
+
+    const fetchTasks = async () => {
+        if(!client?.id) return;
+        const { data } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('membership_id', client.id)
+            .order('updated_at', { ascending: false });
+        setTasks(data || []);
+    };
+
+    const fetchComments = async (taskId) => {
+        const { data } = await supabase
+            .from('comments')
+            .select('*')
+            .eq('task_id', taskId)
+            .order('created_at', { ascending: true });
+        setComments(data || []);
+    };
+
+    const handlePostComment = async () => {
+        if (!newComment.trim() || !activeTask) return;
+
+        try {
+            // Get the client contact ID for this user
+            const { data: contactData } = await supabase
+                .from('client_contacts')
+                .select('id')
+                .eq('email', user.email)
+                .single();
+
+            const newCommentData = {
+                task_id: activeTask.id,
+                content: newComment,
+                author_contact_id: contactData?.id,
+                created_at: new Date().toISOString(),
+                orchestra_comment_id: `COM-${Date.now()}`
+            };
+
+            const { error } = await supabase
+                .from('comments')
+                .insert([newCommentData]);
+
+            if (error) {
+                console.error('Error posting comment:', error);
+                toast.error('Failed to post comment');
+            } else {
+                setNewComment('');
+                await fetchComments(activeTask.id);
+                toast.success('Comment posted successfully');
+            }
+        } catch (err) {
+            console.error('Error:', err);
+        }
+    };
+
+    const openTaskDetails = (task) => {
+        setActiveTask(task);
+        fetchComments(task.id);
+    };
+
+    // Drag and drop handlers for status updates
+    const handleDragStart = (e, task) => {
+        setDraggedTask(task);
+        e.dataTransfer.effectAllowed = 'move';
+
+        // Create custom drag image
+        const dragElement = e.currentTarget.cloneNode(true);
+        dragElement.style.position = 'absolute';
+        dragElement.style.top = '-9999px';
+        dragElement.style.width = e.currentTarget.offsetWidth + 'px';
+        dragElement.style.opacity = '1';
+        dragElement.style.transform = 'rotate(3deg)';
+        dragElement.style.border = '2px solid white';
+        dragElement.style.borderRadius = '0.5rem';
+        dragElement.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.3)';
+        document.body.appendChild(dragElement);
+
+        e.dataTransfer.setDragImage(dragElement, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+
+        setTimeout(() => {
+            if (dragElement.parentNode) {
+                document.body.removeChild(dragElement);
+            }
+        }, 0);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedTask(null);
+        setDragOverStatus(null);
+    };
+
+    const handleDragOver = (e, status) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDragOverStatus(status);
+    };
+
+    const handleDrop = async (e, newStatus) => {
+        e.preventDefault();
+        if (draggedTask && draggedTask.status !== newStatus) {
+            try {
+                // Update task status
+                const { error } = await supabase
+                    .from('tasks')
+                    .update({ status: newStatus, updated_at: new Date().toISOString() })
+                    .eq('id', draggedTask.id);
+
+                if (error) {
+                    console.error('Error updating task status:', error);
+                    toast.error('Failed to update task status');
+                } else {
+                    await fetchTasks(); // Reload tasks
+                    toast.success('Task status updated');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+        setDraggedTask(null);
+        setDragOverStatus(null);
+    };
 
     useEffect(() => {
         const savedPortal = localStorage.getItem('orchestra_portal_settings');
         if(savedPortal) setPortalSettings(JSON.parse(savedPortal));
-        
+
         const savedAgency = localStorage.getItem('orchestra_agency_settings');
         if(savedAgency) setAgencySettings(JSON.parse(savedAgency));
 
-        const fetchTasks = async () => {
-            if(!client?.id) return;
-            const { data } = await supabase
-                .from('tasks')
-                .select('*')
-                .eq('membership_id', client.id)
-                .order('updated_at', { ascending: false });
-            setTasks(data || []);
-        };
         fetchTasks();
     }, [client]);
+
+    const handleCreateRequest = async (e) => {
+        e.preventDefault();
+        if (!newRequestTitle.trim()) return;
+
+        try {
+            const newTask = {
+                title: newRequestTitle,
+                description: newRequestDescription,
+                content: newRequestDescription,
+                status: 'Backlog',
+                membership_id: client.id,
+                private: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                orchestra_task_id: `REQ-${Date.now()}`,
+                properties: {
+                    type: 'Request',
+                    source: 'client_portal'
+                }
+            };
+
+            const { data, error } = await supabase
+                .from('tasks')
+                .insert([newTask])
+                .select();
+
+            if (error) {
+                console.error('Error creating request:', error);
+                toast.error(`Error creating request: ${error.message}`);
+            } else {
+                console.log('Request created successfully:', data);
+                setNewRequestTitle('');
+                setNewRequestDescription('');
+                setIsNewRequestOpen(false);
+                await fetchTasks(); // Reload tasks
+                toast.success('Request created successfully');
+            }
+        } catch (err) {
+            console.error('Unexpected error:', err);
+            toast.error('Failed to create request');
+        }
+    };
 
     const brandColor = agencySettings.brandColor || '#a3e635';
     const logo = agencySettings.logoUrl;
@@ -155,20 +323,33 @@ export const ClientPortal = ({ client, onExit }) => {
                         <div className="flex flex-col h-full animate-fade-in">
                              <div className="flex items-center justify-between mb-6 shrink-0">
                                  <h1 className="text-2xl font-bold text-white">Requests</h1>
-                                 <div className="flex bg-[#141414] p-1 rounded-lg border border-neutral-800">
-                                    <button onClick={() => setTaskViewMode('kanban')} className={`p-2 rounded transition-colors ${taskViewMode === 'kanban' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>
-                                        <LayoutGrid size={16} />
-                                    </button>
-                                    <button onClick={() => setTaskViewMode('list')} className={`p-2 rounded transition-colors ${taskViewMode === 'list' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>
-                                        <ListIcon size={16} />
-                                    </button>
+                                 <div className="flex gap-3">
+                                     <button
+                                         onClick={() => setIsNewRequestOpen(true)}
+                                         className="flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-black px-4 py-2 rounded-lg font-medium transition-colors"
+                                     >
+                                         <Plus size={18} />
+                                         New Request
+                                     </button>
+                                     <div className="flex bg-[#141414] p-1 rounded-lg border border-neutral-800">
+                                        <button onClick={() => setTaskViewMode('kanban')} className={`p-2 rounded transition-colors ${taskViewMode === 'kanban' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>
+                                            <LayoutGrid size={16} />
+                                        </button>
+                                        <button onClick={() => setTaskViewMode('list')} className={`p-2 rounded transition-colors ${taskViewMode === 'list' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>
+                                            <ListIcon size={16} />
+                                        </button>
+                                     </div>
                                  </div>
                              </div>
 
                              {taskViewMode === 'list' ? (
                                  <div className="space-y-3">
                                     {tasks.map(task => (
-                                        <div key={task.id} className="flex items-center justify-between p-4 bg-[#141414] border border-neutral-800 rounded-xl">
+                                        <div
+                                            key={task.id}
+                                            onClick={() => openTaskDetails(task)}
+                                            className="flex items-center justify-between p-4 bg-[#141414] border border-neutral-800 hover:border-neutral-600 rounded-xl cursor-pointer transition-colors"
+                                        >
                                             <div className="flex items-center gap-4">
                                                 <div className={`w-2 h-2 rounded-full ${STATUS_CONFIG[normalizeStatus(task.status)]?.color.replace('text-','bg-') || 'bg-neutral-500'}`}></div>
                                                 <span className="text-white font-medium">{task.title}</span>
@@ -183,7 +364,12 @@ export const ClientPortal = ({ client, onExit }) => {
                                  <div className="flex-1 overflow-x-auto pb-4">
                                      <div className="flex gap-6 h-full min-w-max">
                                          {Object.keys(STATUS_CONFIG).map(status => (
-                                             <div key={status} className="w-72 flex flex-col h-full">
+                                             <div
+                                                 key={status}
+                                                 className="w-72 flex flex-col h-full"
+                                                 onDragOver={(e) => handleDragOver(e, status)}
+                                                 onDrop={(e) => handleDrop(e, status)}
+                                             >
                                                  <div className="flex items-center gap-2 mb-4 px-1">
                                                      {React.createElement(STATUS_CONFIG[status].icon, { size: 14, className: STATUS_CONFIG[status].color.replace('text-', 'stroke-') })}
                                                      <h3 className="text-neutral-300 text-sm font-medium">{status}</h3>
@@ -191,10 +377,17 @@ export const ClientPortal = ({ client, onExit }) => {
                                                          {tasks.filter(t => normalizeStatus(t.status) === status).length}
                                                      </span>
                                                  </div>
-                                                 
-                                                 <div className="flex-1 overflow-y-auto space-y-3 pr-2 pb-10 custom-scrollbar">
+
+                                                 <div className={`flex-1 overflow-y-auto space-y-3 pr-2 pb-10 custom-scrollbar transition-all duration-300 ${dragOverStatus === status ? 'bg-white/5 border-2 border-white rounded-lg shadow-lg shadow-white/30' : 'border-2 border-transparent'}`}>
                                                      {tasks.filter(t => normalizeStatus(t.status) === status).map(task => (
-                                                         <div key={task.id} className="bg-[#141414] border border-neutral-800 hover:border-neutral-600 rounded-lg p-4 cursor-default shadow-sm transition-colors">
+                                                         <div
+                                                             key={task.id}
+                                                             draggable
+                                                             onDragStart={(e) => handleDragStart(e, task)}
+                                                             onDragEnd={handleDragEnd}
+                                                             onClick={() => openTaskDetails(task)}
+                                                             className={`bg-[#141414] border border-neutral-800 hover:border-neutral-600 rounded-lg p-4 cursor-move shadow-sm transition-colors ${draggedTask?.id === task.id ? 'opacity-50' : ''}`}
+                                                         >
                                                              <h4 className="text-sm text-neutral-200 font-medium mb-2 leading-snug">{task.title}</h4>
                                                              {task.description && <p className="text-xs text-neutral-500 line-clamp-2 mb-3">{task.description}</p>}
                                                              <div className="flex items-center justify-between pt-2 border-t border-neutral-800/50">
@@ -239,6 +432,154 @@ export const ClientPortal = ({ client, onExit }) => {
                     )}
                 </div>
             </div>
+
+            {/* NEW REQUEST MODAL */}
+            {isNewRequestOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="bg-[#1a1a1a] border border-neutral-800 rounded-2xl w-full max-w-2xl animate-scale-in">
+                        <div className="p-6 border-b border-neutral-800 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-white">Create New Request</h2>
+                            <button
+                                onClick={() => setIsNewRequestOpen(false)}
+                                className="text-neutral-500 hover:text-white transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateRequest} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-400 mb-2">
+                                    Request Title *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newRequestTitle}
+                                    onChange={(e) => setNewRequestTitle(e.target.value)}
+                                    placeholder="What do you need help with?"
+                                    className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-lime-400 transition-colors"
+                                    autoFocus
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-400 mb-2">
+                                    Description
+                                </label>
+                                <textarea
+                                    value={newRequestDescription}
+                                    onChange={(e) => setNewRequestDescription(e.target.value)}
+                                    placeholder="Provide details about your request..."
+                                    rows={6}
+                                    className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-lime-400 transition-colors resize-none"
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsNewRequestOpen(false)}
+                                    className="px-4 py-2 text-neutral-400 hover:text-white transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!newRequestTitle.trim()}
+                                    className="px-6 py-2 bg-lime-400 hover:bg-lime-500 text-black font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Create Request
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* TASK DETAILS SLIDE-OVER */}
+            {activeTask && (
+                <div className="fixed inset-y-0 right-0 w-full md:w-[600px] bg-[#0f0f0f] border-l border-neutral-800 z-50 animate-slide-in-right flex flex-col">
+                    {/* Header */}
+                    <div className="px-6 py-4 border-b border-neutral-800 flex items-center justify-between shrink-0">
+                        <h2 className="text-lg font-bold text-white">Request Details</h2>
+                        <button
+                            onClick={() => setActiveTask(null)}
+                            className="text-neutral-500 hover:text-white transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        {/* Task Info */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_CONFIG[normalizeStatus(activeTask.status)]?.color || 'text-neutral-500'} bg-neutral-800`}>
+                                    {activeTask.status}
+                                </span>
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">{activeTask.title}</h3>
+                            {activeTask.description && (
+                                <div className="text-neutral-400 text-sm whitespace-pre-wrap">{activeTask.description}</div>
+                            )}
+                        </div>
+
+                        {/* Comments Section */}
+                        <div>
+                            <h4 className="text-sm font-bold text-white mb-3">Activity</h4>
+                            <div className="space-y-4">
+                                {comments.map(comment => (
+                                    <div key={comment.id} className="flex gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                                            {client.client_name?.[0] || '?'}
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-sm font-medium text-white">You</span>
+                                                <span className="text-xs text-neutral-600">
+                                                    {new Date(comment.created_at).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <div
+                                                className="text-sm text-neutral-300"
+                                                dangerouslySetInnerHTML={{ __html: (comment.content || '').replace(/<br>/gi, '<br />') }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Comment Input */}
+                    <div className="p-6 border-t border-neutral-800 shrink-0">
+                        <div className="flex gap-2">
+                            <textarea
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                placeholder="Add a comment..."
+                                rows={2}
+                                className="flex-1 bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2 text-white placeholder-neutral-600 focus:outline-none focus:border-lime-400 transition-colors resize-none text-sm"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handlePostComment();
+                                    }
+                                }}
+                            />
+                            <button
+                                onClick={handlePostComment}
+                                disabled={!newComment.trim()}
+                                className="px-4 py-2 bg-lime-400 hover:bg-lime-500 text-black font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed self-end"
+                            >
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

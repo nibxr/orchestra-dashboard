@@ -10,6 +10,7 @@ import { supabase } from '../supabaseClient';
 import { STATUS_CONFIG } from '../utils/constants';
 import { useAuth } from '../contexts/AuthContext';
 import { Avatar } from './Shared';
+import { useToast } from './Toast';
 
 // --- PROFILE SETTINGS ---
 export const ProfileSettingsView = () => {
@@ -231,19 +232,45 @@ export const ProfileSettingsView = () => {
 
 // --- AGENCY SETTINGS (Branding) ---
 export const AgencySettingsView = () => {
+    const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: 'Dafolle',
         slug: 'dafolle',
         supportEmail: 'support@dafolle.io',
-        brandColor: '#a3e635', 
+        brandColor: '#a3e635',
         logoUrl: null
     });
+    const fileInputRef = React.useRef(null);
 
     useEffect(() => {
         const saved = localStorage.getItem('orchestra_agency_settings');
         if (saved) setFormData(JSON.parse(saved));
     }, []);
+
+    const handleLogoUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file size (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error('File size must be less than 2MB');
+            return;
+        }
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please upload an image file');
+            return;
+        }
+
+        // Convert to base64 and store
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setFormData({ ...formData, logoUrl: reader.result });
+        };
+        reader.readAsDataURL(file);
+    };
 
     const handleSave = () => {
         setLoading(true);
@@ -270,7 +297,10 @@ export const AgencySettingsView = () => {
                 <h3 className="text-sm font-bold text-white mb-1">Agency Logo</h3>
                 <p className="text-xs text-neutral-500 mb-4">This logo will appear on your dashboard and client portals.</p>
                 <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden relative group cursor-pointer">
+                    <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-20 h-20 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden relative group cursor-pointer"
+                    >
                         {formData.logoUrl ? (
                             <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-cover" />
                         ) : (
@@ -281,7 +311,30 @@ export const AgencySettingsView = () => {
                         </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                        <button className="px-4 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-neutral-200 transition-colors">Upload new logo</button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-4 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-neutral-200 transition-colors"
+                        >
+                            Upload new logo
+                        </button>
+                        {formData.logoUrl && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFormData({ ...formData, logoUrl: null });
+                                }}
+                                className="px-4 py-2 text-red-400 hover:text-red-500 text-xs font-medium transition-colors"
+                            >
+                                Remove logo
+                            </button>
+                        )}
                         <p className="text-[10px] text-neutral-600">Recommended size: 400x400px. Max 2MB.</p>
                     </div>
                 </div>
@@ -326,6 +379,7 @@ export const AgencySettingsView = () => {
 
 // --- TEAM SETTINGS ---
 export const TeamSettingsView = ({ team }) => {
+    const toast = useToast();
     const [localTeam, setLocalTeam] = useState(team || []);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
@@ -342,7 +396,7 @@ export const TeamSettingsView = ({ team }) => {
             const { data, error } = await supabase.from('team').insert([{ full_name: inviteName, email: inviteEmail, status: 'Active', notes: `Role: ${inviteRole}` }]).select();
             if (error) throw error;
             if (data) { setLocalTeam([...localTeam, data[0]]); setIsInviteOpen(false); setInviteName(''); setInviteEmail(''); }
-        } catch (error) { alert("Failed to invite member."); } finally { setLoading(false); }
+        } catch (error) { toast.error("Failed to invite member."); } finally { setLoading(false); }
     };
 
     const handleDelete = async (id) => {
@@ -629,135 +683,289 @@ export const ClientPortalSettingsView = () => {
 
 // --- PLANS & ADD-ONS SETTINGS (Fully Functional) ---
 export const PlansSettingsView = () => {
-    const [tab, setTab] = useState('retainers'); // 'retainers' | 'addons'
-    const [plans, setPlans] = useState([
-        { id: 1, name: 'Scale', price: 4900, interval: 'month', description: 'Perfect for growing startups', features: ['Unlimited Requests', 'Slack Support', '48h Delivery'] },
-        { id: 2, name: 'Enterprise', price: 8900, interval: 'month', description: 'For large organizations', features: ['Priority Support', 'Dedicated Manager', 'Same-day Delivery'] }
-    ]);
-    const [addons, setAddons] = useState([
-        { id: 101, name: 'Webflow Development', price: 1500, type: 'One-off', description: 'Convert designs to code' },
-        { id: 102, name: 'Extra Meeting', price: 200, type: 'Unit', description: '1h strategy call' }
-    ]);
-    
+    const toast = useToast();
+    const [plans, setPlans] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [isEditOpen, setIsEditOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState(null);
+    const [editingPlan, setEditingPlan] = useState(null);
+
+    // Only show these specific plan IDs
+    const ALLOWED_PLAN_IDS = [
+        '449834cd-2067-44cb-a019-cd34c45d2418', // Boost - 2 tâches / 48h
+        'a190bfe1-5376-4855-9721-2f26e6f10920', // Grow - 1 tâche / 48h
+        'a9c6f4cf-ba79-4525-b9e8-4f01624c1ef1', // Lite - 1 tâche / 5 jours
+        'b638801e-3e84-45b8-9dfd-f8563ff10288'  // Start - 1 tâche / 72h
+    ];
 
     useEffect(() => {
-        const savedPlans = localStorage.getItem('orchestra_plans');
-        if(savedPlans) setPlans(JSON.parse(savedPlans));
-        const savedAddons = localStorage.getItem('orchestra_addons');
-        if(savedAddons) setAddons(JSON.parse(savedAddons));
+        fetchPlans();
     }, []);
 
-    const saveItem = (e) => {
-        e.preventDefault();
-        if (tab === 'retainers') {
-            const updated = editingItem.id ? plans.map(p => p.id === editingItem.id ? editingItem : p) : [...plans, { ...editingItem, id: Date.now() }];
-            setPlans(updated);
-            localStorage.setItem('orchestra_plans', JSON.stringify(updated));
-        } else {
-            const updated = editingItem.id ? addons.map(a => a.id === editingItem.id ? editingItem : a) : [...addons, { ...editingItem, id: Date.now() }];
-            setAddons(updated);
-            localStorage.setItem('orchestra_addons', JSON.stringify(updated));
+    const fetchPlans = async () => {
+        try {
+            console.log('Fetching plans from Supabase...');
+            console.log('Table name: 🔄 Plans');
+            console.log('Allowed plan IDs:', ALLOWED_PLAN_IDS);
+
+            const { data, error } = await supabase
+                .from('🔄 Plans')
+                .select('*')
+                .in('whalesync_postgres_id', ALLOWED_PLAN_IDS)
+                .order('monthly_price_ht', { ascending: true });
+
+            console.log('Supabase response:', { data, error });
+
+            if (error) {
+                console.error('Supabase error details:', error);
+                throw error;
+            }
+
+            console.log('Plans fetched successfully:', data);
+            setPlans(data || []);
+        } catch (err) {
+            console.error('Error fetching plans:', err);
+            toast.error(`Failed to load plans: ${err.message || 'Unknown error'}`);
+        } finally {
+            setLoading(false);
         }
-        setIsEditOpen(false);
     };
 
-    const deleteItem = (id) => {
-        if(!confirm("Delete item?")) return;
-        if (tab === 'retainers') {
-            const updated = plans.filter(p => p.id !== id);
-            setPlans(updated);
-            localStorage.setItem('orchestra_plans', JSON.stringify(updated));
-        } else {
-            const updated = addons.filter(a => a.id !== id);
-            setAddons(updated);
-            localStorage.setItem('orchestra_addons', JSON.stringify(updated));
+    const savePlan = async (e) => {
+        e.preventDefault();
+        if (!editingPlan.plan_name || !editingPlan.monthly_price_ht) {
+            toast.error('Plan name and price are required');
+            return;
+        }
+
+        try {
+            if (editingPlan.whalesync_postgres_id) {
+                // Update existing plan
+                const { error } = await supabase
+                    .from('🔄 Plans')
+                    .update({
+                        plan_name: editingPlan.plan_name,
+                        monthly_price_ht: parseFloat(editingPlan.monthly_price_ht),
+                        description: editingPlan.description,
+                        delivery_sla_business_days: editingPlan.delivery_sla_business_days,
+                        tasks_at_once: editingPlan.tasks_at_once,
+                        status: editingPlan.status || 'clean'
+                    })
+                    .eq('whalesync_postgres_id', editingPlan.whalesync_postgres_id);
+
+                if (error) throw error;
+            } else {
+                // Create new plan
+                const { error } = await supabase
+                    .from('🔄 Plans')
+                    .insert([{
+                        plan_name: editingPlan.plan_name,
+                        monthly_price_ht: parseFloat(editingPlan.monthly_price_ht),
+                        description: editingPlan.description,
+                        delivery_sla_business_days: editingPlan.delivery_sla_business_days,
+                        tasks_at_once: editingPlan.tasks_at_once,
+                        status: 'clean',
+                        active: false
+                    }]);
+
+                if (error) throw error;
+            }
+
+            setIsEditOpen(false);
+            setEditingPlan(null);
+            await fetchPlans();
+            toast.success(editingPlan?.whalesync_postgres_id ? 'Plan updated successfully' : 'Plan created successfully');
+        } catch (err) {
+            console.error('Error saving plan:', err);
+            toast.error(`Failed to save plan: ${err.message}`);
         }
     };
+
+    const deletePlan = async (id) => {
+        if (!confirm('Delete this plan? This action cannot be undone.')) return;
+
+        try {
+            const { error } = await supabase
+                .from('🔄 Plans')
+                .delete()
+                .eq('whalesync_postgres_id', id);
+
+            if (error) throw error;
+            await fetchPlans();
+            toast.success('Plan deleted successfully');
+        } catch (err) {
+            console.error('Error deleting plan:', err);
+            toast.error(`Failed to delete plan: ${err.message}`);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="max-w-6xl mx-auto p-8 animate-fade-in pb-24">
+                <div className="flex items-center justify-center py-20">
+                    <div className="text-neutral-500">Loading plans...</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-6xl mx-auto p-8 animate-fade-in pb-24">
-             <div className="mb-8 flex justify-between items-center">
-                <div><h1 className="text-2xl font-bold text-white mb-2">Plans & Add-ons</h1><p className="text-neutral-500 text-sm">Configure your service offerings.</p></div>
-                <div className="flex bg-[#141414] p-1 rounded-lg border border-neutral-800">
-                    <button onClick={() => setTab('retainers')} className={`px-4 py-1.5 rounded text-xs font-bold transition-colors ${tab === 'retainers' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>Retainers</button>
-                    <button onClick={() => setTab('addons')} className={`px-4 py-1.5 rounded text-xs font-bold transition-colors ${tab === 'addons' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>Add-ons</button>
+            <div className="mb-8 flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold text-white mb-2">Plans & Add-ons</h1>
+                    <p className="text-neutral-500 text-sm">Configure your subscription plans.</p>
                 </div>
+                <button
+                    onClick={() => {
+                        setEditingPlan({
+                            plan_name: '',
+                            monthly_price_ht: '',
+                            description: '',
+                            delivery_sla_business_days: '',
+                            tasks_at_once: ''
+                        });
+                        setIsEditOpen(true);
+                    }}
+                    className="px-4 py-2 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-colors flex items-center gap-2"
+                >
+                    <Plus size={16} />
+                    Create Plan
+                </button>
             </div>
 
-            {tab === 'retainers' ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {plans.map(plan => (
-                        <div key={plan.id} className="bg-[#141414] border border-neutral-800 rounded-xl p-6 flex flex-col hover:border-neutral-700 transition-colors group relative">
-                            <div className="flex justify-between items-start mb-4">
-                                <div><h3 className="text-lg font-bold text-white">{plan.name}</h3><div className="text-neutral-500 text-xs mt-1">{plan.description}</div></div>
-                                <div className="text-right">
-                                    <div className="text-white font-mono font-medium">€{plan.price}</div>
-                                    <div className="text-[10px] text-neutral-600">/{plan.interval}</div>
-                                </div>
-                            </div>
-                            <ul className="space-y-2 mb-8 flex-1">
-                                {plan.features && plan.features.map((feat, i) => (
-                                    <li key={i} className="flex items-center gap-2 text-sm text-neutral-400"><Check size={12} className="text-lime-500"/> {feat}</li>
-                                ))}
-                            </ul>
-                            <button onClick={() => { setEditingItem(plan); setIsEditOpen(true); }} className="w-full py-2 bg-white text-black rounded-lg text-xs font-bold hover:bg-neutral-200 mb-2">Edit Plan</button>
-                            <button onClick={() => deleteItem(plan.id)} className="w-full py-2 text-neutral-600 hover:text-red-500 text-xs">Delete</button>
-                        </div>
-                    ))}
-                    <button onClick={() => { setEditingItem({ name: '', price: '', interval: 'month', description: '', features: [] }); setIsEditOpen(true); }} className="border border-dashed border-neutral-800 rounded-xl flex flex-col items-center justify-center text-neutral-600 hover:text-white hover:border-neutral-600 transition-all h-full min-h-[250px]">
-                        <Plus size={32} className="mb-2 opacity-50"/>
-                        <span className="text-sm font-medium">Create Plan</span>
-                    </button>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                     {addons.map(addon => (
-                        <div key={addon.id} className="bg-[#141414] border border-neutral-800 rounded-xl p-5 flex flex-col hover:border-neutral-700 transition-colors">
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="bg-neutral-900 text-neutral-400 px-2 py-0.5 rounded text-[10px] border border-neutral-800">{addon.type}</div>
-                                <div className="text-white font-mono text-sm">€{addon.price}</div>
-                            </div>
-                            <h3 className="text-white font-bold mb-1">{addon.name}</h3>
-                            <p className="text-neutral-500 text-xs mb-4 flex-1">{addon.description}</p>
-                            <div className="flex gap-2 mt-auto">
-                                <button onClick={() => { setEditingItem(addon); setIsEditOpen(true); }} className="flex-1 py-1.5 bg-neutral-800 text-white rounded text-xs hover:bg-neutral-700">Edit</button>
-                                <button onClick={() => deleteItem(addon.id)} className="p-1.5 text-neutral-600 hover:text-red-500"><Trash2 size={14}/></button>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {plans.map(plan => (
+                    <div key={plan.whalesync_postgres_id} className="bg-[#141414] border border-neutral-800 rounded-xl p-6 flex flex-col hover:border-neutral-700 transition-colors group relative">
+                        <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-lg font-bold text-white">{plan.plan_name}</h3>
+                            <div className="text-right">
+                                <div className="text-white font-mono font-medium">€{plan.monthly_price_ht}</div>
+                                <div className="text-[10px] text-neutral-600">/month</div>
                             </div>
                         </div>
-                     ))}
-                     <button onClick={() => { setEditingItem({ name: '', price: '', type: 'One-off', description: '' }); setIsEditOpen(true); }} className="border border-dashed border-neutral-800 rounded-xl flex flex-col items-center justify-center text-neutral-600 hover:text-white hover:border-neutral-600 transition-all h-full min-h-[150px]">
-                        <Plus size={24} className="mb-2 opacity-50"/>
-                        <span className="text-xs font-medium">Add Add-on</span>
-                    </button>
-                </div>
-            )}
+
+                        {plan.description && (
+                            <div className="text-neutral-500 text-xs mb-4">{plan.description}</div>
+                        )}
+
+                        <ul className="space-y-2 mb-6 flex-1">
+                            {plan.tasks_at_once && (
+                                <li className="flex items-center gap-2 text-sm text-neutral-400">
+                                    <Check size={12} className="text-lime-500"/>
+                                    {plan.tasks_at_once} task{plan.tasks_at_once > 1 ? 's' : ''} at once
+                                </li>
+                            )}
+                            {plan.delivery_sla_business_days && (
+                                <li className="flex items-center gap-2 text-sm text-neutral-400">
+                                    <Check size={12} className="text-lime-500"/>
+                                    {plan.delivery_sla_business_days} day delivery
+                                </li>
+                            )}
+                            {plan.status === 'clean' && (
+                                <li className="flex items-center gap-2 text-sm text-neutral-400">
+                                    <Check size={12} className="text-lime-500"/>
+                                    Active plan
+                                </li>
+                            )}
+                        </ul>
+
+                        <button
+                            onClick={() => {
+                                setEditingPlan(plan);
+                                setIsEditOpen(true);
+                            }}
+                            className="w-full py-2 bg-white text-black rounded-lg text-xs font-bold hover:bg-neutral-200 mb-2 transition-colors"
+                        >
+                            Edit Plan
+                        </button>
+                        <button
+                            onClick={() => deletePlan(plan.whalesync_postgres_id)}
+                            className="w-full py-2 text-neutral-600 hover:text-red-500 text-xs transition-colors"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                ))}
+            </div>
 
             {isEditOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-[#0f0f0f] border border-neutral-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 animate-scale-up">
-                        <h3 className="font-bold text-white mb-6">{editingItem.id ? 'Edit Item' : 'New Item'}</h3>
-                        <form onSubmit={saveItem} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Name</label><input required type="text" className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm" value={editingItem.name} onChange={e => setEditingItem({...editingItem, name: e.target.value})} /></div>
-                                <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Price (€)</label><input required type="number" className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm" value={editingItem.price} onChange={e => setEditingItem({...editingItem, price: e.target.value})} /></div>
+                        <h3 className="font-bold text-white mb-6">{editingPlan?.whalesync_postgres_id ? 'Edit Plan' : 'Create New Plan'}</h3>
+                        <form onSubmit={savePlan} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs text-neutral-500 uppercase">Plan Name</label>
+                                <input
+                                    required
+                                    type="text"
+                                    className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg p-2 text-white text-sm focus:border-neutral-600 outline-none"
+                                    value={editingPlan?.plan_name || ''}
+                                    onChange={e => setEditingPlan({...editingPlan, plan_name: e.target.value})}
+                                    placeholder="e.g., 🟩 Boost - 2 tâches / 48h"
+                                />
                             </div>
-                            
-                            {tab === 'retainers' ? (
-                                <>
-                                    <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Billing Interval</label><select className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm" value={editingItem.interval} onChange={e => setEditingItem({...editingItem, interval: e.target.value})}><option value="month">Monthly</option><option value="quarter">Quarterly</option><option value="year">Yearly</option></select></div>
-                                    <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Features (comma separated)</label><textarea className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm h-20 resize-none" value={editingItem.features?.join(', ') || ''} onChange={e => setEditingItem({...editingItem, features: e.target.value.split(',').map(s => s.trim())})} /></div>
-                                </>
-                            ) : (
-                                <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Type</label><select className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm" value={editingItem.type} onChange={e => setEditingItem({...editingItem, type: e.target.value})}><option value="One-off">One-off Service</option><option value="Unit">Unit (e.g., Hours)</option></select></div>
-                            )}
-                            
-                            <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Description</label><input type="text" className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm" value={editingItem.description} onChange={e => setEditingItem({...editingItem, description: e.target.value})} /></div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-neutral-500 uppercase">Price (€/month)</label>
+                                    <input
+                                        required
+                                        type="number"
+                                        step="0.01"
+                                        className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg p-2 text-white text-sm focus:border-neutral-600 outline-none"
+                                        value={editingPlan?.monthly_price_ht || ''}
+                                        onChange={e => setEditingPlan({...editingPlan, monthly_price_ht: e.target.value})}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-neutral-500 uppercase">Tasks at Once</label>
+                                    <input
+                                        type="number"
+                                        className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg p-2 text-white text-sm focus:border-neutral-600 outline-none"
+                                        value={editingPlan?.tasks_at_once || ''}
+                                        onChange={e => setEditingPlan({...editingPlan, tasks_at_once: e.target.value})}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs text-neutral-500 uppercase">Delivery SLA (Business Days)</label>
+                                <input
+                                    type="number"
+                                    className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg p-2 text-white text-sm focus:border-neutral-600 outline-none"
+                                    value={editingPlan?.delivery_sla_business_days || ''}
+                                    onChange={e => setEditingPlan({...editingPlan, delivery_sla_business_days: e.target.value})}
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs text-neutral-500 uppercase">Description</label>
+                                <textarea
+                                    rows="3"
+                                    className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg p-2 text-white text-sm focus:border-neutral-600 outline-none resize-none"
+                                    value={editingPlan?.description || ''}
+                                    onChange={e => setEditingPlan({...editingPlan, description: e.target.value})}
+                                    placeholder="Optional description"
+                                />
+                            </div>
 
                             <div className="flex gap-3 mt-6 pt-4 border-t border-neutral-800">
-                                <button type="button" onClick={() => setIsEditOpen(false)} className="flex-1 py-2.5 text-neutral-400 hover:text-white text-sm font-medium">Cancel</button>
-                                <button type="submit" className="flex-1 py-2.5 bg-white text-black rounded-lg font-bold text-sm">Save</button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsEditOpen(false);
+                                        setEditingPlan(null);
+                                    }}
+                                    className="flex-1 py-2.5 text-neutral-400 hover:text-white text-sm font-medium transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-2.5 bg-white text-black rounded-lg font-bold text-sm hover:bg-neutral-200 transition-colors"
+                                >
+                                    {editingPlan?.whalesync_postgres_id ? 'Update Plan' : 'Create Plan'}
+                                </button>
                             </div>
                         </form>
                     </div>

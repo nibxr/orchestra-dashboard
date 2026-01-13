@@ -9,9 +9,11 @@ import { Avatar } from './Shared';
 import { CustomSelect } from './CustomUI';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from './Toast';
 
 export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
     const { user } = useAuth();
+    const toast = useToast();
     const [comment, setComment] = useState('');
     const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
@@ -48,7 +50,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
             });
         } catch (e) {
             console.error("Error updating created_by:", e);
-            alert(`Failed to update creator: ${e.message}`);
+            toast.error(`Failed to update creator: ${e.message}`);
         }
     };
 
@@ -69,7 +71,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
             });
         } catch (e) {
             console.error("Error updating assignee:", e);
-            alert(`Failed to update assignee: ${e.message}`);
+            toast.error(`Failed to update assignee: ${e.message}`);
         }
     };
 
@@ -104,7 +106,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
             setComment('');
         } catch (e) {
             console.error("Error posting comment:", e);
-            alert("Failed to post comment");
+            toast.error("Failed to post comment");
         }
     };
 
@@ -119,12 +121,12 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
 
             if (error) throw error;
 
-            alert('Task deleted successfully');
+            toast.success('Task deleted successfully');
             onClose();
             window.location.reload(); // Refresh to update task list
         } catch (e) {
             console.error("Error deleting task:", e);
-            alert(`Failed to delete task: ${e.message}`);
+            toast.error(`Failed to delete task: ${e.message}`);
         }
     };
 
@@ -137,12 +139,12 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
 
             if (error) throw error;
 
-            alert('Task archived successfully');
+            toast.success('Task archived successfully');
             onClose();
             window.location.reload();
         } catch (e) {
             console.error("Error archiving task:", e);
-            alert(`Failed to archive task: ${e.message}`);
+            toast.error(`Failed to archive task: ${e.message}`);
         }
     };
 
@@ -167,11 +169,11 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
 
             if (error) throw error;
 
-            alert('Task duplicated successfully');
+            toast.success('Task duplicated successfully');
             window.location.reload();
         } catch (e) {
             console.error("Error duplicating task:", e);
-            alert(`Failed to duplicate task: ${e.message}`);
+            toast.error(`Failed to duplicate task: ${e.message}`);
         }
     };
 
@@ -334,7 +336,10 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                                                 <span className="text-sm font-bold text-white">{c.authorName || "User"}</span>
                                                 <span className="text-xs text-neutral-600">{new Date(c.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                             </div>
-                                            <div className="text-neutral-300 text-sm leading-relaxed bg-[#1a1a1a] p-3 rounded-lg rounded-tl-none border border-neutral-800">{c.content || c.text}</div>
+                                            <div
+                                                className="text-neutral-300 text-sm leading-relaxed bg-[#1a1a1a] p-3 rounded-lg rounded-tl-none border border-neutral-800"
+                                                dangerouslySetInnerHTML={{ __html: (c.content || c.text || '').replace(/<br>/gi, '<br />') }}
+                                            />
                                         </div>
                                     </div>
                                 ))}

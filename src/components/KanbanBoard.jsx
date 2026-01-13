@@ -20,11 +20,36 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
     setContextMenu({ x: e.clientX, y: e.clientY, task: task });
   };
 
-  const handleContextAction = (action) => {
+  const handleContextAction = async (action) => {
     if (!contextMenu) return;
     const { task } = contextMenu;
+
     if (action === 'open') setActiveTask(task);
     if (action === 'delete') onDeleteTask(task.id);
+
+    // Copy task ID to clipboard
+    if (action === 'copy_id') {
+      try {
+        await navigator.clipboard.writeText(task.orchestra_task_id || task.id);
+        // TODO: Show toast notification "Task ID copied!"
+        console.log('Task ID copied:', task.orchestra_task_id || task.id);
+      } catch (err) {
+        console.error('Failed to copy task ID:', err);
+      }
+    }
+
+    // Copy task link to clipboard
+    if (action === 'copy_link') {
+      try {
+        const taskLink = `${window.location.origin}?task=${task.id}`;
+        await navigator.clipboard.writeText(taskLink);
+        // TODO: Show toast notification "Link copied!"
+        console.log('Task link copied:', taskLink);
+      } catch (err) {
+        console.error('Failed to copy link:', err);
+      }
+    }
+
     setContextMenu(null);
   };
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Filter, MoreHorizontal, Wallet, TrendingUp, X, Calendar, CreditCard, Database, CheckCircle2, AlertCircle, Upload, Building2, DollarSign, Plus, ExternalLink } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { useToast } from './Toast';
 
 // --- Analytics View (Real Implementation) ---
 // Now receives filtered tasks, clients, and team as props from App.jsx
@@ -451,6 +452,7 @@ const ClientDetails = ({ client, onClose, onOpenPortal }) => {
 
 // --- New Client Modal ---
 const NewClientModal = ({ isOpen, onClose, onClientAdded }) => {
+    const toast = useToast();
     const [formData, setFormData] = useState({
         client_name: '',
         offer_type: 'Scale',
@@ -490,7 +492,7 @@ const NewClientModal = ({ isOpen, onClose, onClientAdded }) => {
             onClose();
         } catch (error) {
             console.error("Error adding client:", error);
-            alert("Failed to add client: " + error.message);
+            toast.error("Failed to add client: " + error.message);
         } finally {
             setLoading(false);
         }
@@ -632,6 +634,8 @@ export const CustomersView = ({ clients: initialClients, onOpenPortal }) => {
   const [clients, setClients] = useState(initialClients);
   const [selectedClient, setSelectedClient] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'paused', 'inactive'
 
   React.useEffect(() => {
       if(initialClients) setClients(initialClients);
@@ -665,13 +669,35 @@ export const CustomersView = ({ clients: initialClients, onOpenPortal }) => {
     return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
   };
 
-  const sortedClients = [...clients].sort((a, b) => {
+  // Filter and sort clients
+  const filteredAndSortedClients = [...clients]
+    .filter(client => {
+      // Search filter
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch = !searchQuery ||
+        (client.client_name || '').toLowerCase().includes(searchLower) ||
+        (client.offer_type || '').toLowerCase().includes(searchLower);
+
+      // Status filter
+      const status = (client.status || '').toLowerCase();
+      let matchesStatus = true;
+      if (statusFilter === 'active') {
+        matchesStatus = status.includes('en cours') || status.includes('start') || status.includes('active');
+      } else if (statusFilter === 'paused') {
+        matchesStatus = status.includes('pause');
+      } else if (statusFilter === 'inactive') {
+        matchesStatus = status.includes('finito') || status.includes('churn') || status.includes('cancel') || status.includes('inactive');
+      }
+
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
       const isAActive = (a.status || '').toLowerCase().includes('en cours');
       const isBActive = (b.status || '').toLowerCase().includes('en cours');
       if (isAActive && !isBActive) return -1;
       if (!isAActive && isBActive) return 1;
       return 0;
-  });
+    });
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto h-full overflow-y-auto custom-scrollbar animate-fade-in">
@@ -683,16 +709,25 @@ export const CustomersView = ({ clients: initialClients, onOpenPortal }) => {
         <div className="flex gap-3">
             <div className="flex items-center gap-3 bg-[#1a1a1a] border border-neutral-800 rounded-lg px-4 py-2 w-64 focus-within:border-neutral-600 transition-colors">
                 <Search size={16} className="text-neutral-500" />
-                <input 
-                    type="text" 
-                    placeholder="Search clients..." 
+                <input
+                    type="text"
+                    placeholder="Search clients..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     className="bg-transparent border-none outline-none text-sm text-white w-full placeholder-neutral-600"
                 />
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] border border-neutral-800 rounded-lg text-sm text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors">
-                <Filter size={14} /> Filter
-            </button>
-            <button 
+            <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] border border-neutral-800 rounded-lg text-sm text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors outline-none cursor-pointer"
+            >
+                <option value="all">All Clients</option>
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+                <option value="inactive">Inactive</option>
+            </select>
+            <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-colors active:scale-95"
             >
@@ -712,7 +747,16 @@ export const CustomersView = ({ clients: initialClients, onOpenPortal }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-800/50">
-            {sortedClients.map((client) => (
+            {filteredAndSortedClients.length === 0 ? (
+              <tr>
+                <td colSpan="4" className="px-6 py-12 text-center">
+                  <div className="text-neutral-500">
+                    {searchQuery || statusFilter !== 'all' ? 'No clients match your filters' : 'No clients yet'}
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              filteredAndSortedClients.map((client) => (
               <tr 
                 key={client.id} 
                 onClick={() => setSelectedClient(client)}
@@ -748,7 +792,8 @@ export const CustomersView = ({ clients: initialClients, onOpenPortal }) => {
                     {client.start_date ? new Date(client.start_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>

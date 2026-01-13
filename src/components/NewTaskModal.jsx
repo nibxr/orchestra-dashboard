@@ -9,11 +9,12 @@ import { CustomSelect } from './CustomUI';
 
 export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = [], initialStatus = 'Backlog' }) => {
    if (!isOpen) return null;
-   
+
    const [title, setTitle] = useState('');
    const [description, setDescription] = useState('');
    const [isPrivate, setIsPrivate] = useState(false);
-   
+   const [isSubmitting, setIsSubmitting] = useState(false);
+
    const [properties, setProperties] = useState({
      status: initialStatus,
      createdById: null,
@@ -29,18 +30,25 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
        }
    }, [initialStatus, isOpen]);
 
-   const handleSubmit = () => {
-     if (!title) return;
-     onAddTask({
-       title,
-       description,
-       isPrivate,
-       ...properties
-     });
-     setTitle('');
-     setDescription('');
-     setIsPrivate(false);
-     setProperties({ status: 'Backlog', createdById: null, assigneeId: null, dueDate: '', clientId: null, type: null });
+   const handleSubmit = async () => {
+     if (!title || isSubmitting) return;
+     setIsSubmitting(true);
+     try {
+       await onAddTask({
+         title,
+         description,
+         isPrivate,
+         ...properties
+       });
+       setTitle('');
+       setDescription('');
+       setIsPrivate(false);
+       setProperties({ status: 'Backlog', createdById: null, assigneeId: null, dueDate: '', clientId: null, type: null });
+     } catch (error) {
+       console.error('Error creating task:', error);
+     } finally {
+       setIsSubmitting(false);
+     }
    };
 
    const statusOptions = Object.keys(STATUS_CONFIG).map(s => ({ value: s, label: s }));
@@ -182,12 +190,12 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                            {isPrivate ? <ToggleRight size={20} className="text-white" /> : <ToggleLeft size={20} />}
                            <span className="text-xs">Make private</span>
                        </div>
-                       <button 
+                       <button
                           onClick={handleSubmit}
-                          disabled={!title}
-                          className={`px-4 py-2 rounded-md text-sm font-bold transition-all duration-200 ${title ? 'bg-white text-black hover:bg-neutral-200 scale-100 opacity-100' : 'bg-neutral-800 text-neutral-500 cursor-not-allowed scale-95 opacity-70'}`}
+                          disabled={!title || isSubmitting}
+                          className={`px-4 py-2 rounded-md text-sm font-bold transition-all duration-200 ${title && !isSubmitting ? 'bg-white text-black hover:bg-neutral-200 scale-100 opacity-100' : 'bg-neutral-800 text-neutral-500 cursor-not-allowed scale-95 opacity-70'}`}
                        >
-                           Create task
+                           {isSubmitting ? 'Creating...' : 'Create task'}
                        </button>
                    </div>
                </div>
