@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, FileText, CreditCard, LogOut, Clock, CheckCircle2, ArrowRight, Download, Folder, List as ListIcon, ArrowUpRight, Plus, X } from 'lucide-react';
+import { LayoutGrid, FileText, CreditCard, LogOut, Clock, CheckCircle2, ArrowRight, Download, Folder, List as ListIcon, ArrowUpRight, Plus, X, AlertCircle, Calendar } from 'lucide-react';
 // Correct relative paths based on standard src/ structure
 import { supabase } from '../supabaseClient';
 import { STATUS_CONFIG } from '../utils/constants';
@@ -22,6 +22,11 @@ export const ClientPortal = ({ client, onExit }) => {
     const [draggedTask, setDraggedTask] = useState(null);
     const [dragOverStatus, setDragOverStatus] = useState(null);
     const { user } = useAuth();
+
+    // Financial State
+    const [financials, setFinancials] = useState(null);
+    const [loadingFinancials, setLoadingFinancials] = useState(false);
+    const [financialError, setFinancialError] = useState(null);
 
     const fetchTasks = async () => {
         if(!client?.id) return;
@@ -155,6 +160,38 @@ export const ClientPortal = ({ client, onExit }) => {
         fetchTasks();
     }, [client]);
 
+    // Fetch Financials when view changes to 'invoices'
+    useEffect(() => {
+        const fetchFinancials = async () => {
+            if (!client?.stripe_customer_id) {
+                setFinancialError("No billing account connected.");
+                return;
+            }
+
+            setLoadingFinancials(true);
+            setFinancialError(null);
+
+            try {
+                // Invoke the Supabase Edge Function
+                const { data, error } = await supabase.functions.invoke('get-client-financials', {
+                    body: { customerId: client.stripe_customer_id }
+                });
+
+                if (error) throw error;
+                setFinancials(data);
+            } catch (err) {
+                console.error('Billing Error:', err);
+                setFinancialError("Unable to load billing information.");
+            } finally {
+                setLoadingFinancials(false);
+            }
+        };
+
+        if (view === 'invoices' && !financials) {
+            fetchFinancials();
+        }
+    }, [view, client?.stripe_customer_id, financials]);
+
     const handleCreateRequest = async (e) => {
         e.preventDefault();
         if (!newRequestTitle.trim()) return;
@@ -209,6 +246,10 @@ export const ClientPortal = ({ client, onExit }) => {
         return 'Backlog'; // Fallback
     };
 
+    const formatCurrency = (amount, currency) => {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase() }).format(amount / 100);
+    };
+
     return (
         <div className="flex h-screen w-full bg-[#0f0f0f] font-sans text-neutral-200 overflow-hidden">
             {/* PORTAL SIDEBAR */}
@@ -230,7 +271,7 @@ export const ClientPortal = ({ client, onExit }) => {
                         <FileText size={18} /> Requests
                     </button>
                     <button onClick={() => setView('invoices')} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'invoices' ? 'bg-white/10 text-white' : 'text-neutral-400 hover:text-white'}`}>
-                        <CreditCard size={18} /> Invoices
+                        <CreditCard size={18} /> Billing
                     </button>
                 </div>
 
@@ -278,8 +319,8 @@ export const ClientPortal = ({ client, onExit }) => {
                                             </div>
                                         </div>
                                     </div>
-                                    <button className="px-4 py-2 bg-white text-black text-sm font-bold rounded-lg hover:bg-neutral-200 transition-colors">
-                                        Manage
+                                    <button onClick={() => setView('invoices')} className="px-4 py-2 bg-white text-black text-sm font-bold rounded-lg hover:bg-neutral-200 transition-colors">
+                                        Manage Billing
                                     </button>
                                 </div>
                             </section>
@@ -377,7 +418,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                                          {tasks.filter(t => normalizeStatus(t.status) === status).length}
                                                      </span>
                                                  </div>
-
+                                                 
                                                  <div className={`flex-1 overflow-y-auto space-y-3 pr-2 pb-10 custom-scrollbar transition-all duration-300 ${dragOverStatus === status ? 'bg-white/5 border-2 border-white rounded-lg shadow-lg shadow-white/30' : 'border-2 border-transparent'}`}>
                                                      {tasks.filter(t => normalizeStatus(t.status) === status).map(task => (
                                                          <div
@@ -413,21 +454,108 @@ export const ClientPortal = ({ client, onExit }) => {
                     )}
                     
                     {view === 'invoices' && (
-                        <div className="animate-fade-in">
-                            <h1 className="text-2xl font-bold text-white mb-6">Invoices</h1>
-                            <div className="bg-[#141414] border border-neutral-800 rounded-xl overflow-hidden">
-                                <div className="p-4 border-b border-neutral-800 flex justify-between items-center">
-                                    <div>
-                                        <div className="text-white font-bold">October 2025</div>
-                                        <div className="text-xs text-neutral-500">Paid on Oct 1, 2025</div>
+                        <div className="animate-fade-in max-w-4xl mx-auto w-full">
+                            <h1 className="text-2xl font-bold text-white mb-6">Billing & Invoices</h1>
+                            
+                            {loadingFinancials ? (
+                                <div className="space-y-4">
+                                    <div className="h-32 bg-[#141414] border border-neutral-800 rounded-xl animate-pulse"></div>
+                                    <div className="h-20 bg-[#141414] border border-neutral-800 rounded-xl animate-pulse"></div>
+                                    <div className="h-20 bg-[#141414] border border-neutral-800 rounded-xl animate-pulse"></div>
+                                </div>
+                            ) : financialError ? (
+                                <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-center gap-3 text-red-400">
+                                    <AlertCircle size={20} />
+                                    <span>{financialError}</span>
+                                </div>
+                            ) : !financials ? (
+                                <div className="text-neutral-500">No data available.</div>
+                            ) : (
+                                <div className="space-y-8">
+                                    {/* 1. Subscription & Upcoming Payment Overview */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Status Card */}
+                                        <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 relative overflow-hidden">
+                                            <div className="relative z-10">
+                                                <div className="flex items-center gap-2 mb-4">
+                                                    <div className={`w-2 h-2 rounded-full ${financials.subscription.active ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                                                    <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Current Plan</span>
+                                                </div>
+                                                <div className="text-2xl font-bold text-white mb-1">
+                                                    {financials.subscription.plans[0]?.product_name || 'No Active Plan'}
+                                                </div>
+                                                <div className="text-sm text-neutral-500">
+                                                    {financials.subscription.plans[0] ? 
+                                                        `${formatCurrency(financials.subscription.plans[0].amount, financials.client.currency)} / ${financials.subscription.plans[0].interval}` 
+                                                        : 'Contact support to activate'}
+                                                </div>
+                                            </div>
+                                            <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl"></div>
+                                        </div>
+
+                                        {/* Next Invoice Card */}
+                                        {financials.upcoming_payment && (
+                                            <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 relative overflow-hidden">
+                                                 <div className="relative z-10">
+                                                    <div className="flex items-center gap-2 mb-4">
+                                                        <Calendar size={14} className="text-neutral-400"/>
+                                                        <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Next Invoice</span>
+                                                    </div>
+                                                    <div className="text-2xl font-bold text-white mb-1">
+                                                        {formatCurrency(financials.upcoming_payment.amount_due, financials.upcoming_payment.currency)}
+                                                    </div>
+                                                    <div className="text-sm text-neutral-500">
+                                                        Scheduled for {new Date(financials.upcoming_payment.date * 1000).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-white font-mono">€{(client.monthly_amount_cents / 100).toFixed(2)}</span>
-                                        <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 text-xs rounded font-bold">PAID</span>
-                                        <button className="p-2 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white"><Download size={16}/></button>
+
+                                    {/* 2. Invoice History */}
+                                    <div>
+                                        <h2 className="text-lg font-bold text-white mb-4">Invoice History</h2>
+                                        <div className="bg-[#141414] border border-neutral-800 rounded-xl overflow-hidden divide-y divide-neutral-800">
+                                            {financials.history.length > 0 ? financials.history.map(invoice => (
+                                                <div key={invoice.id} className="p-4 flex items-center justify-between group hover:bg-[#1a1a1a] transition-colors">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`p-2 rounded-lg ${invoice.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>
+                                                            {invoice.status === 'paid' ? <CheckCircle2 size={18} /> : <Clock size={18} />}
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-white font-medium text-sm flex items-center gap-2">
+                                                                {new Date(invoice.date * 1000).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                                                                <span className="text-neutral-600 font-normal text-xs">• {invoice.number}</span>
+                                                            </div>
+                                                            <div className="text-xs text-neutral-500">
+                                                                {invoice.status === 'paid' ? `Paid on ${new Date(invoice.paid_at * 1000).toLocaleDateString()}` : 'Payment Pending'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="text-white font-mono text-sm font-medium">
+                                                            {formatCurrency(invoice.amount_paid, invoice.currency)}
+                                                        </span>
+                                                        {invoice.pdf_url && (
+                                                            <a 
+                                                                href={invoice.pdf_url} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer" 
+                                                                className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-800 rounded-lg transition-all"
+                                                                title="Download Invoice PDF"
+                                                            >
+                                                                <Download size={16} />
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )) : (
+                                                <div className="p-8 text-center text-neutral-500 text-sm">No invoices found.</div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     )}
                 </div>

@@ -1,5 +1,27 @@
-import React, { useState } from 'react';
-import { Search, Filter, MoreHorizontal, Wallet, TrendingUp, X, Calendar, CreditCard, Database, CheckCircle2, AlertCircle, Upload, Building2, DollarSign, Plus, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+    LayoutGrid, 
+    Users, 
+    CheckCircle2, 
+    Clock, 
+    AlertCircle, 
+    ArrowUpRight, 
+    TrendingUp, 
+    Calendar as CalendarIcon,
+    Search,
+    Filter,
+    MoreVertical,
+    Plus,
+    CreditCard,
+    DollarSign,
+    Download,
+    Building2,
+    Database,
+    ExternalLink,
+    X,
+    Wallet,
+    Calendar // Added missing import
+} from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useToast } from './Toast';
 
@@ -162,180 +184,234 @@ export const AnalyticsView = ({ tasks = [], clients = [], team = [] }) => {
 
 // --- Payments View (Real Implementation) ---
 export const PaymentsView = () => {
-  const [clients, setClients] = React.useState([]);
-  const [cycles, setCycles] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const [clients, setClients] = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [financials, setFinancials] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingFinancials, setLoadingFinancials] = useState(false);
 
-  React.useEffect(() => {
-    const fetchData = async () => {
+  // Helper for currency formatting - FIXED to handle null currency
+  const formatCurrency = (amount, currency = 'eur') => {
+      if (!amount && amount !== 0) return '-';
+      // Default to EUR if currency is null/undefined
+      const currencyCode = currency ? currency.toUpperCase() : 'EUR';
       try {
-        const [clientsData, cyclesData] = await Promise.all([
-          supabase.from('client_memberships').select('*'),
-          supabase.from("Clara's V2 of 🔄 Cycles").select('*')
-        ]);
-
-        setClients(clientsData.data || []);
-        setCycles(cyclesData.data || []);
-      } catch (error) {
-        console.error('Error fetching payments data:', error);
-      } finally {
-        setLoading(false);
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: currencyCode }).format(amount / 100);
+      } catch (e) {
+        // Fallback if currency code is invalid
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount / 100);
       }
-    };
+  };
 
-    fetchData();
+  // 1. Fetch all clients with Stripe IDs
+  useEffect(() => {
+      const fetchClients = async () => {
+          setLoading(true);
+          const { data } = await supabase
+              .from('client_memberships')
+              .select('id, client_name, stripe_customer_id, offer_type')
+              .not('stripe_customer_id', 'is', null);
+          
+          setClients(data || []);
+          setLoading(false);
+      };
+      fetchClients();
   }, []);
 
-  if (loading) return <div className="h-full flex items-center justify-center text-neutral-500">Loading payments...</div>;
+  // 2. Fetch financials when a client is selected
+  useEffect(() => {
+      const fetchFinancials = async () => {
+          if (!selectedClient?.stripe_customer_id) return;
+          
+          setLoadingFinancials(true);
+          setFinancials(null); // Clear previous data while loading
+          try {
+              const { data, error } = await supabase.functions.invoke('get-client-financials', {
+                  body: { customerId: selectedClient.stripe_customer_id }
+              });
+              
+              if (error) throw error;
+              setFinancials(data);
+          } catch (err) {
+              console.error('Error fetching financials:', err);
+          } finally {
+              setLoadingFinancials(false);
+          }
+      };
 
-  const activeClients = clients.filter(c => c.status === 'En cours' || c.status === 'Start' || c.status === 'Active');
-  const totalMRR = activeClients.reduce((sum, c) => sum + (c.monthly_amount_cents || 0), 0);
-  const totalARR = totalMRR * 12;
-
-  const activeCycles = cycles.filter(c => {
-    const status = (c.status_from_agreement?.[0] || '').toLowerCase();
-    return status.includes('active') || status.includes('en cours');
-  });
-
-  const formatCurrency = (cents) => {
-    if (!cents && cents !== 0) return '€0';
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(cents);
-  };
-
-  const getStatusStyle = (status) => {
-    const s = (status || '').toLowerCase();
-    if (s.includes('en cours') || s.includes('active') || s.includes('start')) {
-      return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-    }
-    if (s.includes('pause')) {
-      return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-    }
-    return 'bg-neutral-800 text-neutral-400 border-neutral-700';
-  };
-
-  // Sort clients by MRR descending
-  const sortedClients = [...activeClients].sort((a, b) => (b.monthly_amount_cents || 0) - (a.monthly_amount_cents || 0));
+      if (selectedClient) {
+          fetchFinancials();
+      } else {
+          setFinancials(null);
+      }
+  }, [selectedClient]);
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar bg-black p-8 animate-fade-in">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Payments & Revenue</h1>
-            <p className="text-sm text-neutral-500 mt-1">Track monthly recurring revenue and client billing</p>
-          </div>
-        </div>
+      <div className="p-8 max-w-7xl mx-auto h-full flex flex-col">
+          <header className="mb-8 flex items-center justify-between">
+              <div>
+                  <h1 className="text-2xl font-bold text-white mb-2">Payments & Billing</h1>
+                  <p className="text-neutral-400">Manage client subscriptions and view invoice history.</p>
+              </div>
+          </header>
 
-        {/* Revenue Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-500 text-sm">Monthly Recurring Revenue</span>
-              <TrendingUp size={16} className="text-lime-400" />
-            </div>
-            <div className="text-3xl font-bold text-white">{formatCurrency(totalMRR)}</div>
-            <p className="text-xs text-neutral-600 mt-1">MRR from {activeClients.length} active clients</p>
-          </div>
-
-          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-500 text-sm">Annual Recurring Revenue</span>
-              <Calendar size={16} className="text-blue-500" />
-            </div>
-            <div className="text-3xl font-bold text-white">{formatCurrency(totalARR)}</div>
-            <p className="text-xs text-neutral-600 mt-1">Projected annual revenue</p>
-          </div>
-
-          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-500 text-sm">Active Subscriptions</span>
-              <CheckCircle2 size={16} className="text-emerald-500" />
-            </div>
-            <div className="text-3xl font-bold text-white">{activeClients.length}</div>
-            <p className="text-xs text-neutral-600 mt-1">Clients with active billing</p>
-          </div>
-
-          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-500 text-sm">Active Cycles</span>
-              <AlertCircle size={16} className="text-amber-500" />
-            </div>
-            <div className="text-3xl font-bold text-white">{activeCycles.length}</div>
-            <p className="text-xs text-neutral-600 mt-1">Currently running cycles</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Client Revenue Breakdown */}
-          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Revenue by Client</h2>
-            <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-              {sortedClients.map((client) => {
-                const percentage = totalMRR > 0 ? ((client.monthly_amount_cents || 0) / totalMRR) * 100 : 0;
-                return (
-                  <div key={client.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center text-white font-bold text-xs shrink-0">
-                        {client.client_name ? client.client_name[0].toUpperCase() : '?'}
+          <div className="flex gap-6 h-full overflow-hidden">
+              {/* Client List Sidebar */}
+              <div className="w-80 bg-[#141414] border border-neutral-800 rounded-xl overflow-hidden flex flex-col shrink-0">
+                  <div className="p-4 border-b border-neutral-800">
+                      <div className="relative">
+                          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+                          <input 
+                              type="text" 
+                              placeholder="Search clients..." 
+                              className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-neutral-700"
+                          />
                       </div>
-                      <span className="text-neutral-300 text-sm truncate">{client.client_name || 'Unknown'}</span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="w-24 h-2 bg-neutral-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-lime-400 rounded-full"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                      <span className="text-white font-medium font-mono text-sm w-20 text-right">
-                        {formatCurrency(client.monthly_amount_cents || 0)}
-                      </span>
-                    </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Recent Subscriptions */}
-          <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Recent Subscriptions</h2>
-            <div className="space-y-3">
-              {clients
-                .sort((a, b) => new Date(b.start_date || 0) - new Date(a.start_date || 0))
-                .slice(0, 8)
-                .map((client) => (
-                  <div key={client.id} className="flex items-center justify-between py-2 border-b border-neutral-800 last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-white text-sm font-medium truncate">{client.client_name || 'Unknown'}</p>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getStatusStyle(client.status)}`}>
-                          {client.status || 'Unknown'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-neutral-500 text-xs">
-                          {client.start_date ? new Date(client.start_date).toLocaleDateString() : 'N/A'}
-                        </p>
-                        <span className="text-neutral-700">•</span>
-                        <p className="text-neutral-500 text-xs">{client.offer_type || 'Custom'}</p>
-                      </div>
-                    </div>
-                    <div className="text-white font-mono font-medium text-sm shrink-0 ml-4">
-                      {formatCurrency(client.monthly_amount_cents || 0)}
-                    </div>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar">
+                      {loading ? (
+                          <div className="p-4 text-neutral-500 text-sm text-center">Loading clients...</div>
+                      ) : (
+                          clients.map(client => (
+                              <button
+                                  key={client.id}
+                                  onClick={() => setSelectedClient(client)}
+                                  className={`w-full text-left p-4 border-b border-neutral-800 hover:bg-neutral-800/50 transition-colors ${selectedClient?.id === client.id ? 'bg-neutral-800 border-l-2 border-l-lime-400' : ''}`}
+                              >
+                                  <div className="font-medium text-white mb-1">{client.client_name}</div>
+                                  <div className="text-xs text-neutral-500">{client.offer_type || 'No Active Plan'}</div>
+                              </button>
+                          ))
+                      )}
+                      {!loading && clients.length === 0 && (
+                           <div className="p-4 text-neutral-500 text-sm text-center">No clients with billing connected.</div>
+                      )}
                   </div>
-                ))}
-            </div>
+              </div>
+
+              {/* Main Content Area */}
+              <div className="flex-1 bg-[#141414] border border-neutral-800 rounded-xl overflow-hidden flex flex-col relative min-w-[600px] w-full">
+                  {!selectedClient ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-500">
+                          <CreditCard size={48} className="mb-4 opacity-20" />
+                          <p>Select a client to view billing details</p>
+                      </div>
+                  ) : (
+                      <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+                          <div className="flex items-center justify-between mb-8">
+                              <div>
+                                  <h2 className="text-xl font-bold text-white">{selectedClient.client_name}</h2>
+                                  <p className="text-sm text-neutral-500">Customer ID: {selectedClient.stripe_customer_id}</p>
+                              </div>
+                              <div className="px-3 py-1 bg-lime-400/10 text-lime-400 rounded-full text-xs font-bold border border-lime-400/20">
+                                  STRIPE CONNECTED
+                              </div>
+                          </div>
+
+                          {loadingFinancials ? (
+                              <div className="space-y-4 animate-pulse">
+                                  <div className="h-32 bg-neutral-900 rounded-xl"></div>
+                                  <div className="h-64 bg-neutral-900 rounded-xl"></div>
+                              </div>
+                          ) : financials ? (
+                              <div className="space-y-8 animate-fade-in">
+                                  {/* Overview Cards */}
+                                  <div className="grid grid-cols-3 gap-4">
+                                      <div className="bg-neutral-900/50 border border-neutral-800 p-4 rounded-xl">
+                                          <div className="text-neutral-500 text-xs font-bold uppercase mb-2">Total Due</div>
+                                          <div className="text-2xl font-bold text-white">
+                                              {formatCurrency(financials.client.balance, financials.client.currency)}
+                                          </div>
+                                      </div>
+                                      <div className="bg-neutral-900/50 border border-neutral-800 p-4 rounded-xl">
+                                          <div className="text-neutral-500 text-xs font-bold uppercase mb-2">Next Payment</div>
+                                          <div className="text-2xl font-bold text-white">
+                                              {financials.upcoming_payment 
+                                                  ? formatCurrency(financials.upcoming_payment.amount_due, financials.upcoming_payment.currency) 
+                                                  : '—'}
+                                          </div>
+                                          <div className="text-xs text-neutral-500 mt-1">
+                                              {financials.upcoming_payment 
+                                                  ? new Date(financials.upcoming_payment.date * 1000).toLocaleDateString() 
+                                                  : 'No upcoming invoice'}
+                                          </div>
+                                      </div>
+                                      <div className="bg-neutral-900/50 border border-neutral-800 p-4 rounded-xl">
+                                          <div className="text-neutral-500 text-xs font-bold uppercase mb-2">Active Plan</div>
+                                          <div className="text-lg font-bold text-white truncate">
+                                              {financials.subscription.plans[0]?.product_name || 'None'}
+                                          </div>
+                                          <div className="text-xs text-neutral-500 mt-1">
+                                              {financials.subscription.active ? 'Auto-renewing' : 'Inactive'}
+                                          </div>
+                                      </div>
+                                  </div>
+
+                                  {/* Invoice History Table */}
+                                  <div>
+                                      <h3 className="text-lg font-bold text-white mb-4">Invoice History</h3>
+                                      <div className="border border-neutral-800 rounded-xl overflow-hidden">
+                                          <table className="w-full text-sm text-left">
+                                              <thead className="bg-neutral-900 text-neutral-400 font-medium border-b border-neutral-800">
+                                                  <tr>
+                                                      <th className="px-6 py-3">Date</th>
+                                                      <th className="px-6 py-3">Amount</th>
+                                                      <th className="px-6 py-3">Status</th>
+                                                      <th className="px-6 py-3 text-right">Invoice</th>
+                                                  </tr>
+                                              </thead>
+                                              <tbody className="divide-y divide-neutral-800 bg-[#141414]">
+                                                  {financials.history.map(invoice => (
+                                                      <tr key={invoice.id} className="hover:bg-neutral-900/50 transition-colors">
+                                                          <td className="px-6 py-4 text-white">
+                                                              {new Date(invoice.date * 1000).toLocaleDateString()}
+                                                          </td>
+                                                          <td className="px-6 py-4 text-white font-mono">
+                                                              {formatCurrency(invoice.amount_paid, invoice.currency)}
+                                                          </td>
+                                                          <td className="px-6 py-4">
+                                                              <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                                  invoice.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                                                              }`}>
+                                                                  {invoice.status ? invoice.status.toUpperCase() : 'UNKNOWN'}
+                                                              </span>
+                                                          </td>
+                                                          <td className="px-6 py-4 text-right">
+                                                              {invoice.pdf_url && (
+                                                                  <a 
+                                                                      href={invoice.pdf_url} 
+                                                                      target="_blank" 
+                                                                      rel="noopener noreferrer"
+                                                                      className="text-neutral-400 hover:text-white inline-flex items-center gap-1 hover:underline"
+                                                                  >
+                                                                      <Download size={14} /> PDF
+                                                                  </a>
+                                                              )}
+                                                          </td>
+                                                      </tr>
+                                                  ))}
+                                                  {financials.history.length === 0 && (
+                                                      <tr>
+                                                          <td colSpan="4" className="px-6 py-8 text-center text-neutral-500">
+                                                              No invoice history found.
+                                                          </td>
+                                                      </tr>
+                                                  )}
+                                              </tbody>
+                                          </table>
+                                      </div>
+                                  </div>
+                              </div>
+                          ) : (
+                              <div className="text-center py-12 text-neutral-500">
+                                  Unable to load financial data.
+                              </div>
+                          )}
+                      </div>
+                  )}
+              </div>
           </div>
-        </div>
       </div>
-    </div>
   );
 };
 
