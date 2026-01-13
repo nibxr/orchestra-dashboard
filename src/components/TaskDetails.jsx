@@ -2,15 +2,28 @@ import React, { useState } from 'react';
 import {
   X, Circle, User, Calendar, Plus, MoreHorizontal,
   Paperclip, Smile, Mic, Briefcase,
-  Clock, CheckCircle2, Link as LinkIcon, ArrowUpRight, ToggleLeft
+  Clock, CheckCircle2, Link as LinkIcon, ArrowUpRight, ToggleLeft, Edit2, Check
 } from 'lucide-react';
 import { Avatar } from './Shared';
 import { supabase } from '../supabaseClient';
-import { useAuth } from '../contexts/AuthContext'; 
+import { useAuth } from '../contexts/AuthContext';
 
 export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
     const { user } = useAuth();
     const [comment, setComment] = useState('');
+
+    // Edit states
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [editedTitle, setEditedTitle] = useState(task.title);
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [editedDescription, setEditedDescription] = useState(task.description || '');
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editedCommentText, setEditedCommentText] = useState('');
+
+    // Check if current user is a designer
+    const currentUserTeamMember = team?.find(t => t.id === user?.id);
+    const currentUserRole = currentUserTeamMember?.notes?.replace('Role: ', '') || '';
+    const isDesigner = currentUserRole === 'Designer';
 
     const properties = [
         // Added Client Field
@@ -55,6 +68,92 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
         }
     };
 
+    const handleSaveTitle = async () => {
+        if (!editedTitle.trim() || editedTitle === task.title) {
+            setIsEditingTitle(false);
+            setEditedTitle(task.title);
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .update({ title: editedTitle, updated_at: new Date().toISOString() })
+                .eq('id', task.id);
+
+            if (error) throw error;
+
+            onUpdate(task.id, { title: editedTitle });
+            setIsEditingTitle(false);
+        } catch (e) {
+            console.error("Error updating title:", e);
+            alert("Failed to update title");
+            setEditedTitle(task.title);
+            setIsEditingTitle(false);
+        }
+    };
+
+    const handleSaveDescription = async () => {
+        if (editedDescription === task.description) {
+            setIsEditingDescription(false);
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .update({ description: editedDescription, updated_at: new Date().toISOString() })
+                .eq('id', task.id);
+
+            if (error) throw error;
+
+            onUpdate(task.id, { description: editedDescription });
+            setIsEditingDescription(false);
+        } catch (e) {
+            console.error("Error updating description:", e);
+            alert("Failed to update description");
+            setEditedDescription(task.description || '');
+            setIsEditingDescription(false);
+        }
+    };
+
+    const handleEditComment = (commentId, currentText) => {
+        setEditingCommentId(commentId);
+        setEditedCommentText(currentText);
+    };
+
+    const handleSaveComment = async (commentId) => {
+        if (!editedCommentText.trim()) {
+            setEditingCommentId(null);
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('comments')
+                .update({ content: editedCommentText })
+                .eq('id', commentId);
+
+            if (error) throw error;
+
+            // Update local state
+            const updatedComments = task.comments.map(c =>
+                c.id === commentId ? { ...c, content: editedCommentText } : c
+            );
+            onUpdate(task.id, { comments: updatedComments });
+            setEditingCommentId(null);
+        } catch (e) {
+            console.error("Error updating comment:", e);
+            alert("Failed to update comment");
+            setEditingCommentId(null);
+        }
+    };
+
+    const handleCancelCommentEdit = () => {
+        setEditingCommentId(null);
+        setEditedCommentText('');
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
             <div 
@@ -80,7 +179,41 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#0f0f0f]">
                     <div className="max-w-3xl mx-auto w-full p-12 pb-32">
-                        <h1 className="text-4xl font-bold text-white mb-8 leading-tight">{task.title}</h1>
+                        {/* Editable Title */}
+                        <div className="group relative mb-8">
+                            {isEditingTitle ? (
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={editedTitle}
+                                        onChange={(e) => setEditedTitle(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleSaveTitle();
+                                            if (e.key === 'Escape') {
+                                                setIsEditingTitle(false);
+                                                setEditedTitle(task.title);
+                                            }
+                                        }}
+                                        onBlur={handleSaveTitle}
+                                        autoFocus
+                                        className="flex-1 text-4xl font-bold text-white bg-[#1a1a1a] border border-neutral-700 rounded-lg px-3 py-2 focus:outline-none focus:border-white"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="flex items-start gap-2">
+                                    <h1 className="flex-1 text-4xl font-bold text-white leading-tight">{task.title}</h1>
+                                    {isDesigner && (
+                                        <button
+                                            onClick={() => setIsEditingTitle(true)}
+                                            className="opacity-0 group-hover:opacity-100 p-2 text-neutral-500 hover:text-white hover:bg-neutral-800 rounded-lg transition-all"
+                                            title="Edit task name (Designer only)"
+                                        >
+                                            <Edit2 size={18} />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         {/* Properties */}
                         <div className="grid grid-cols-1 gap-1 mb-12 border-b border-neutral-800 pb-8">
@@ -106,11 +239,58 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                             ))}
                         </div>
 
-                        <div className="prose prose-invert max-w-none text-neutral-300 space-y-6 min-h-[100px]">
-                            {task.description ? (
-                                <div className="whitespace-pre-wrap">{task.description}</div>
+                        {/* Editable Description */}
+                        <div className="group relative prose prose-invert max-w-none text-neutral-300 space-y-6 min-h-[100px]">
+                            {isEditingDescription ? (
+                                <div className="space-y-2">
+                                    <textarea
+                                        value={editedDescription}
+                                        onChange={(e) => setEditedDescription(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Escape') {
+                                                setIsEditingDescription(false);
+                                                setEditedDescription(task.description || '');
+                                            }
+                                        }}
+                                        placeholder="Add a description..."
+                                        autoFocus
+                                        className="w-full min-h-[150px] bg-[#1a1a1a] border border-neutral-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-white resize-none"
+                                    />
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleSaveDescription}
+                                            className="px-3 py-1.5 bg-white text-black rounded text-xs font-bold hover:bg-neutral-200"
+                                        >
+                                            Save
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsEditingDescription(false);
+                                                setEditedDescription(task.description || '');
+                                            }}
+                                            className="px-3 py-1.5 bg-neutral-800 text-white rounded text-xs font-bold hover:bg-neutral-700"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
                             ) : (
-                                <p className="text-neutral-600 italic text-sm">No description provided.</p>
+                                <div className="relative">
+                                    {task.description ? (
+                                        <div className="whitespace-pre-wrap">{task.description}</div>
+                                    ) : (
+                                        <p className="text-neutral-600 italic text-sm">No description provided.</p>
+                                    )}
+                                    {isDesigner && (
+                                        <button
+                                            onClick={() => setIsEditingDescription(true)}
+                                            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 p-2 text-neutral-500 hover:text-white hover:bg-neutral-800 rounded-lg transition-all"
+                                            title="Edit description (Designer only)"
+                                        >
+                                            <Edit2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
                             )}
                         </div>
 
@@ -132,20 +312,64 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                                     </div>
                                 </div>
 
-                                {task.comments && task.comments.map((c) => (
-                                    <div key={c.id} className="flex gap-4 relative animate-fade-in group">
-                                        <div className="absolute left-0 z-10">
-                                            <Avatar name={c.authorName || "User"} url={c.authorAvatar} size="sm" />
-                                        </div>
-                                        <div className="pl-10 w-full">
-                                            <div className="flex items-baseline gap-2 mb-1">
-                                                <span className="text-sm font-bold text-white">{c.authorName || "User"}</span>
-                                                <span className="text-xs text-neutral-600">{new Date(c.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                {task.comments && task.comments.map((c) => {
+                                    const isCommentAuthor = c.author_designer_id === user?.id;
+                                    const isEditingThisComment = editingCommentId === c.id;
+
+                                    return (
+                                        <div key={c.id} className="flex gap-4 relative animate-fade-in group">
+                                            <div className="absolute left-0 z-10">
+                                                <Avatar name={c.authorName || "User"} url={c.authorAvatar} size="sm" />
                                             </div>
-                                            <div className="text-neutral-300 text-sm leading-relaxed bg-[#1a1a1a] p-3 rounded-lg rounded-tl-none border border-neutral-800">{c.content || c.text}</div>
+                                            <div className="pl-10 w-full">
+                                                <div className="flex items-baseline gap-2 mb-1">
+                                                    <span className="text-sm font-bold text-white">{c.authorName || "User"}</span>
+                                                    <span className="text-xs text-neutral-600">{new Date(c.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                    {isCommentAuthor && !isEditingThisComment && (
+                                                        <button
+                                                            onClick={() => handleEditComment(c.id, c.content || c.text)}
+                                                            className="ml-auto opacity-0 group-hover:opacity-100 p-1 text-neutral-500 hover:text-white hover:bg-neutral-700 rounded transition-all"
+                                                            title="Edit your comment"
+                                                        >
+                                                            <Edit2 size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {isEditingThisComment ? (
+                                                    <div className="space-y-2">
+                                                        <textarea
+                                                            value={editedCommentText}
+                                                            onChange={(e) => setEditedCommentText(e.target.value)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Escape') handleCancelCommentEdit();
+                                                            }}
+                                                            autoFocus
+                                                            className="w-full min-h-[80px] bg-[#1a1a1a] border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white resize-none"
+                                                        />
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => handleSaveComment(c.id)}
+                                                                className="px-3 py-1.5 bg-white text-black rounded text-xs font-bold hover:bg-neutral-200"
+                                                            >
+                                                                Save
+                                                            </button>
+                                                            <button
+                                                                onClick={handleCancelCommentEdit}
+                                                                className="px-3 py-1.5 bg-neutral-800 text-white rounded text-xs font-bold hover:bg-neutral-700"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-neutral-300 text-sm leading-relaxed bg-[#1a1a1a] p-3 rounded-lg rounded-tl-none border border-neutral-800">
+                                                        {c.content || c.text}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
