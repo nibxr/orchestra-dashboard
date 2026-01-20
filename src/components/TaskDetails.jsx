@@ -3,18 +3,23 @@ import {
   X, Circle, User, Calendar, Plus, MoreHorizontal,
   Paperclip, Smile, Mic, Briefcase,
   Clock, CheckCircle2, Link as LinkIcon, ArrowUpRight, ToggleLeft,
-  Trash2, Archive, Copy, Edit3
+  Trash2, Archive, Copy, Edit3, Maximize2
 } from 'lucide-react';
 import { Avatar } from './Shared';
 import { CustomSelect } from './CustomUI';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from './Toast';
+import { useConfirm } from './ConfirmModal';
+import { ContentWithEmbeds, EmbedLinkButton } from './EmbedContent';
+import { TextFormattingToolbar, applyFormatting } from './TextFormattingToolbar';
 
-export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
+export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false }) => {
     const { user, teamMemberId, clientContactId } = useAuth();
     const toast = useToast();
+    const { confirm } = useConfirm();
     const [comment, setComment] = useState('');
+    const [commentType, setCommentType] = useState('comment'); // 'comment' or 'note'
     const [moreMenuOpen, setMoreMenuOpen] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editedTitle, setEditedTitle] = useState(task.title);
@@ -22,11 +27,13 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
     const [editedDescription, setEditedDescription] = useState(task.description || '');
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editedCommentContent, setEditedCommentContent] = useState('');
+    const commentTextareaRef = React.useRef(null);
 
     // Sync local state with task prop updates
     useEffect(() => {
         setEditedTitle(task.title);
         setEditedDescription(task.description || '');
+        console.log('[TaskDetails] Task prop updated, comments count:', task.comments?.length);
     }, [task.title, task.description, task.comments]);
 
     // Find creator from team
@@ -87,6 +94,22 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
         }
     };
 
+    const handleFormatText = (formatType) => {
+        const textarea = commentTextareaRef.current;
+        if (!textarea) return;
+
+        const cursorPosition = textarea.selectionStart;
+        const { newText, newCursor } = applyFormatting(comment, cursorPosition, formatType);
+
+        setComment(newText);
+
+        // Restore cursor position after React updates
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(newCursor, newCursor);
+        }, 0);
+    };
+
     const handleSendComment = async () => {
         if (!comment.trim()) return;
 
@@ -115,7 +138,8 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
             orchestra_comment_id: `COM-${Date.now()}`,
             created_at: new Date().toISOString(),
             authorName,
-            authorAvatar
+            authorAvatar,
+            is_note: commentType === 'note'
         };
 
         const updatedComments = [...(task.comments || []), optimisticComment];
@@ -130,6 +154,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                 author_contact_id: clientContactId || null,
                 orchestra_comment_id: optimisticComment.orchestra_comment_id,
                 created_at: optimisticComment.created_at,
+                is_note: commentType === 'note'
             };
 
             const { data, error } = await supabase
@@ -148,18 +173,26 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
             const finalComments = updatedComments.map(c => c.id === tempId ? realComment : c);
             onUpdate(task.id, { comments: finalComments });
 
-            toast.success('Comment posted');
+            toast.success(commentType === 'note' ? 'Note added' : 'Comment posted');
         } catch (e) {
             console.error("Error posting comment:", e);
             // Remove optimistic comment on error
             const revertedComments = updatedComments.filter(c => c.id !== tempId);
             onUpdate(task.id, { comments: revertedComments });
-            toast.error("Failed to post comment");
+            toast.error(commentType === 'note' ? 'Failed to add note' : 'Failed to post comment');
         }
     };
 
     const handleDeleteTask = async () => {
-        if (!confirm('Are you sure you want to delete this task? This action cannot be undone.')) return;
+        const confirmed = await confirm({
+            title: 'Delete Task',
+            message: 'Are you sure you want to delete this task? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+
+        if (!confirmed) return;
 
         try {
             const { error } = await supabase
@@ -302,7 +335,15 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
     };
 
     const handleDeleteComment = async (commentId) => {
-        if (!confirm('Are you sure you want to delete this comment?')) return;
+        const confirmed = await confirm({
+            title: 'Delete Comment',
+            message: 'Are you sure you want to delete this comment?',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+
+        if (!confirmed) return;
 
         // Optimistically update UI first
         const previousComments = [...task.comments];
@@ -327,10 +368,13 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div 
-                className="w-full max-w-4xl h-full bg-[#0f0f0f] shadow-2xl border-l border-neutral-800 flex flex-col animate-slide-in-right"
-                onClick={e => e.stopPropagation()}
+        <div
+            className={isFullPage ? "w-full h-screen bg-[#0f0f0f]" : "fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in"}
+            onClick={isFullPage ? undefined : onClose}
+        >
+            <div
+                className={isFullPage ? "w-full h-full bg-[#0f0f0f] flex flex-col" : "w-full max-w-4xl h-full bg-[#0f0f0f] shadow-2xl border-l border-neutral-800 flex flex-col animate-slide-in-right"}
+                onClick={isFullPage ? undefined : e => e.stopPropagation()}
             >
                 {/* Header */}
                 <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-6 bg-[#0f0f0f] shrink-0">
@@ -390,6 +434,20 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#0f0f0f]">
                     <div className="max-w-3xl mx-auto w-full p-12 pb-32">
+                        {/* Open Full Task Button - Only show in sidebar mode */}
+                        {!isFullPage && (
+                            <a
+                                href={`/task/${task.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 mb-6 text-sm text-neutral-400 hover:text-white transition-colors group"
+                            >
+                                <Maximize2 size={16} className="group-hover:scale-110 transition-transform" />
+                                <span>Open full task</span>
+                                <ArrowUpRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </a>
+                        )}
+
                         {isEditingTitle ? (
                             <div className="mb-8">
                                 <textarea
@@ -481,11 +539,10 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                         </div>
 
                         {isEditingDescription ? (
-                            <div className="mb-12">
+                            <div className="mb-12 space-y-3">
                                 <textarea
                                     value={editedDescription}
                                     onChange={(e) => setEditedDescription(e.target.value)}
-                                    onBlur={handleUpdateDescription}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Escape') {
                                             setEditedDescription(task.description || '');
@@ -497,12 +554,35 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                                     className="w-full text-neutral-300 bg-transparent border border-neutral-700 rounded-lg p-4 focus:outline-none focus:border-neutral-500 resize-none min-h-[100px]"
                                     rows={6}
                                 />
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <EmbedLinkButton onInsert={(url) => setEditedDescription(prev => prev + (prev ? '\n\n' : '') + url)} />
+                                        <span className="text-xs text-neutral-500">Add YouTube, Figma, Loom, or other links</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleUpdateDescription}
+                                            className="px-3 py-1.5 bg-white text-black text-xs font-bold rounded hover:bg-neutral-200"
+                                        >
+                                            Save
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setEditedDescription(task.description || '');
+                                                setIsEditingDescription(false);
+                                            }}
+                                            className="px-3 py-1.5 bg-neutral-800 text-neutral-300 text-xs font-bold rounded hover:bg-neutral-700"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         ) : (
                             <div className="group mb-12">
                                 <div className="prose prose-invert max-w-none text-neutral-300 space-y-6 min-h-[100px] relative">
                                     {task.description ? (
-                                        <div className="whitespace-pre-wrap">{task.description}</div>
+                                        <ContentWithEmbeds content={task.description} />
                                     ) : (
                                         <p className="text-neutral-600 italic text-sm">No description provided.</p>
                                     )}
@@ -538,6 +618,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                                     const isOwnComment = (teamMemberId && c.author_designer_id === teamMemberId) ||
                                                         (clientContactId && c.author_contact_id === clientContactId);
                                     const isEditingThisComment = editingCommentId === c.id;
+                                    const isNote = c.is_note === true;
 
                                     return (
                                         <div key={c.id} className="flex gap-4 relative animate-fade-in group">
@@ -547,6 +628,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                                             <div className="pl-10 w-full">
                                                 <div className="flex items-baseline gap-2 mb-1">
                                                     <span className="text-sm font-bold text-white">{c.authorName || "User"}</span>
+                                                    {isNote && <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded">🔒 Note</span>}
                                                     <span className="text-xs text-neutral-600">{new Date(c.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                                 </div>
                                                 {isEditingThisComment ? (
@@ -567,27 +649,29 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                                                             className="w-full text-neutral-300 text-sm leading-relaxed bg-[#1a1a1a] p-3 rounded-lg border border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none"
                                                             rows={3}
                                                         />
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => handleUpdateComment(c.id)}
-                                                                className="px-3 py-1.5 bg-white text-black text-xs font-bold rounded hover:bg-neutral-200"
-                                                            >
-                                                                Save
-                                                            </button>
-                                                            <button
-                                                                onClick={handleCancelEditComment}
-                                                                className="px-3 py-1.5 bg-neutral-800 text-neutral-300 text-xs font-bold rounded hover:bg-neutral-700"
-                                                            >
-                                                                Cancel
-                                                            </button>
+                                                        <div className="flex items-center justify-between">
+                                                            <EmbedLinkButton onInsert={(url) => setEditedCommentContent(prev => prev + (prev ? '\n' : '') + url)} />
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => handleUpdateComment(c.id)}
+                                                                    className="px-3 py-1.5 bg-white text-black text-xs font-bold rounded hover:bg-neutral-200"
+                                                                >
+                                                                    Save
+                                                                </button>
+                                                                <button
+                                                                    onClick={handleCancelEditComment}
+                                                                    className="px-3 py-1.5 bg-neutral-800 text-neutral-300 text-xs font-bold rounded hover:bg-neutral-700"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ) : (
                                                     <div className="relative group/comment">
-                                                        <div
-                                                            className="text-neutral-300 text-sm leading-relaxed bg-[#1a1a1a] p-3 rounded-lg rounded-tl-none border border-neutral-800"
-                                                            dangerouslySetInnerHTML={{ __html: (c.content || c.text || '').replace(/<br>/gi, '<br />') }}
-                                                        />
+                                                        <div className="text-neutral-300 text-sm leading-relaxed bg-[#1a1a1a] p-3 rounded-lg rounded-tl-none border border-neutral-800">
+                                                            <ContentWithEmbeds content={c.content || c.text || ''} />
+                                                        </div>
                                                         {isOwnComment && (
                                                             <div className="absolute top-2 right-2 opacity-0 group-hover/comment:opacity-100 transition-opacity flex gap-1">
                                                                 <button
@@ -621,28 +705,40 @@ export const TaskDetails = ({ task, onClose, onUpdate, team }) => {
                 <div className="border-t border-neutral-800 bg-[#0f0f0f] p-6 pb-8 shrink-0">
                     <div className="max-w-3xl mx-auto bg-[#1a1a1a] border border-neutral-700 rounded-xl focus-within:border-neutral-500 transition-colors shadow-lg overflow-hidden">
                          <div className="flex items-center gap-4 px-4 py-2 border-b border-neutral-800/50">
-                             <button className="text-white text-xs font-medium border-b-2 border-white pb-2 -mb-2.5">Comment</button>
-                             <button className="text-neutral-500 text-xs font-medium hover:text-neutral-300 pb-0.5">Note</button>
+                             <button
+                                onClick={() => setCommentType('comment')}
+                                className={`text-xs font-medium pb-2 -mb-2.5 transition-colors ${commentType === 'comment' ? 'text-white border-b-2 border-white' : 'text-neutral-500 hover:text-neutral-300'}`}
+                             >
+                                Comment
+                             </button>
+                             <button
+                                onClick={() => setCommentType('note')}
+                                className={`text-xs font-medium pb-2 -mb-2.5 transition-colors ${commentType === 'note' ? 'text-white border-b-2 border-white' : 'text-neutral-500 hover:text-neutral-300'}`}
+                             >
+                                Note
+                             </button>
                         </div>
-                        <textarea 
+                        <textarea
+                            ref={commentTextareaRef}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment(); }}}
-                            placeholder="Leave a comment..."
+                            placeholder={commentType === 'note' ? 'Add a private note...' : 'Leave a comment...'}
                             className="w-full bg-transparent text-white text-sm p-4 focus:outline-none resize-none h-20 placeholder-neutral-600"
                         />
                         <div className="flex items-center justify-between px-4 py-2 bg-[#141414]">
                             <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2 text-neutral-400 text-xs cursor-pointer hover:text-white">
-                                    Request approval <ToggleLeft size={24} className="text-neutral-600" />
-                                </div>
+                                {commentType === 'note' && (
+                                    <span className="text-xs text-neutral-500">🔒 Only visible to team members</span>
+                                )}
                             </div>
                             <div className="flex items-center gap-3">
-                                <button className="text-neutral-500 hover:text-white"><Paperclip size={16}/></button>
-                                <button 
+                                <TextFormattingToolbar onFormat={handleFormatText} />
+                                <EmbedLinkButton onInsert={(url) => setComment(prev => prev + (prev ? '\n' : '') + url)} />
+                                <button
                                 onClick={handleSendComment}
                                 disabled={!comment.trim()}
-                                className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${comment.trim() ? 'bg-white text-black' : 'bg-neutral-800 text-neutral-600 cursor-not-allowed'}`}
+                                className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${comment.trim() ? 'bg-white text-black hover:bg-neutral-200' : 'bg-neutral-800 text-neutral-600 cursor-not-allowed'}`}
                                 >
                                     Send
                                 </button>

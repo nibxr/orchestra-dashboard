@@ -7,6 +7,7 @@ import {
 import { DASHBOARD_VIEWS, SETTINGS_VIEWS, APP_MODES } from '../utils/constants';
 import { Avatar } from './Shared';
 import { useAuth } from '../contexts/AuthContext';
+import { useConfirm } from './ConfirmModal';
 
 const NavItem = ({ icon: Icon, label, active, onClick }) => (
   <button onClick={onClick} className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm ${active ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-800/30'}`}>
@@ -114,10 +115,19 @@ export const SettingsSidebar = ({ currentView, setView, setMode }) => {
 
 const UserFooter = ({ setMode }) => {
   const { user, signOut } = useAuth();
+  const { confirm } = useConfirm();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
-    if (confirm('Are you sure you want to sign out?')) {
+    const confirmed = await confirm({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      confirmText: 'Sign Out',
+      cancelText: 'Cancel',
+      variant: 'info'
+    });
+
+    if (confirmed) {
       await signOut();
     }
   };

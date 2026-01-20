@@ -16,9 +16,13 @@ import { DisplayMenu, FilterMenu } from './components/Menus';
 import { SearchModal } from './components/SearchModal';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
+import { useConfirm } from './components/ConfirmModal';
+import { useToast } from './components/Toast';
 
 export default function App() {
   const { user, userRole, userMembership } = useAuth();
+  const { confirm } = useConfirm();
+  const toast = useToast();
   const [mode, setMode] = useState(APP_MODES.DASHBOARD);
   const [dashboardView, setDashboardView] = useState(DASHBOARD_VIEWS.BOARD);
   const [settingsView, setSettingsView] = useState(SETTINGS_VIEWS.AGENCY);
@@ -158,7 +162,9 @@ export default function App() {
       if (!displaySettings.showInactive) result = result.filter(t => {
          if (!t.membership_id) return true;
          const status = (t.clientStatus || '').toLowerCase();
-         return status.includes('en cours') || status.includes('start') || status.includes('active');
+         return status.includes('en cours') || status.includes('start') || status.includes('active') ||
+                status.includes('grow') || status.includes('boost') || status.includes('lite') ||
+                status.includes('support');
       });
 
       result.sort((a, b) => {
@@ -171,7 +177,17 @@ export default function App() {
 
   const updateLocalTask = (taskId, payload) => {
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...payload } : t));
-      if (activeTask && activeTask.id === taskId) setActiveTask(prev => ({ ...prev, ...payload }));
+      if (activeTask && activeTask.id === taskId) {
+          // Force a new object reference to ensure React detects the change
+          setActiveTask(prev => {
+              const updated = { ...prev, ...payload };
+              // If comments are being updated, ensure array reference changes
+              if (payload.comments) {
+                  updated.comments = [...payload.comments];
+              }
+              return updated;
+          });
+      }
   };
 
   const handleAddTask = async (formData) => {
@@ -193,22 +209,38 @@ export default function App() {
       const { data, error } = await supabase.from('tasks').insert([newTaskPayload]).select();
       if (error) {
           console.error('Error creating task:', error);
-          alert(`Error creating task: ${error.message}`);
+          toast.error(`Error creating task: ${error.message}`);
       } else if (data) {
           setIsNewTaskModalOpen(false);
+          toast.success('Task created successfully');
           // Reload tasks to show the new task
           await fetchData();
       }
   };
 
   const handleUpdateTask = async (taskId, updates) => {
+      // If only updating comments, skip database update (comments are in separate table)
+      if (Object.keys(updates).length === 1 && updates.comments) {
+          updateLocalTask(taskId, updates);
+          return;
+      }
+
       const payload = { ...updates, updated_at: new Date().toISOString() };
       const { error } = await supabase.from('tasks').update(payload).eq('id', taskId);
       if (!error) updateLocalTask(taskId, payload);
   };
 
   const handleDeleteTask = async (taskId) => {
-      if (!confirm("Are you sure?")) return;
+      const confirmed = await confirm({
+          title: 'Delete Task',
+          message: 'Are you sure you want to delete this task?',
+          confirmText: 'Delete',
+          cancelText: 'Cancel',
+          variant: 'danger'
+      });
+
+      if (!confirmed) return;
+
       const { error } = await supabase.from('tasks').delete().eq('id', taskId);
       if (!error) {
           setTasks(prev => prev.filter(t => t.id !== taskId));

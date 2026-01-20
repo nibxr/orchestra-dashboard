@@ -11,10 +11,12 @@ import { STATUS_CONFIG } from '../utils/constants';
 import { useAuth } from '../contexts/AuthContext';
 import { Avatar } from './Shared';
 import { useToast } from './Toast';
+import { useConfirm } from './ConfirmModal';
 
 // --- PROFILE SETTINGS ---
 export const ProfileSettingsView = () => {
     const { user, updateProfile, updatePassword, signOut } = useAuth();
+    const { confirm } = useConfirm();
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
     const [profileData, setProfileData] = useState({
@@ -67,7 +69,15 @@ export const ProfileSettingsView = () => {
     };
 
     const handleSignOut = async () => {
-        if (confirm('Are you sure you want to sign out?')) {
+        const confirmed = await confirm({
+            title: 'Sign Out',
+            message: 'Are you sure you want to sign out?',
+            confirmText: 'Sign Out',
+            cancelText: 'Cancel',
+            variant: 'info'
+        });
+
+        if (confirmed) {
             await signOut();
         }
     };
@@ -380,6 +390,7 @@ export const AgencySettingsView = () => {
 // --- TEAM SETTINGS ---
 export const TeamSettingsView = ({ team }) => {
     const toast = useToast();
+    const { confirm } = useConfirm();
     const [localTeam, setLocalTeam] = useState(team || []);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
@@ -400,7 +411,16 @@ export const TeamSettingsView = ({ team }) => {
     };
 
     const handleDelete = async (id) => {
-        if(!confirm("Remove this member?")) return;
+        const confirmed = await confirm({
+            title: 'Remove Member',
+            message: 'Are you sure you want to remove this member from the team?',
+            confirmText: 'Remove',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+
+        if (!confirmed) return;
+
         try {
             const { error } = await supabase.from('team').delete().eq('id', id);
             if (error) throw error;
@@ -579,6 +599,7 @@ export const WorkflowSettingsView = () => {
 
 // --- CLIENT PORTAL SETTINGS (Feature Rich & Functional) ---
 export const ClientPortalSettingsView = () => {
+    const { prompt } = useConfirm();
     const [settings, setSettings] = useState({
         customDomain: '',
         portalName: 'Client Portal',
@@ -601,10 +622,26 @@ export const ClientPortalSettingsView = () => {
         if(btn) { btn.innerText = 'Saved!'; setTimeout(() => btn.innerText = 'Save Changes', 2000); }
     };
 
-    const addLink = () => {
-        const label = prompt("Link Label");
-        const url = prompt("URL");
-        if (label && url) setSettings({ ...settings, links: [...settings.links, { id: Date.now(), label, url }] });
+    const addLink = async () => {
+        const label = await prompt({
+            title: 'Add Link',
+            message: 'Enter the link label:',
+            confirmText: 'Next',
+            cancelText: 'Cancel'
+        });
+
+        if (!label) return;
+
+        const url = await prompt({
+            title: 'Add Link',
+            message: 'Enter the URL:',
+            confirmText: 'Add',
+            cancelText: 'Cancel'
+        });
+
+        if (url) {
+            setSettings({ ...settings, links: [...settings.links, { id: Date.now(), label, url }] });
+        }
     };
 
     return (
@@ -691,6 +728,7 @@ export const ClientPortalSettingsView = () => {
 // --- PLANS & ADD-ONS SETTINGS (Fully Functional) ---
 export const PlansSettingsView = () => {
     const toast = useToast();
+    const { confirm } = useConfirm();
     const [plans, setPlans] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -788,7 +826,15 @@ export const PlansSettingsView = () => {
     };
 
     const deletePlan = async (id) => {
-        if (!confirm('Delete this plan? This action cannot be undone.')) return;
+        const confirmed = await confirm({
+            title: 'Delete Plan',
+            message: 'Are you sure you want to delete this plan? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+
+        if (!confirmed) return;
 
         try {
             const { error } = await supabase
