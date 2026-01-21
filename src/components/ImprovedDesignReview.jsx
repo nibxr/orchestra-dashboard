@@ -1,0 +1,2323 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { MessageCircle, Hand, ZoomIn, ZoomOut, Maximize2, User, Calendar, Tag, Building2, Filter, ChevronRight, ChevronLeft, ChevronDown, ExternalLink, Trash2, Smile, Link2, Type, MoreHorizontal, Bold, Italic, Strikethrough, Underline, List, ListOrdered, CheckSquare, Paperclip, X, Search, Clock, Cat, UtensilsCrossed, Car, Ban, PartyPopper, Music, Flag, Copy, Plus, Share2 } from 'lucide-react';
+import { CustomSelect } from './CustomUI';
+import { STATUS_CONFIG } from '../utils/constants';
+import { supabase } from '../supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
+import CommentPinsOverlay from './CommentPinsOverlay';
+
+// Emoji data organized by category
+const emojiCategories = {
+  recent: { icon: Clock, label: 'Recent', emojis: ['😀', '👍', '❤️', '🎉', '✅', '🔥', '💯', '🚀'] },
+  smileys: {
+    icon: Smile,
+    label: 'Smileys & People',
+    emojis: [
+      '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂',
+      '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋',
+      '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐',
+      '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '😮', '🥱',
+      '😴', '🤤', '😪', '😵', '🤯', '🤠', '🥳', '🥸', '😎', '🤓',
+      '🧐', '😕', '😟', '🙁', '😯', '😲', '😳', '🥺', '😦', '😧',
+      '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓',
+      '😩', '😫', '😤', '😡', '😠', '🤬', '😈', '👿', '👋', '🤚',
+      '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘',
+      '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊',
+      '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '💪'
+    ]
+  },
+  animals: {
+    icon: Cat,
+    label: 'Animals & Nature',
+    emojis: [
+      '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
+      '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦆',
+      '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋',
+      '🐌', '🐞', '🐜', '🦟', '🦗', '🌸', '💐', '🌷', '🌹', '🌺'
+    ]
+  },
+  food: {
+    icon: UtensilsCrossed,
+    label: 'Food & Drink',
+    emojis: [
+      '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒',
+      '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥔', '🥕',
+      '🌽', '🌶️', '🥒', '🥬', '🥦', '🧄', '🧅', '🍄', '🥜', '🌰',
+      '🍞', '🥐', '🥖', '🥨', '🧀', '🥚', '🍳', '🧈', '🥞', '🧇'
+    ]
+  },
+  travel: {
+    icon: Car,
+    label: 'Travel & Places',
+    emojis: [
+      '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐',
+      '🛻', '🚚', '🚛', '🚜', '🏍️', '🛵', '🚲', '🛴', '✈️', '🚀',
+      '🛸', '🚁', '⛵', '🚤', '🛥️', '🛳️', '⛴️', '🚢', '🏠', '🏡',
+      '🏢', '🏣', '🏥', '🏦', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭'
+    ]
+  },
+  activities: {
+    icon: PartyPopper,
+    label: 'Activities',
+    emojis: [
+      '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱',
+      '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳',
+      '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷',
+      '⛸️', '🥌', '🎿', '⛷️', '🏂', '🎯', '🎮', '🎰', '🎲', '🧩'
+    ]
+  },
+  objects: {
+    icon: Music,
+    label: 'Objects',
+    emojis: [
+      '⌚', '📱', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '💽', '💾',
+      '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽️', '🎞️', '📞',
+      '☎️', '📟', '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭', '⏱️',
+      '⏲️', '⏰', '🕰️', '⌛', '⏳', '📡', '🔋', '🔌', '💡', '🔦'
+    ]
+  },
+  symbols: {
+    icon: Flag,
+    label: 'Symbols',
+    emojis: [
+      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+      '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '✅', '❌',
+      '⭕', '❗', '❓', '❕', '❔', '⁉️', '‼️', '💯', '🔴', '🟠',
+      '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔺', '🔻', '🔸'
+    ]
+  }
+};
+
+// EmojiPicker Component with smart positioning
+const EmojiPicker = ({ onSelect, onClose, position = 'auto', triggerRef }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('smileys');
+  const [selectedColor, setSelectedColor] = useState('#FFCC00');
+  const pickerRef = useRef(null);
+  const [adjustedPosition, setAdjustedPosition] = useState({ top: false, left: false });
+
+  // Calculate position to avoid overflow
+  useEffect(() => {
+    if (pickerRef.current) {
+      const rect = pickerRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      setAdjustedPosition({
+        top: rect.bottom > viewportHeight - 20,
+        left: rect.right > viewportWidth - 20
+      });
+    }
+  }, []);
+
+  const filteredEmojis = searchQuery
+    ? Object.values(emojiCategories).flatMap(cat => cat.emojis).filter(emoji => emoji.includes(searchQuery))
+    : emojiCategories[activeCategory]?.emojis || [];
+
+  const categoryKeys = Object.keys(emojiCategories);
+
+  return (
+    <div
+      ref={pickerRef}
+      className="bg-white rounded-xl shadow-2xl w-80 overflow-hidden"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Search bar and color picker */}
+      <div className="p-3 border-b border-neutral-200">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-neutral-100 rounded-lg">
+            <Search size={16} className="text-neutral-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search"
+              className="flex-1 bg-transparent text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none"
+            />
+          </div>
+          <div
+            className="w-8 h-8 rounded-lg cursor-pointer"
+            style={{ backgroundColor: selectedColor }}
+            title="Skin tone"
+          />
+        </div>
+      </div>
+
+      {/* Category tabs */}
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-neutral-200 overflow-x-auto">
+        {categoryKeys.map((key) => {
+          const category = emojiCategories[key];
+          const IconComponent = category.icon;
+          return (
+            <button
+              key={key}
+              onClick={() => { setActiveCategory(key); setSearchQuery(''); }}
+              className={`p-2 rounded-lg transition-colors ${
+                activeCategory === key && !searchQuery
+                  ? 'bg-neutral-200 text-neutral-900'
+                  : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700'
+              }`}
+              title={category.label}
+            >
+              <IconComponent size={18} />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Category label */}
+      {!searchQuery && (
+        <div className="px-3 py-2">
+          <span className="text-sm font-medium text-neutral-700">
+            {emojiCategories[activeCategory]?.label}
+          </span>
+        </div>
+      )}
+
+      {/* Emoji grid */}
+      <div className="px-3 pb-3 max-h-64 overflow-y-auto">
+        <div className="grid grid-cols-8 gap-1">
+          {filteredEmojis.map((emoji, idx) => (
+            <button
+              key={idx}
+              onClick={() => onSelect(emoji)}
+              className="w-8 h-8 flex items-center justify-center text-xl hover:bg-neutral-100 rounded-lg transition-colors"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+        {searchQuery && filteredEmojis.length === 0 && (
+          <div className="text-center py-8 text-neutral-500 text-sm">
+            No emojis found
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Quick Reaction Picker - compact version for comment hover
+const QuickReactionPicker = ({ onSelect, onOpenFull }) => {
+  const quickEmojis = ['🔥', '✅', '👀', '🙌', '👍', '👎'];
+
+  return (
+    <div className="flex items-center gap-0.5 bg-white rounded-full shadow-lg px-1.5 py-1 border border-neutral-200" onClick={(e) => e.stopPropagation()}>
+      {quickEmojis.map((emoji, idx) => (
+        <button
+          key={idx}
+          onClick={() => onSelect(emoji)}
+          className="w-7 h-7 flex items-center justify-center text-base hover:bg-neutral-100 rounded-full transition-colors"
+        >
+          {emoji}
+        </button>
+      ))}
+      <button
+        onClick={onOpenFull}
+        className="w-7 h-7 flex items-center justify-center text-neutral-400 hover:bg-neutral-100 rounded-full transition-colors"
+        title="More emojis"
+      >
+        <MoreHorizontal size={16} />
+      </button>
+    </div>
+  );
+};
+
+// Smart positioned emoji picker wrapper that prevents overflow
+const SmartEmojiPickerWrapper = ({ triggerRef, onSelect, onClose, children }) => {
+  const [position, setPosition] = useState({ top: 0, left: 0, openUpward: false, openLeftward: false });
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    if (triggerRef?.current) {
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const pickerWidth = 320; // w-80 = 320px
+      const pickerHeight = 400; // approximate height
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const sidebarWidth = 375; // sidebar width
+
+      // Calculate if we need to open upward or downward
+      const spaceBelow = viewportHeight - triggerRect.bottom;
+      const spaceAbove = triggerRect.top;
+      const openUpward = spaceBelow < pickerHeight && spaceAbove > spaceBelow;
+
+      // Calculate if we need to open leftward or rightward
+      const spaceRight = viewportWidth - triggerRect.left;
+      const openLeftward = spaceRight < pickerWidth;
+
+      // Calculate position
+      let top = openUpward ? triggerRect.top - pickerHeight - 8 : triggerRect.bottom + 8;
+      let left = openLeftward ? Math.max(8, triggerRect.right - pickerWidth) : triggerRect.left;
+
+      // Make sure it doesn't go off screen
+      if (left + pickerWidth > viewportWidth - 8) {
+        left = viewportWidth - pickerWidth - 8;
+      }
+      if (left < sidebarWidth + 8) {
+        left = Math.min(triggerRect.left, sidebarWidth + 8);
+      }
+      if (top < 8) top = 8;
+      if (top + pickerHeight > viewportHeight - 8) {
+        top = viewportHeight - pickerHeight - 8;
+      }
+
+      setPosition({ top, left, openUpward, openLeftward });
+    }
+  }, [triggerRef]);
+
+  return (
+    <div
+      ref={wrapperRef}
+      className="fixed z-50"
+      style={{ top: position.top, left: position.left }}
+    >
+      <EmojiPicker onSelect={onSelect} onClose={onClose} />
+    </div>
+  );
+};
+
+// Reaction emoji picker with smart positioning (used from comment hover)
+const ReactionEmojiPickerPositioned = ({ onSelect, onClose }) => {
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    // Position in the center-ish of the sidebar, avoiding edges
+    const pickerWidth = 320;
+    const pickerHeight = 400;
+    const viewportHeight = window.innerHeight;
+    const sidebarWidth = 375;
+
+    // Position it centered horizontally within the sidebar and vertically centered
+    let left = Math.max(8, (sidebarWidth - pickerWidth) / 2);
+    let top = Math.max(80, (viewportHeight - pickerHeight) / 2);
+
+    // Make sure it doesn't go off screen
+    if (top + pickerHeight > viewportHeight - 8) {
+      top = viewportHeight - pickerHeight - 8;
+    }
+
+    setPosition({ top, left });
+  }, []);
+
+  return (
+    <div
+      ref={wrapperRef}
+      className="fixed z-50"
+      style={{ top: position.top, left: position.left }}
+    >
+      <EmojiPicker onSelect={onSelect} onClose={onClose} />
+    </div>
+  );
+};
+
+/**
+ * ImprovedDesignReview - Figma-style design review interface matching reference images exactly
+ */
+export const ImprovedDesignReview = ({
+  task,
+  versions,
+  currentVersion,
+  onVersionChange,
+  comments,
+  team,
+  onUpdateTask,
+  onAddComment,
+  onDeleteComment,
+  onUpdateComment,
+  onAddReaction,
+  onRemoveReaction,
+  currentUserId
+}) => {
+  const { user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('details');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(task.title);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedDescription, setEditedDescription] = useState(task.description || '');
+  const [newComment, setNewComment] = useState('');
+  const [canvasMode, setCanvasMode] = useState('view');
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [versionMenuOpen, setVersionMenuOpen] = useState(false);
+  const [taskMenuOpen, setTaskMenuOpen] = useState(false);
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [hideOtherVersions, setHideOtherVersions] = useState(false);
+  const [hideCommentBubbles, setHideCommentBubbles] = useState(false);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [showCommentBox, setShowCommentBox] = useState(false);
+  const [commentBoxPosition, setCommentBoxPosition] = useState({ x: 0, y: 0 });
+  const [positionedCommentText, setPositionedCommentText] = useState('');
+  const [activeCommentId, setActiveCommentId] = useState(null);
+  const [highlightedPinId, setHighlightedPinId] = useState(null);
+  const iframeRef = useRef(null);
+  const canvasContainerRef = useRef(null);
+
+  // Status options
+  const statusOptions = Object.keys(STATUS_CONFIG).map(s => ({ value: s, label: s }));
+
+  // Team options for assignee
+  const teamOptions = team?.map(member => ({
+    value: member.id,
+    label: member.full_name || member.email || 'Unknown',
+    avatar: member.avatar_url
+  })) || [];
+
+  // Find assignee and creator
+  const assignee = team?.find(t => t.id === task.assigned_to_id);
+  const assigneeName = task.assigneeName || assignee?.full_name || 'Unassigned';
+  const assigneeAvatar = task.assigneeAvatar || assignee?.avatar_url;
+
+  const createdById = task.created_by_team_id || task.properties?.createdById;
+  const creator = team?.find(t => t.id === createdById);
+  const creatorName = task.creatorName || creator?.full_name || 'Unknown';
+  const creatorAvatar = task.creatorAvatar || creator?.avatar_url;
+
+  const handleUpdateTitle = async () => {
+    if (editedTitle.trim() && editedTitle !== task.title) {
+      await onUpdateTask(task.id, { title: editedTitle });
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleUpdateDescription = async () => {
+    if (editedDescription !== task.description) {
+      await onUpdateTask(task.id, { description: editedDescription });
+    }
+    setIsEditingDescription(false);
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    await onUpdateTask(task.id, { status: newStatus });
+  };
+
+  const handleAssigneeChange = async (newAssigneeId) => {
+    await onUpdateTask(task.id, { assigned_to_id: newAssigneeId });
+  };
+
+  const handleCreatorChange = async (newCreatorId) => {
+    await onUpdateTask(task.id, { created_by_team_id: newCreatorId });
+  };
+
+  const handleSendComment = async () => {
+    if (!newComment.trim()) return;
+
+    const currentTeamMember = team?.find(t => t.email === user?.email);
+
+    await onAddComment({
+      content: newComment,
+      task_id: task.id,
+      version_id: currentVersion?.id,
+      author_designer_id: currentTeamMember?.id || user?.id
+    });
+
+    setNewComment('');
+  };
+
+  const handleSendPositionedComment = async () => {
+    if (!positionedCommentText.trim()) return;
+
+    const currentTeamMember = team?.find(t => t.email === user?.email);
+
+    // Calculate relative position (percentage of canvas container)
+    const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+    const relativeX = containerRect ? (commentBoxPosition.x / containerRect.width) * 100 : 0;
+    const relativeY = containerRect ? (commentBoxPosition.y / containerRect.height) * 100 : 0;
+
+    await onAddComment({
+      content: positionedCommentText,
+      task_id: task.id,
+      version_id: currentVersion?.id,
+      author_designer_id: currentTeamMember?.id || user?.id,
+      position_x: relativeX,
+      position_y: relativeY
+    });
+
+    setPositionedCommentText('');
+    setShowCommentBox(false);
+  };
+
+  const handleZoom = (delta) => {
+    setZoomLevel(prev => Math.max(0.25, Math.min(3, prev + delta)));
+  };
+
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    handleZoom(delta);
+  };
+
+  const handleCanvasMouseDown = (e) => {
+    if (canvasMode === 'view') {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
+    } else if (canvasMode === 'comment') {
+      // If comment box is already open, close it instead of opening a new one
+      if (showCommentBox) {
+        setShowCommentBox(false);
+        setPositionedCommentText('');
+      } else {
+        // Open new comment box at click position
+        const rect = canvasContainerRef.current.getBoundingClientRect();
+        setCommentBoxPosition({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        });
+        setPositionedCommentText(''); // Reset text for new comment
+        setShowCommentBox(true);
+      }
+    }
+  };
+
+  const handleCanvasMouseMove = (e) => {
+    if (isPanning && canvasMode === 'view') {
+      setPanPosition({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      });
+    }
+  };
+
+  const handleCanvasMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  // Comment cursor SVG - matches the MessageCircle icon from the toolbar
+  const commentCursorSvg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7.9 20A9 9 0 1 0 4 16.1L2 22Z'/%3E%3C/svg%3E`;
+
+  const getCursorStyle = () => {
+    if (canvasMode === 'view') {
+      return isPanning ? 'grabbing' : 'grab';
+    } else if (canvasMode === 'comment') {
+      return `url("${commentCursorSvg}") 4 4, crosshair`;
+    }
+    return 'default';
+  };
+
+  const handleDeleteTask = async () => {
+    if (window.confirm('Are you sure you want to delete this task?')) {
+      const { error } = await supabase.from('tasks').delete().eq('id', task.id);
+      if (!error) {
+        window.close();
+      }
+    }
+  };
+
+  const handleViewInNewPage = () => {
+    if (currentVersion?.embed_url) {
+      window.open(currentVersion.embed_url, '_blank');
+    }
+  };
+
+  return (
+    <div className="h-screen flex flex-col bg-[#0f0f0f]">
+      {/* Header */}
+      <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-6 bg-[#0f0f0f] shrink-0 relative">
+        <div className="flex items-center gap-4">
+          {/* Task Title - Editable */}
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              onBlur={handleUpdateTitle}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleUpdateTitle();
+                if (e.key === 'Escape') {
+                  setEditedTitle(task.title);
+                  setIsEditingTitle(false);
+                }
+              }}
+              autoFocus
+              className="bg-transparent text-white font-medium text-base px-2 py-1 border border-neutral-700 rounded focus:outline-none focus:border-neutral-500"
+            />
+          ) : (
+            <h1
+              className="text-white font-medium cursor-pointer hover:bg-neutral-800/50 px-2 py-1 rounded"
+              onClick={() => setIsEditingTitle(true)}
+            >
+              {task.title}
+            </h1>
+          )}
+
+          {/* Version Selector with Dropdown */}
+          {versions.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setVersionMenuOpen(!versionMenuOpen)}
+                className="flex items-center gap-1.5 bg-neutral-900 text-neutral-300 text-sm px-3 py-1.5 rounded border border-neutral-800 hover:border-neutral-600 transition-colors"
+              >
+                <span>v{currentVersion?.version_number || 1}</span>
+                <ChevronDown size={14} className={`transition-transform ${versionMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Version dropdown menu */}
+              {versionMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setVersionMenuOpen(false)} />
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
+                    {/* Version list */}
+                    <div className="max-h-48 overflow-y-auto">
+                      {versions.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => {
+                            onVersionChange(v);
+                            setVersionMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                            currentVersion?.id === v.id
+                              ? 'text-white bg-neutral-800'
+                              : 'text-neutral-300 hover:bg-neutral-800'
+                          }`}
+                        >
+                          v{v.version_number}
+                          {currentVersion?.id === v.id && (
+                            <span className="ml-auto text-xs text-neutral-500">Current</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Add new version */}
+                    <div className="border-t border-neutral-800">
+                      <button
+                        onClick={() => {
+                          // TODO: Implement add new version functionality
+                          console.log('Add new version');
+                          setVersionMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-blue-400 hover:bg-neutral-800"
+                      >
+                        <Plus size={16} />
+                        Add new version
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Task Menu - Far right */}
+        <div className="relative">
+          <button
+            onClick={() => setTaskMenuOpen(!taskMenuOpen)}
+            className="p-2 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+            title="Task options"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+
+          {taskMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setTaskMenuOpen(false)} />
+              <div className="absolute top-full right-0 mt-1 w-48 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
+                <button
+                  onClick={() => {
+                    // Copy share link
+                    navigator.clipboard.writeText(window.location.href);
+                    setTaskMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-300 hover:bg-neutral-800"
+                >
+                  <Share2 size={16} />
+                  Copy share link
+                </button>
+                <button
+                  onClick={() => {
+                    handleViewInNewPage();
+                    setTaskMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-300 hover:bg-neutral-800"
+                >
+                  <ExternalLink size={16} />
+                  View in new tab
+                </button>
+                <div className="border-t border-neutral-800">
+                  <button
+                    onClick={() => {
+                      handleDeleteTask();
+                      setTaskMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-neutral-800"
+                  >
+                    <Trash2 size={16} />
+                    Delete task
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Canvas Controls - Centered relative to canvas area (offset by sidebar width) */}
+        <div
+          className="flex items-center justify-center gap-3 transition-all duration-300 ease-in-out"
+          style={{
+            position: 'absolute',
+            left: sidebarOpen ? 'calc(375px + (100% - 375px) / 2)' : '50%',
+            transform: 'translateX(-50%)'
+          }}
+        >
+          {/* Canvas mode controls */}
+          <div className="flex items-center gap-1 border border-neutral-800 rounded-lg p-0.5">
+            <button
+              onClick={() => setCanvasMode('comment')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
+                canvasMode === 'comment'
+                  ? 'bg-neutral-700 text-white'
+                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+              }`}
+            >
+              <MessageCircle size={16} />
+              <span className="text-sm">Comment</span>
+            </button>
+            <button
+              onClick={() => setCanvasMode('view')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
+                canvasMode === 'view'
+                  ? 'bg-neutral-700 text-white'
+                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+              }`}
+            >
+              <Hand size={16} />
+              <span className="text-sm">Move</span>
+            </button>
+          </div>
+
+          {/* Zoom controls */}
+          <div className="flex items-center gap-1 border border-neutral-800 rounded-lg p-0.5">
+            <button
+              onClick={() => handleZoom(-0.1)}
+              className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+              title="Zoom out"
+            >
+              <ZoomOut size={16} />
+            </button>
+            <span className="px-2 text-xs text-neutral-500 min-w-[45px] text-center">{Math.round(zoomLevel * 100)}%</span>
+            <button
+              onClick={() => handleZoom(0.1)}
+              className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+              title="Zoom in"
+            >
+              <ZoomIn size={16} />
+            </button>
+            <button
+              onClick={() => setZoomLevel(1)}
+              className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+              title="Fit to screen"
+            >
+              <Maximize2 size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Sidebar - slides in/out with animation */}
+        <div
+          className="flex-shrink-0 border-r border-neutral-800 flex flex-col bg-[#0f0f0f] transition-all duration-300 ease-in-out overflow-hidden"
+          style={{ width: sidebarOpen ? '375px' : '0px' }}
+        >
+          {/* Sidebar inner content - fixed width to prevent content reflow during animation */}
+          <div className="w-[375px] h-full flex flex-col">
+            {/* Tabs with filter button */}
+            <div className="flex items-center border-b border-neutral-800">
+              <div className="flex gap-6 px-4">
+                <button
+                  onClick={() => setActiveTab('details')}
+                  className={`py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'details'
+                      ? 'text-white'
+                      : 'text-neutral-500 hover:text-neutral-300'
+                  }`}
+                >
+                  Details
+                </button>
+                <button
+                  onClick={() => setActiveTab('comments')}
+                  className={`py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'comments'
+                      ? 'text-white'
+                      : 'text-neutral-500 hover:text-neutral-300'
+                  }`}
+                >
+                  Comments
+                </button>
+              </div>
+              <div className="flex-1"></div>
+
+              {/* Filter button (only on comments tab) and toggle button */}
+              <div className="flex items-center gap-1 pr-2">
+                {activeTab === 'comments' && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                      className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+                      title="Filter"
+                    >
+                      <Filter size={16} />
+                    </button>
+
+                    {filterMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setFilterMenuOpen(false)} />
+                        <div className="absolute top-full right-0 mt-1 w-56 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 p-2">
+                          <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-neutral-800 rounded">
+                            <input
+                              type="checkbox"
+                              checked={hideOtherVersions}
+                              onChange={(e) => setHideOtherVersions(e.target.checked)}
+                              className="w-4 h-4"
+                            />
+                            <span className="text-sm text-neutral-300">Hide comments on other versions</span>
+                          </label>
+                          <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-neutral-800 rounded">
+                            <input
+                              type="checkbox"
+                              checked={hideCommentBubbles}
+                              onChange={(e) => setHideCommentBubbles(e.target.checked)}
+                              className="w-4 h-4"
+                            />
+                            <span className="text-sm text-neutral-300">Hide comment bubbles</span>
+                          </label>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+                {/* Sidebar toggle button - inside the header */}
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+                  title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+                >
+                  <ChevronLeft
+                    size={16}
+                    className={`transition-transform duration-300 ${sidebarOpen ? '' : 'rotate-180'}`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {activeTab === 'details' ? (
+                <DetailsTab
+                  task={task}
+                  team={team}
+                  teamOptions={teamOptions}
+                  statusOptions={statusOptions}
+                  assigneeName={assigneeName}
+                  creatorName={creatorName}
+                  createdById={createdById}
+                  onUpdateTask={onUpdateTask}
+                  onStatusChange={handleStatusChange}
+                  onAssigneeChange={handleAssigneeChange}
+                  onCreatorChange={handleCreatorChange}
+                  isEditingDescription={isEditingDescription}
+                  setIsEditingDescription={setIsEditingDescription}
+                  editedDescription={editedDescription}
+                  setEditedDescription={setEditedDescription}
+                  handleUpdateDescription={handleUpdateDescription}
+                />
+              ) : (
+                <CommentsTab
+                  comments={comments}
+                  currentUserId={currentUserId}
+                  team={team}
+                  newComment={newComment}
+                  setNewComment={setNewComment}
+                  handleSendComment={handleSendComment}
+                  onUpdateComment={onUpdateComment}
+                  onDeleteComment={onDeleteComment}
+                  onAddReaction={onAddReaction}
+                  onRemoveReaction={onRemoveReaction}
+                  user={user}
+                  hideOtherVersions={hideOtherVersions}
+                  currentVersionId={currentVersion?.id}
+                  activeCommentId={activeCommentId}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar toggle button - only visible when sidebar is closed */}
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute top-3 left-2 z-20 p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+            title="Open sidebar"
+          >
+            <ChevronRight size={16} />
+          </button>
+        )}
+
+        {/* Canvas/Preview Area */}
+        <div className="flex-1 flex flex-col bg-neutral-900 overflow-hidden">
+          {/* Canvas Container */}
+          <div
+            ref={canvasContainerRef}
+            className="flex-1 flex items-center justify-center bg-neutral-900 overflow-hidden relative"
+            style={{ cursor: getCursorStyle() }}
+            onWheel={handleWheel}
+            onMouseDown={handleCanvasMouseDown}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseUp={handleCanvasMouseUp}
+            onMouseLeave={handleCanvasMouseUp}
+          >
+            {currentVersion ? (
+              <div
+                style={{
+                  transform: `translate(${panPosition.x}px, ${panPosition.y}px) scale(${zoomLevel})`,
+                  transformOrigin: 'center center',
+                  transition: isPanning ? 'none' : 'transform 0.1s ease-out',
+                  width: '80%',
+                  height: '80%',
+                  pointerEvents: canvasMode === 'comment' ? 'none' : 'auto'
+                }}
+              >
+                <iframe
+                  ref={iframeRef}
+                  src={currentVersion.embed_url}
+                  className="w-full h-full rounded-lg shadow-2xl"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <div className="text-center text-neutral-500">
+                <p>No version selected</p>
+                <p className="text-sm mt-2">Add a design URL to get started</p>
+              </div>
+            )}
+
+            {/* Comment Pins Overlay - shows positioned comments on canvas */}
+            {!hideCommentBubbles && (
+              <CommentPinsOverlay
+                comments={comments.map(comment => {
+                  const author = team?.find(t => t.id === comment.author_designer_id);
+                  return {
+                    ...comment,
+                    authorName: author?.full_name || null,
+                    authorAvatar: author?.avatar_url || null
+                  };
+                })}
+                activeCommentId={activeCommentId}
+                highlightedPinId={highlightedPinId}
+                onPinClick={(comment) => {
+                  setActiveCommentId(comment.id);
+                  setHighlightedPinId(null);
+                  // Switch to comments tab and ensure sidebar is open
+                  setActiveTab('comments');
+                  if (!sidebarOpen) {
+                    setSidebarOpen(true);
+                  }
+                  // Scroll to the comment in the sidebar after a short delay
+                  setTimeout(() => {
+                    const commentElement = document.getElementById(`comment-${comment.id}`);
+                    if (commentElement) {
+                      commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                  }, 100);
+                }}
+              />
+            )}
+
+            {/* Comment Box */}
+            {showCommentBox && canvasMode === 'comment' && (
+              <div
+                className="absolute z-50"
+                style={{
+                  left: commentBoxPosition.x,
+                  top: commentBoxPosition.y
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                {/* Comment input box - compact design */}
+                <div className="bg-[#1c1c1c] rounded-lg shadow-2xl overflow-hidden">
+                  <div className="flex items-center gap-2 p-2">
+                    {/* User avatar - show image if available */}
+                    {(() => {
+                      const currentTeamMember = team?.find(t => t.email === user?.email);
+                      const avatarUrl = currentTeamMember?.avatar_url;
+                      return avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt=""
+                          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0">
+                          <span className="text-white text-xs font-medium">
+                            {user?.email?.substring(0, 2).toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Input field */}
+                    <input
+                      autoFocus
+                      type="text"
+                      value={positionedCommentText}
+                      onChange={(e) => setPositionedCommentText(e.target.value)}
+                      placeholder="Leave a comment..."
+                      className="flex-1 bg-transparent text-neutral-300 text-sm focus:outline-none placeholder-neutral-500 min-w-[200px]"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setPositionedCommentText('');
+                          setShowCommentBox(false);
+                        }
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendPositionedComment();
+                        }
+                      }}
+                    />
+
+                    {/* Send button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSendPositionedComment();
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className="p-1.5 text-neutral-500 hover:text-blue-400 transition-colors"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Details Tab Component
+const DetailsTab = ({
+  task,
+  team,
+  teamOptions,
+  statusOptions,
+  assigneeName,
+  creatorName,
+  createdById,
+  onUpdateTask,
+  onStatusChange,
+  onAssigneeChange,
+  onCreatorChange,
+  isEditingDescription,
+  setIsEditingDescription,
+  editedDescription,
+  setEditedDescription,
+  handleUpdateDescription
+}) => {
+  const [isEditingDueDate, setIsEditingDueDate] = useState(false);
+  const [editedDueDate, setEditedDueDate] = useState(task.dueDate || '');
+  const [showDescFormattingToolbar, setShowDescFormattingToolbar] = useState(false);
+  const [showDescLinkInput, setShowDescLinkInput] = useState(false);
+  const [showDescEmojiPicker, setShowDescEmojiPicker] = useState(false);
+  const [descLinkUrl, setDescLinkUrl] = useState('');
+  const [descLinkText, setDescLinkText] = useState('');
+  // Active formatting state for description
+  const [activeDescFormats, setActiveDescFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strikeThrough: false
+  });
+  const descEditorRef = useRef(null);
+  const descEmojiButtonRef = useRef(null);
+
+  // Check active formats for description editor
+  const checkDescActiveFormats = () => {
+    setActiveDescFormats({
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+      underline: document.queryCommandState('underline'),
+      strikeThrough: document.queryCommandState('strikeThrough')
+    });
+  };
+
+  // Listen for selection changes to update active formats
+  useEffect(() => {
+    if (isEditingDescription) {
+      const handleSelectionChange = () => {
+        checkDescActiveFormats();
+      };
+      document.addEventListener('selectionchange', handleSelectionChange);
+      return () => {
+        document.removeEventListener('selectionchange', handleSelectionChange);
+      };
+    }
+  }, [isEditingDescription]);
+
+  // Initialize description editor content when editing starts
+  useEffect(() => {
+    if (isEditingDescription && descEditorRef.current) {
+      descEditorRef.current.innerHTML = editedDescription;
+      // Move cursor to end
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(descEditorRef.current);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      descEditorRef.current.focus();
+    }
+  }, [isEditingDescription]);
+
+  const handleUpdateDueDate = async () => {
+    if (editedDueDate !== task.dueDate) {
+      await onUpdateTask(task.id, { delivered_at: editedDueDate });
+    }
+    setIsEditingDueDate(false);
+  };
+
+  // Description formatting functions
+  const applyDescFormat = (command, value = null) => {
+    document.execCommand(command, false, value);
+    checkDescActiveFormats();
+  };
+
+  const insertDescBold = () => { if (descEditorRef.current) descEditorRef.current.focus(); applyDescFormat('bold'); };
+  const insertDescItalic = () => { if (descEditorRef.current) descEditorRef.current.focus(); applyDescFormat('italic'); };
+  const insertDescStrikethrough = () => { if (descEditorRef.current) descEditorRef.current.focus(); applyDescFormat('strikeThrough'); };
+  const insertDescUnderline = () => { if (descEditorRef.current) descEditorRef.current.focus(); applyDescFormat('underline'); };
+  const insertDescBulletList = () => { if (descEditorRef.current) descEditorRef.current.focus(); applyDescFormat('insertUnorderedList'); };
+  const insertDescNumberedList = () => { if (descEditorRef.current) descEditorRef.current.focus(); applyDescFormat('insertOrderedList'); };
+  const insertDescChecklist = () => { if (descEditorRef.current) { descEditorRef.current.focus(); applyDescFormat('insertHTML', '<div>☐ </div>'); } };
+
+  const handleDescInsertLink = () => {
+    if (!descLinkUrl) return;
+    if (descEditorRef.current) {
+      descEditorRef.current.focus();
+      const displayText = descLinkText || descLinkUrl;
+      applyDescFormat('insertHTML', `<a href="${descLinkUrl}" target="_blank" class="text-blue-400 hover:underline">${displayText}</a>`);
+    }
+    setDescLinkUrl('');
+    setDescLinkText('');
+    setShowDescLinkInput(false);
+  };
+
+  const insertDescEmoji = (emoji) => {
+    if (descEditorRef.current) {
+      descEditorRef.current.focus();
+      applyDescFormat('insertText', emoji);
+    }
+    setShowDescEmojiPicker(false);
+  };
+
+  const handleSaveDescription = () => {
+    const content = descEditorRef.current?.innerHTML || editedDescription;
+    setEditedDescription(content);
+    handleUpdateDescription();
+    setShowDescFormattingToolbar(false);
+    setShowDescLinkInput(false);
+    setShowDescEmojiPicker(false);
+  };
+
+  const handleCancelDescription = () => {
+    setEditedDescription(task.description || '');
+    setIsEditingDescription(false);
+    setShowDescFormattingToolbar(false);
+    setShowDescLinkInput(false);
+    setShowDescEmojiPicker(false);
+  };
+
+  // Emoji list for description
+  const descEmojis = [
+    '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
+    '👍', '👎', '👏', '🙌', '🤝', '🙏', '💪', '🎉',
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '💯',
+    '✅', '❌', '⭐', '🔥', '💡', '📌', '🎯', '🚀'
+  ];
+
+  return (
+    <div className="p-4 space-y-1">
+      {/* Status */}
+      <CustomSelect
+        label="Status"
+        icon={Tag}
+        value={task.status}
+        options={statusOptions}
+        onChange={onStatusChange}
+        placeholder="No status"
+      />
+
+      {/* Assignee */}
+      <CustomSelect
+        label="Assignee"
+        icon={User}
+        value={task.assigned_to_id}
+        options={teamOptions}
+        onChange={onAssigneeChange}
+        type="user"
+        placeholder="Unassigned"
+        displayName={assigneeName !== 'Unassigned' ? assigneeName : null}
+      />
+
+      {/* Created By */}
+      <CustomSelect
+        label="Created By"
+        icon={User}
+        value={createdById}
+        options={teamOptions}
+        onChange={onCreatorChange}
+        type="user"
+        placeholder="Unknown"
+        displayName={creatorName !== 'Unknown' ? creatorName : null}
+      />
+
+      {/* Due Date - Editable */}
+      <div className="flex items-center py-1.5 px-2 hover:bg-neutral-800/50 rounded cursor-pointer group">
+        <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
+          <Calendar size={14} /> Due Date
+        </div>
+        {isEditingDueDate ? (
+          <input
+            type="date"
+            value={editedDueDate}
+            onChange={(e) => setEditedDueDate(e.target.value)}
+            onBlur={handleUpdateDueDate}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleUpdateDueDate();
+              if (e.key === 'Escape') {
+                setEditedDueDate(task.dueDate || '');
+                setIsEditingDueDate(false);
+              }
+            }}
+            autoFocus
+            className="flex-1 bg-transparent text-neutral-300 text-sm text-right focus:outline-none"
+          />
+        ) : (
+          <div
+            className="flex-1 text-neutral-300 text-sm text-right"
+            onClick={() => setIsEditingDueDate(true)}
+          >
+            {task.dueDate || <span className="text-neutral-600">Empty</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Client */}
+      <div className="flex items-center py-1.5 px-2">
+        <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
+          <Building2 size={14} /> Client
+        </div>
+        <div className="flex-1 text-neutral-300 text-sm text-right">
+          {task.clientName || <span className="text-neutral-600">Internal</span>}
+        </div>
+      </div>
+
+      {/* Description Section */}
+      <div className="pt-4 border-t border-neutral-800 mt-4">
+        <h3 className="text-sm font-medium text-neutral-400 mb-3 px-2">Description</h3>
+        {isEditingDescription ? (
+          <div className="space-y-2">
+            {/* Description formatting toolbar */}
+            {showDescFormattingToolbar && (
+              <div className="flex items-center gap-1 px-2 pb-2">
+                <button
+                  onClick={insertDescBold}
+                  className={`p-1 rounded transition-colors ${activeDescFormats.bold ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                  title="Bold"
+                >
+                  <Bold size={14} />
+                </button>
+                <button
+                  onClick={insertDescItalic}
+                  className={`p-1 rounded transition-colors ${activeDescFormats.italic ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                  title="Italic"
+                >
+                  <Italic size={14} />
+                </button>
+                <button
+                  onClick={insertDescStrikethrough}
+                  className={`p-1 rounded transition-colors ${activeDescFormats.strikeThrough ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                  title="Strikethrough"
+                >
+                  <Strikethrough size={14} />
+                </button>
+                <button
+                  onClick={insertDescUnderline}
+                  className={`p-1 rounded transition-colors ${activeDescFormats.underline ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                  title="Underline"
+                >
+                  <Underline size={14} />
+                </button>
+                <div className="w-px h-3 bg-neutral-700 mx-0.5" />
+                <button onClick={insertDescBulletList} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Bullet list">
+                  <List size={14} />
+                </button>
+                <button onClick={insertDescNumberedList} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Numbered list">
+                  <ListOrdered size={14} />
+                </button>
+                <button onClick={insertDescChecklist} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Checklist">
+                  <CheckSquare size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* Description link input */}
+            {showDescLinkInput && (
+              <div className="flex items-center gap-2 p-2 mx-2 bg-neutral-900 rounded-lg">
+                <input
+                  type="text"
+                  value={descLinkText}
+                  onChange={(e) => setDescLinkText(e.target.value)}
+                  placeholder="Link text"
+                  className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                />
+                <input
+                  type="text"
+                  value={descLinkUrl}
+                  onChange={(e) => setDescLinkUrl(e.target.value)}
+                  placeholder="URL"
+                  className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleDescInsertLink(); }}
+                />
+                <button onClick={handleDescInsertLink} className="p-1 text-blue-500 hover:text-blue-400">
+                  <CheckSquare size={14} />
+                </button>
+                <button onClick={() => { setShowDescLinkInput(false); setDescLinkUrl(''); setDescLinkText(''); }} className="p-1 text-neutral-500 hover:text-white">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* Description editor */}
+            <div
+              ref={descEditorRef}
+              contentEditable
+              data-placeholder="Add a description..."
+              className="w-full bg-neutral-900 text-neutral-300 text-sm p-3 rounded border border-neutral-800 focus:outline-none focus:border-neutral-600 min-h-[120px] max-h-[200px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-600"
+              onInput={(e) => setEditedDescription(e.currentTarget.innerHTML)}
+              onKeyDown={(e) => { if (e.key === 'Escape') handleCancelDescription(); }}
+            />
+
+            {/* Description toolbar */}
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { setShowDescLinkInput(!showDescLinkInput); setShowDescFormattingToolbar(false); setShowDescEmojiPicker(false); }}
+                  className={`p-1 rounded transition-colors ${showDescLinkInput ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                  title="Add link"
+                >
+                  <Paperclip size={14} />
+                </button>
+                <button
+                  onClick={() => { setShowDescFormattingToolbar(!showDescFormattingToolbar); setShowDescLinkInput(false); setShowDescEmojiPicker(false); }}
+                  className={`p-1 rounded transition-colors ${showDescFormattingToolbar ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                  title="Text formatting"
+                >
+                  <Type size={14} />
+                </button>
+                <div className="relative">
+                  <button
+                    ref={descEmojiButtonRef}
+                    onClick={() => { setShowDescEmojiPicker(!showDescEmojiPicker); setShowDescFormattingToolbar(false); setShowDescLinkInput(false); }}
+                    className={`p-1 rounded transition-colors ${showDescEmojiPicker ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                    title="Add emoji"
+                  >
+                    <Smile size={14} />
+                  </button>
+                  {showDescEmojiPicker && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowDescEmojiPicker(false)} />
+                      <SmartEmojiPickerWrapper
+                        triggerRef={descEmojiButtonRef}
+                        onSelect={(emoji) => insertDescEmoji(emoji)}
+                        onClose={() => setShowDescEmojiPicker(false)}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleCancelDescription} className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white">
+                  Cancel
+                </button>
+                <button onClick={handleSaveDescription} className="px-3 py-1.5 text-sm text-white hover:text-neutral-300">
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            onClick={() => setIsEditingDescription(true)}
+            className="text-neutral-300 text-sm cursor-pointer hover:bg-neutral-900 p-3 rounded min-h-[60px]"
+            dangerouslySetInnerHTML={{ __html: task.description || '<span class="text-neutral-600 italic">Click to add description...</span>' }}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Comments Tab Component
+const CommentsTab = ({
+  comments,
+  currentUserId,
+  team,
+  newComment,
+  setNewComment,
+  handleSendComment,
+  onUpdateComment,
+  onDeleteComment,
+  onAddReaction,
+  onRemoveReaction,
+  user,
+  hideOtherVersions,
+  currentVersionId,
+  activeCommentId
+}) => {
+  const [highlightedCommentId, setHighlightedCommentId] = useState(null);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editedContent, setEditedContent] = useState('');
+  const [hoveredCommentId, setHoveredCommentId] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showNewCommentEmojiPicker, setShowNewCommentEmojiPicker] = useState(false);
+  const [showFormattingToolbar, setShowFormattingToolbar] = useState(false);
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  // Edit comment state
+  const [showEditEmojiPicker, setShowEditEmojiPicker] = useState(false);
+  const [showEditFormattingToolbar, setShowEditFormattingToolbar] = useState(false);
+  const [showEditLinkInput, setShowEditLinkInput] = useState(false);
+  const [editLinkUrl, setEditLinkUrl] = useState('');
+  const [editLinkText, setEditLinkText] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkText, setLinkText] = useState('');
+  // Hover reaction and menu state
+  const [showReactionPickerForComment, setShowReactionPickerForComment] = useState(null);
+  const [showFullEmojiPickerForComment, setShowFullEmojiPickerForComment] = useState(null);
+  const [showCommentMenuForComment, setShowCommentMenuForComment] = useState(null);
+  // Delete confirmation modal state
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState(null);
+  // Active formatting state for new comment
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strikeThrough: false
+  });
+  // Active formatting state for edit comment
+  const [activeEditFormats, setActiveEditFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strikeThrough: false
+  });
+  const textareaRef = useRef(null);
+  const newCommentTextareaRef = useRef(null);
+  const newCommentEditorRef = useRef(null);
+  const editCommentEditorRef = useRef(null);
+  const editEmojiButtonRef = useRef(null);
+  const newCommentEmojiButtonRef = useRef(null);
+  const reactionEmojiButtonRef = useRef(null);
+
+  // Highlight comment temporarily when activeCommentId changes (from pin click)
+  useEffect(() => {
+    if (activeCommentId) {
+      setHighlightedCommentId(activeCommentId);
+      // Clear highlight after 1.5 seconds
+      const timer = setTimeout(() => {
+        setHighlightedCommentId(null);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeCommentId]);
+
+  // Check active formatting state
+  const checkActiveFormats = (isNewComment = true) => {
+    const formats = {
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+      underline: document.queryCommandState('underline'),
+      strikeThrough: document.queryCommandState('strikeThrough')
+    };
+    if (isNewComment) {
+      setActiveFormats(formats);
+    } else {
+      setActiveEditFormats(formats);
+    }
+  };
+
+  // Add selection change listener
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      // Check which editor is focused
+      if (document.activeElement === newCommentEditorRef.current) {
+        checkActiveFormats(true);
+      } else if (document.activeElement === editCommentEditorRef.current) {
+        checkActiveFormats(false);
+      }
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, []);
+
+  // Filter comments based on version if needed
+  const filteredComments = hideOtherVersions
+    ? comments.filter(c => c.version_id === currentVersionId)
+    : comments;
+
+  // Initialize edit comment editor content when editing starts
+  useEffect(() => {
+    if (editingCommentId && editCommentEditorRef.current && editedContent) {
+      editCommentEditorRef.current.innerHTML = editedContent;
+      // Move cursor to end
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(editCommentEditorRef.current);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      editCommentEditorRef.current.focus();
+    }
+  }, [editingCommentId]);
+
+  const startEdit = (comment) => {
+    setEditingCommentId(comment.id);
+    setEditedContent(comment.content);
+    setShowEditFormattingToolbar(false);
+    setShowEditLinkInput(false);
+    setShowEditEmojiPicker(false);
+  };
+
+  const saveEdit = async (commentId) => {
+    const content = editCommentEditorRef.current?.innerHTML || editedContent;
+    await onUpdateComment(commentId, { content });
+    setEditingCommentId(null);
+    setEditedContent('');
+    setShowEditFormattingToolbar(false);
+    setShowEditLinkInput(false);
+    setShowEditEmojiPicker(false);
+  };
+
+  const cancelEdit = () => {
+    setEditingCommentId(null);
+    setEditedContent('');
+    setShowEditFormattingToolbar(false);
+    setShowEditLinkInput(false);
+    setShowEditEmojiPicker(false);
+  };
+
+  // Get current user's team member ID for comment authorship tracking
+  const currentTeamMember = team?.find(t => t.email === user?.email);
+  const currentUserTeamId = currentTeamMember?.id;
+
+  // Handle adding/toggling reaction to comment
+  // Note: currentUserId is the auth user.id from the users table (for reactions FK)
+  const handleAddReactionLocal = async (commentId, emoji) => {
+    if (!currentUserId) {
+      console.error('No user ID available for reaction');
+      return;
+    }
+
+    // Find the comment to check if user already reacted with this emoji
+    const comment = comments.find(c => c.id === commentId);
+    const existingReaction = comment?.reactions?.find(
+      r => r.emoji === emoji && r.user_id === currentUserId
+    );
+
+    if (existingReaction) {
+      // Remove reaction if it already exists (toggle off)
+      await onRemoveReaction?.(commentId, emoji);
+    } else {
+      // Add new reaction
+      await onAddReaction?.(commentId, emoji);
+    }
+
+    setShowReactionPickerForComment(null);
+    setShowFullEmojiPickerForComment(null);
+  };
+
+  // Handle clicking on an existing reaction to toggle it
+  const handleReactionClick = async (commentId, emoji) => {
+    await handleAddReactionLocal(commentId, emoji);
+  };
+
+  // Group reactions by emoji and count them
+  const getGroupedReactions = (reactions) => {
+    if (!reactions || reactions.length === 0) return [];
+
+    const grouped = {};
+    reactions.forEach(reaction => {
+      if (!grouped[reaction.emoji]) {
+        grouped[reaction.emoji] = {
+          emoji: reaction.emoji,
+          count: 0,
+          users: [],
+          hasCurrentUser: false
+        };
+      }
+      grouped[reaction.emoji].count++;
+      grouped[reaction.emoji].users.push(reaction.user_id);
+      if (reaction.user_id === currentUserId) {
+        grouped[reaction.emoji].hasCurrentUser = true;
+      }
+    });
+
+    return Object.values(grouped);
+  };
+
+  // Copy comment link to clipboard
+  const handleCopyCommentLink = (commentId) => {
+    const url = `${window.location.origin}${window.location.pathname}?comment=${commentId}`;
+    navigator.clipboard.writeText(url);
+    setShowCommentMenuForComment(null);
+  };
+
+  // Delete comment - show confirmation modal
+  const handleDeleteCommentClick = (commentId) => {
+    setCommentToDelete(commentId);
+    setShowDeleteConfirmModal(true);
+    setShowCommentMenuForComment(null);
+  };
+
+  // Confirm delete comment
+  const confirmDeleteComment = () => {
+    if (commentToDelete) {
+      onDeleteComment(commentToDelete);
+    }
+    setShowDeleteConfirmModal(false);
+    setCommentToDelete(null);
+  };
+
+  // Cancel delete comment
+  const cancelDeleteComment = () => {
+    setShowDeleteConfirmModal(false);
+    setCommentToDelete(null);
+  };
+
+  // Close all hover menus
+  const closeAllHoverMenus = () => {
+    setShowReactionPickerForComment(null);
+    setShowFullEmojiPickerForComment(null);
+    setShowCommentMenuForComment(null);
+  };
+
+  // Wrapper for sending comment that gets HTML content and clears editor
+  const handleSendCommentWrapper = async () => {
+    const content = newCommentEditorRef.current?.innerHTML?.trim();
+    if (!content || content === '<br>') return;
+
+    // Update the newComment state with HTML content before sending
+    setNewComment(content);
+
+    // Call the parent handler
+    await handleSendComment();
+
+    // Clear the editor
+    if (newCommentEditorRef.current) {
+      newCommentEditorRef.current.innerHTML = '';
+    }
+    setNewComment('');
+    setShowFormattingToolbar(false);
+    setShowLinkInput(false);
+    setShowNewCommentEmojiPicker(false);
+  };
+
+  // Text formatting functions using execCommand for rich text
+  const applyFormat = (command, value = null) => {
+    document.execCommand(command, false, value);
+  };
+
+  const insertBold = (isNewComment = false) => {
+    const editor = isNewComment ? newCommentEditorRef.current : editCommentEditorRef.current;
+    if (editor) editor.focus();
+    applyFormat('bold');
+    // Update active state after applying format
+    setTimeout(() => checkActiveFormats(isNewComment), 0);
+  };
+
+  const insertItalic = (isNewComment = false) => {
+    const editor = isNewComment ? newCommentEditorRef.current : editCommentEditorRef.current;
+    if (editor) editor.focus();
+    applyFormat('italic');
+    setTimeout(() => checkActiveFormats(isNewComment), 0);
+  };
+
+  const insertStrikethrough = (isNewComment = false) => {
+    const editor = isNewComment ? newCommentEditorRef.current : editCommentEditorRef.current;
+    if (editor) editor.focus();
+    applyFormat('strikeThrough');
+    setTimeout(() => checkActiveFormats(isNewComment), 0);
+  };
+
+  const insertUnderline = (isNewComment = false) => {
+    const editor = isNewComment ? newCommentEditorRef.current : editCommentEditorRef.current;
+    if (editor) editor.focus();
+    applyFormat('underline');
+    setTimeout(() => checkActiveFormats(isNewComment), 0);
+  };
+
+  const insertBulletList = (isNewComment = false) => {
+    const editor = isNewComment ? newCommentEditorRef.current : editCommentEditorRef.current;
+    if (editor) editor.focus();
+    applyFormat('insertUnorderedList');
+  };
+
+  const insertNumberedList = (isNewComment = false) => {
+    const editor = isNewComment ? newCommentEditorRef.current : editCommentEditorRef.current;
+    if (editor) editor.focus();
+    applyFormat('insertOrderedList');
+  };
+
+  const insertChecklist = (isNewComment = false) => {
+    const editor = isNewComment ? newCommentEditorRef.current : editCommentEditorRef.current;
+    if (editor) {
+      editor.focus();
+      // Insert a checkbox-style item
+      applyFormat('insertHTML', '<div>☐ </div>');
+    }
+  };
+
+  const handleInsertLink = (isNewComment = false) => {
+    const url = isNewComment ? linkUrl : editLinkUrl;
+    const text = isNewComment ? linkText : editLinkText;
+    if (!url) return;
+
+    const editor = isNewComment ? newCommentEditorRef.current : editCommentEditorRef.current;
+    if (editor) {
+      editor.focus();
+      const displayText = text || url;
+      applyFormat('insertHTML', `<a href="${url}" target="_blank" class="text-blue-400 hover:underline">${displayText}</a>`);
+    }
+
+    if (isNewComment) {
+      setLinkUrl('');
+      setLinkText('');
+      setShowLinkInput(false);
+    } else {
+      setEditLinkUrl('');
+      setEditLinkText('');
+      setShowEditLinkInput(false);
+    }
+  };
+
+  const insertEmoji = (emoji, isNewComment = false) => {
+    const editor = isNewComment ? newCommentEditorRef.current : editCommentEditorRef.current;
+    if (editor) {
+      editor.focus();
+      applyFormat('insertText', emoji);
+    }
+    setShowEmojiPicker(false);
+    setShowNewCommentEmojiPicker(false);
+    setShowEditEmojiPicker(false);
+  };
+
+  // Expanded emoji list
+  const commonEmojis = [
+    '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
+    '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘',
+    '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭',
+    '🤔', '🤐', '😐', '😑', '😶', '😏', '😒', '🙄',
+    '👍', '👎', '👏', '🙌', '🤝', '🙏', '💪', '🎉',
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '💯',
+    '✅', '❌', '⭐', '🔥', '💡', '📌', '🎯', '🚀'
+  ];
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const month = date.toLocaleString('en-US', { month: 'long' });
+    const day = date.getDate();
+    const year = date.getFullYear();
+    const suffix = ['th', 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 != 10) * day % 10];
+    return `${month} ${day}${suffix}, ${year}`;
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  const groupCommentsByDate = () => {
+    const groups = {};
+    filteredComments.forEach(comment => {
+      const dateKey = new Date(comment.created_at).toDateString();
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(comment);
+    });
+    return groups;
+  };
+
+  const groupedComments = groupCommentsByDate();
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Comments List */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {filteredComments.length === 0 ? (
+          <div className="text-center text-neutral-500 py-12">
+            <p>No comments yet</p>
+            <p className="text-sm mt-1">Add a comment to get started</p>
+          </div>
+        ) : (
+          Object.keys(groupedComments).map((dateKey) => {
+            const dateComments = groupedComments[dateKey];
+            const dateLabel = formatDate(dateComments[0].created_at);
+
+            return (
+              <div key={dateKey}>
+                {/* Date separator */}
+                <div className="flex items-center justify-center mb-4">
+                  <div className="text-xs text-neutral-600 bg-neutral-900 px-3 py-1 rounded-full">
+                    {dateLabel}
+                  </div>
+                </div>
+
+                {/* Comments */}
+                <div className="space-y-0">
+                  {dateComments.map((comment) => {
+                    const author = team?.find(t => t.id === comment.author_designer_id);
+                    const authorName = author?.full_name || 'Unknown';
+                    const authorAvatar = author?.avatar_url;
+
+                    const currentTeamMember = team?.find(t => t.email === user?.email);
+                    const isOwnComment = comment.author_designer_id === currentTeamMember?.id;
+                    const isEditing = editingCommentId === comment.id;
+                    const isHovered = hoveredCommentId === comment.id;
+
+                    const isHighlighted = highlightedCommentId === comment.id;
+
+                    return (
+                      <div
+                        key={comment.id}
+                        id={`comment-${comment.id}`}
+                        className={`flex gap-3 p-2 -mx-2 rounded-lg transition-all duration-500 ${isHighlighted ? 'ring-2 ring-white/80' : ''}`}
+                        onMouseEnter={() => setHoveredCommentId(comment.id)}
+                        onMouseLeave={() => setHoveredCommentId(null)}
+                      >
+                        {/* Avatar */}
+                        <div className="flex-shrink-0">
+                          {authorAvatar ? (
+                            <img src={authorAvatar} alt={authorName} className="w-8 h-8 rounded-full" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-white text-sm">
+                              {authorName[0]}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Comment content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Header - fixed height to prevent layout shift */}
+                          <div className="flex items-center justify-between h-6">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-white">{authorName}</span>
+                              <span className="text-xs text-neutral-600">{formatTime(comment.created_at)}</span>
+                            </div>
+
+                            {/* Hover actions - always reserve space, show/hide with opacity */}
+                            <div className={`flex items-center gap-1 transition-opacity ${isHovered && !isEditing ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                              {/* Edit button - only for own comments */}
+                              {isOwnComment && (
+                                <button
+                                  onClick={() => startEdit(comment)}
+                                  className="px-2 py-0.5 rounded text-xs text-neutral-500 hover:text-white hover:bg-neutral-800"
+                                >
+                                  Edit
+                                </button>
+                              )}
+
+                              {/* Reaction button */}
+                              <div className="relative">
+                                <button
+                                  onClick={() => {
+                                    setShowReactionPickerForComment(showReactionPickerForComment === comment.id ? null : comment.id);
+                                    setShowCommentMenuForComment(null);
+                                    setShowFullEmojiPickerForComment(null);
+                                  }}
+                                  className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800"
+                                >
+                                  <Smile size={14} />
+                                </button>
+
+                                {/* Quick Reaction Picker */}
+                                {showReactionPickerForComment === comment.id && (
+                                  <>
+                                    <div className="fixed inset-0 z-40" onClick={closeAllHoverMenus} />
+                                    <div className="absolute right-0 top-full mt-1 z-50">
+                                      <QuickReactionPicker
+                                        onSelect={(emoji) => handleAddReactionLocal(comment.id, emoji)}
+                                        onOpenFull={() => {
+                                          setShowReactionPickerForComment(null);
+                                          setShowFullEmojiPickerForComment(comment.id);
+                                        }}
+                                      />
+                                    </div>
+                                  </>
+                                )}
+
+                                {/* Full Emoji Picker - positioned smartly */}
+                                {showFullEmojiPickerForComment === comment.id && (
+                                  <>
+                                    <div className="fixed inset-0 z-40" onClick={closeAllHoverMenus} />
+                                    <ReactionEmojiPickerPositioned
+                                      onSelect={(emoji) => handleAddReactionLocal(comment.id, emoji)}
+                                      onClose={closeAllHoverMenus}
+                                    />
+                                  </>
+                                )}
+                              </div>
+
+                              {/* More options button */}
+                              <div className="relative">
+                                <button
+                                  onClick={() => {
+                                    setShowCommentMenuForComment(showCommentMenuForComment === comment.id ? null : comment.id);
+                                    setShowReactionPickerForComment(null);
+                                    setShowFullEmojiPickerForComment(null);
+                                  }}
+                                  className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800"
+                                >
+                                  <MoreHorizontal size={14} />
+                                </button>
+
+                                {/* Dropdown menu */}
+                                {showCommentMenuForComment === comment.id && (
+                                  <>
+                                    <div className="fixed inset-0 z-40" onClick={closeAllHoverMenus} />
+                                    <div className="absolute right-0 top-full mt-1 w-44 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
+                                      <button
+                                        onClick={() => handleCopyCommentLink(comment.id)}
+                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
+                                      >
+                                        <Copy size={14} />
+                                        Copy link
+                                      </button>
+                                      {isOwnComment && (
+                                        <button
+                                          onClick={() => handleDeleteCommentClick(comment.id)}
+                                          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-neutral-800"
+                                        >
+                                          <Trash2 size={14} />
+                                          Delete comment
+                                        </button>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Body */}
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              {/* Edit formatting toolbar */}
+                              {showEditFormattingToolbar && (
+                                <div className="flex items-center gap-1 pb-2">
+                                  <button onClick={() => insertBold(false)} className={`p-1 rounded transition-colors ${activeEditFormats.bold ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Bold">
+                                    <Bold size={14} />
+                                  </button>
+                                  <button onClick={() => insertItalic(false)} className={`p-1 rounded transition-colors ${activeEditFormats.italic ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Italic">
+                                    <Italic size={14} />
+                                  </button>
+                                  <button onClick={() => insertStrikethrough(false)} className={`p-1 rounded transition-colors ${activeEditFormats.strikeThrough ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Strikethrough">
+                                    <Strikethrough size={14} />
+                                  </button>
+                                  <button onClick={() => insertUnderline(false)} className={`p-1 rounded transition-colors ${activeEditFormats.underline ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Underline">
+                                    <Underline size={14} />
+                                  </button>
+                                  <div className="w-px h-3 bg-neutral-700 mx-0.5" />
+                                  <button onClick={() => insertBulletList(false)} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Bullet list">
+                                    <List size={14} />
+                                  </button>
+                                  <button onClick={() => insertNumberedList(false)} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Numbered list">
+                                    <ListOrdered size={14} />
+                                  </button>
+                                  <button onClick={() => insertChecklist(false)} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Checklist">
+                                    <CheckSquare size={14} />
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Edit link input */}
+                              {showEditLinkInput && (
+                                <div className="flex items-center gap-2 p-2 bg-neutral-900 rounded-lg">
+                                  <input
+                                    type="text"
+                                    value={editLinkText}
+                                    onChange={(e) => setEditLinkText(e.target.value)}
+                                    placeholder="Link text"
+                                    className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editLinkUrl}
+                                    onChange={(e) => setEditLinkUrl(e.target.value)}
+                                    placeholder="URL"
+                                    className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleInsertLink(false); }}
+                                  />
+                                  <button onClick={() => handleInsertLink(false)} className="p-1 text-blue-500 hover:text-blue-400">
+                                    <CheckSquare size={14} />
+                                  </button>
+                                  <button onClick={() => { setShowEditLinkInput(false); setEditLinkUrl(''); setEditLinkText(''); }} className="p-1 text-neutral-500 hover:text-white">
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Edit content editor */}
+                              <div
+                                ref={editCommentEditorRef}
+                                contentEditable
+                                className="w-full bg-transparent text-neutral-300 text-sm focus:outline-none min-h-[40px] max-h-[100px] overflow-y-auto"
+                                onKeyDown={(e) => { if (e.key === 'Escape') cancelEdit(); }}
+                                onInput={(e) => setEditedContent(e.currentTarget.innerHTML)}
+                              />
+
+                              {/* Edit toolbar */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => { setShowEditLinkInput(!showEditLinkInput); setShowEditFormattingToolbar(false); setShowEditEmojiPicker(false); }}
+                                    className={`p-1 rounded transition-colors ${showEditLinkInput ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                    title="Add link"
+                                  >
+                                    <Paperclip size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => { setShowEditFormattingToolbar(!showEditFormattingToolbar); setShowEditLinkInput(false); setShowEditEmojiPicker(false); }}
+                                    className={`p-1 rounded transition-colors ${showEditFormattingToolbar ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                    title="Text formatting"
+                                  >
+                                    <Type size={14} />
+                                  </button>
+                                  <div className="relative">
+                                    <button
+                                      ref={editEmojiButtonRef}
+                                      onClick={() => { setShowEditEmojiPicker(!showEditEmojiPicker); setShowEditFormattingToolbar(false); setShowEditLinkInput(false); }}
+                                      className={`p-1 rounded transition-colors ${showEditEmojiPicker ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                      title="Add emoji"
+                                    >
+                                      <Smile size={14} />
+                                    </button>
+                                    {showEditEmojiPicker && (
+                                      <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setShowEditEmojiPicker(false)} />
+                                        <SmartEmojiPickerWrapper
+                                          triggerRef={editEmojiButtonRef}
+                                          onSelect={(emoji) => insertEmoji(emoji, false)}
+                                          onClose={() => setShowEditEmojiPicker(false)}
+                                        />
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button onClick={cancelEdit} className="text-xs text-neutral-400 hover:text-white">
+                                    Cancel
+                                  </button>
+                                  <button onClick={() => saveEdit(comment.id)} className="text-xs text-white hover:text-neutral-300">
+                                    Save
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div
+                                className="text-sm text-neutral-300"
+                                dangerouslySetInnerHTML={{ __html: comment.content }}
+                              />
+
+                              {/* Reactions display */}
+                              {comment.reactions && comment.reactions.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 mt-2">
+                                  {getGroupedReactions(comment.reactions).map((reaction) => (
+                                    <button
+                                      key={reaction.emoji}
+                                      onClick={() => handleReactionClick(comment.id, reaction.emoji)}
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${
+                                        reaction.hasCurrentUser
+                                          ? 'bg-transparent border border-white/60 text-white'
+                                          : 'bg-transparent border border-neutral-600 text-neutral-400 hover:border-neutral-500'
+                                      }`}
+                                      title={`${reaction.count} reaction${reaction.count > 1 ? 's' : ''}`}
+                                    >
+                                      <span>{reaction.emoji}</span>
+                                      <span>{reaction.count}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* New Comment Input */}
+      <div className="p-4">
+        <div className="space-y-3">
+          {/* Formatting toolbar - shown above textarea */}
+          {showFormattingToolbar && (
+            <div className="flex items-center gap-1 pb-2">
+              <button
+                onClick={() => insertBold(true)}
+                className={`p-1.5 rounded transition-colors ${
+                  activeFormats.bold
+                    ? 'text-white bg-neutral-700'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                }`}
+                title="Bold"
+              >
+                <Bold size={16} />
+              </button>
+              <button
+                onClick={() => insertItalic(true)}
+                className={`p-1.5 rounded transition-colors ${
+                  activeFormats.italic
+                    ? 'text-white bg-neutral-700'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                }`}
+                title="Italic"
+              >
+                <Italic size={16} />
+              </button>
+              <button
+                onClick={() => insertStrikethrough(true)}
+                className={`p-1.5 rounded transition-colors ${
+                  activeFormats.strikeThrough
+                    ? 'text-white bg-neutral-700'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                }`}
+                title="Strikethrough"
+              >
+                <Strikethrough size={16} />
+              </button>
+              <button
+                onClick={() => insertUnderline(true)}
+                className={`p-1.5 rounded transition-colors ${
+                  activeFormats.underline
+                    ? 'text-white bg-neutral-700'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                }`}
+                title="Underline"
+              >
+                <Underline size={16} />
+              </button>
+              <div className="w-px h-4 bg-neutral-700 mx-1" />
+              <button
+                onClick={() => insertBulletList(true)}
+                className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+                title="Bullet list"
+              >
+                <List size={16} />
+              </button>
+              <button
+                onClick={() => insertNumberedList(true)}
+                className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+                title="Numbered list"
+              >
+                <ListOrdered size={16} />
+              </button>
+              <button
+                onClick={() => insertChecklist(true)}
+                className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+                title="Checklist"
+              >
+                <CheckSquare size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Link input - shown inline */}
+          {showLinkInput && (
+            <div className="flex items-center gap-2 p-2 bg-neutral-900 rounded-lg">
+              <input
+                type="text"
+                value={linkText}
+                onChange={(e) => setLinkText(e.target.value)}
+                placeholder="Link text (optional)"
+                className="flex-1 bg-transparent text-neutral-300 text-sm placeholder-neutral-600 focus:outline-none"
+              />
+              <input
+                type="text"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="URL"
+                className="flex-1 bg-transparent text-neutral-300 text-sm placeholder-neutral-600 focus:outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleInsertLink(true);
+                  }
+                }}
+              />
+              <button
+                onClick={() => handleInsertLink(true)}
+                className="p-1 text-blue-500 hover:text-blue-400"
+              >
+                <CheckSquare size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  setShowLinkInput(false);
+                  setLinkUrl('');
+                  setLinkText('');
+                }}
+                className="p-1 text-neutral-500 hover:text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Message editor */}
+          <div
+            ref={newCommentEditorRef}
+            contentEditable
+            data-placeholder="Leave a message..."
+            className="w-full bg-transparent text-neutral-300 text-sm focus:outline-none min-h-[20px] max-h-[120px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-600"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendCommentWrapper();
+              }
+            }}
+            onInput={(e) => setNewComment(e.currentTarget.innerHTML)}
+          />
+
+          {/* Bottom toolbar */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  setShowLinkInput(!showLinkInput);
+                  setShowFormattingToolbar(false);
+                  setShowNewCommentEmojiPicker(false);
+                }}
+                className={`p-1.5 rounded transition-colors ${
+                  showLinkInput
+                    ? 'text-white bg-neutral-800'
+                    : 'text-neutral-500 hover:text-white hover:bg-neutral-800'
+                }`}
+                title="Add link"
+              >
+                <Paperclip size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  setShowFormattingToolbar(!showFormattingToolbar);
+                  setShowLinkInput(false);
+                  setShowNewCommentEmojiPicker(false);
+                }}
+                className={`p-1.5 rounded transition-colors ${
+                  showFormattingToolbar
+                    ? 'text-white bg-neutral-800'
+                    : 'text-neutral-500 hover:text-white hover:bg-neutral-800'
+                }`}
+                title="Text formatting"
+              >
+                <Type size={16} />
+              </button>
+              <div className="relative">
+                <button
+                  ref={newCommentEmojiButtonRef}
+                  onClick={() => {
+                    setShowNewCommentEmojiPicker(!showNewCommentEmojiPicker);
+                    setShowFormattingToolbar(false);
+                    setShowLinkInput(false);
+                  }}
+                  className={`p-1.5 rounded transition-colors ${
+                    showNewCommentEmojiPicker
+                      ? 'text-white bg-neutral-800'
+                      : 'text-neutral-500 hover:text-white hover:bg-neutral-800'
+                  }`}
+                  title="Add emoji"
+                >
+                  <Smile size={16} />
+                </button>
+                {showNewCommentEmojiPicker && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowNewCommentEmojiPicker(false)} />
+                    <SmartEmojiPickerWrapper
+                      triggerRef={newCommentEmojiButtonRef}
+                      onSelect={(emoji) => insertEmoji(emoji, true)}
+                      onClose={() => setShowNewCommentEmojiPicker(false)}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={handleSendCommentWrapper}
+              disabled={!newComment.trim() || newComment === '<br>'}
+              className={`transition-colors ${
+                newComment.trim() && newComment !== '<br>'
+                  ? 'text-neutral-400 hover:text-white'
+                  : 'text-neutral-700 cursor-not-allowed'
+              }`}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2 10l16-8-8 16-2-6-6-2z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmModal && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={cancelDeleteComment} />
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#1a1a1a] border border-neutral-800 rounded-xl shadow-2xl z-50 w-80 overflow-hidden">
+            <div className="p-4">
+              <h3 className="text-lg font-semibold text-white mb-2">Delete Comment</h3>
+              <p className="text-sm text-neutral-400 mb-4">
+                Are you sure you want to delete this comment? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={cancelDeleteComment}
+                  className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteComment}
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};

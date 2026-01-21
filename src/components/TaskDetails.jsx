@@ -37,9 +37,11 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
     }, [task.title, task.description, task.comments]);
 
     // Find creator from team
-    const creator = team?.find(t => t.id === task.created_by_id);
-    const creatorName = creator?.full_name || 'Unknown';
-    const creatorAvatar = creator?.avatar_url;
+    // Prioritize created_by_team_id, then fall back to created_by_id or properties.createdById
+    const createdById = task.created_by_team_id || task.properties?.createdById;
+    const creator = team?.find(t => t.id === createdById);
+    const creatorName = task.creatorName || creator?.full_name || 'Unknown';
+    const creatorAvatar = task.creatorAvatar || creator?.avatar_url;
 
     // Prepare team options for created_by and assigned_to selectors
     const teamOptions = team?.map(member => ({
@@ -48,22 +50,28 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
         avatar: member.avatar_url
     })) || [];
 
+    console.log('[TaskDetails] Team prop:', team);
     console.log('[TaskDetails] Team options:', teamOptions);
-    console.log('[TaskDetails] Current created_by_id:', task.created_by_id);
+    console.log('[TaskDetails] Current created_by_id:', createdById);
     console.log('[TaskDetails] Current assigned_to_id:', task.assigned_to_id);
+    console.log('[TaskDetails] Task assigneeName:', task.assigneeName);
+    console.log('[TaskDetails] Task creatorName:', task.creatorName);
 
     const handleUpdateCreatedBy = async (newCreatedById) => {
         try {
+            // Update created_by_team_id since we're selecting from team members
             const { error } = await supabase
                 .from('tasks')
-                .update({ created_by_id: newCreatedById })
+                .update({
+                    created_by_team_id: newCreatedById
+                })
                 .eq('id', task.id);
 
             if (error) throw error;
 
             const newCreator = team?.find(t => t.id === newCreatedById);
             onUpdate(task.id, {
-                created_by_id: newCreatedById,
+                created_by_team_id: newCreatedById,
                 creatorName: newCreator?.full_name,
                 creatorAvatar: newCreator?.avatar_url
             });
@@ -509,11 +517,12 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
                             <CustomSelect
                                 label="Created By"
                                 icon={User}
-                                value={task.created_by_id}
+                                value={createdById}
                                 options={teamOptions}
                                 onChange={handleUpdateCreatedBy}
                                 type="user"
                                 placeholder="Unknown"
+                                displayName={creatorName !== 'Unknown' ? creatorName : null}
                             />
 
                             {/* Assigned To - Interactive */}
@@ -525,6 +534,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
                                 onChange={handleUpdateAssignee}
                                 type="user"
                                 placeholder="Unassigned"
+                                displayName={task.assigneeName}
                             />
 
                             {/* Due Date */}

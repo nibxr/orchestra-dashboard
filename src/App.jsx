@@ -11,13 +11,13 @@ import { AnalyticsView, PaymentsView, CustomersView } from './components/Dashboa
 import { CyclesView } from './components/CyclesView';
 import { ProfileSettingsView, AgencySettingsView, TeamSettingsView, WorkflowSettingsView, TemplatesView, ClientPortalSettingsView, PlansSettingsView } from './components/SettingsViews';
 import { NewTaskModal } from './components/NewTaskModal';
-import { TaskDetails } from './components/TaskDetails';
 import { DisplayMenu, FilterMenu } from './components/Menus';
 import { SearchModal } from './components/SearchModal';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 import { useConfirm } from './components/ConfirmModal';
 import { useToast } from './components/Toast';
+import { createVersion } from './utils/versionService';
 
 export default function App() {
   const { user, userRole, userMembership } = useAuth();
@@ -30,9 +30,8 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [clients, setClients] = useState([]);
   const [team, setTeam] = useState([]);
-  const [contacts, setContacts] = useState([]); 
-  
-  const [activeTask, setActiveTask] = useState(null); 
+  const [contacts, setContacts] = useState([]);
+
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
   const [newTaskStatus, setNewTaskStatus] = useState('Backlog');
   const [loading, setLoading] = useState(true);
@@ -67,15 +66,36 @@ export default function App() {
               const client = clientsData?.find(c => c.id === t.membership_id);
               const taskCommentCount = commentsData ? commentsData.filter(c => c.task_id === t.id).length : 0;
 
-              // Get created_by_id from properties if it's stored there (workaround for FK issue)
-              const createdById = t.created_by_id || t.properties?.createdById;
-              const creator = teamData?.find(m => m.id === createdById);
+              // Get creator - prioritize created_by_team_id, then fall back to created_by_id (client contact) or properties
+              let creatorName = null;
+              let creatorAvatar = null;
+
+              if (t.created_by_team_id) {
+                  // Team member created the task
+                  const teamCreator = teamData?.find(m => m.id === t.created_by_team_id);
+                  if (teamCreator) {
+                      creatorName = teamCreator.full_name;
+                      creatorAvatar = teamCreator.avatar_url;
+                  }
+              } else if (t.created_by_id) {
+                  // Client contact created the task
+                  const contactCreator = contactsData?.find(c => c.id === t.created_by_id);
+                  if (contactCreator) {
+                      creatorName = contactCreator.full_name;
+                  }
+              } else if (t.properties?.createdById) {
+                  // Backwards compatibility with old property-based storage
+                  const legacyCreator = teamData?.find(m => m.id === t.properties.createdById);
+                  if (legacyCreator) {
+                      creatorName = legacyCreator.full_name;
+                      creatorAvatar = legacyCreator.avatar_url;
+                  }
+              }
 
               return {
                   ...t,
-                  created_by_id: createdById, // Ensure it's set from properties if needed
-                  creatorName: creator ? creator.full_name : null,
-                  creatorAvatar: creator ? creator.avatar_url : null,
+                  creatorName,
+                  creatorAvatar,
                   assigneeName: assignee ? assignee.full_name : null,
                   assigneeAvatar: assignee ? assignee.avatar_url : null,
                   clientName: client ? client.client_name : 'Internal',
@@ -104,8 +124,6 @@ export default function App() {
           setIsSearchOpen(false);
         } else if (isNotificationsOpen) {
           setIsNotificationsOpen(false);
-        } else if (activeTask) {
-          setActiveTask(null);
         } else if (isNewTaskModalOpen) {
           setIsNewTaskModalOpen(false);
         } else if (mode === APP_MODES.SETTINGS) {
@@ -119,7 +137,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [activeTask, isNewTaskModalOpen, mode, displayMenuOpen, filterMenuOpen, isSearchOpen, isNotificationsOpen]);
+  }, [isNewTaskModalOpen, mode, displayMenuOpen, filterMenuOpen, isSearchOpen, isNotificationsOpen]);
 
   const processedTasks = useMemo(() => {
       let result = [...tasks];
@@ -177,42 +195,54 @@ export default function App() {
 
   const updateLocalTask = (taskId, payload) => {
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...payload } : t));
-      if (activeTask && activeTask.id === taskId) {
-          // Force a new object reference to ensure React detects the change
-          setActiveTask(prev => {
-              const updated = { ...prev, ...payload };
-              // If comments are being updated, ensure array reference changes
-              if (payload.comments) {
-                  updated.comments = [...payload.comments];
-              }
-              return updated;
-          });
-      }
   };
 
   const handleAddTask = async (formData) => {
+      // Find the team member ID for the current user
+      const currentTeamMember = team.find(t => t.email === user?.email);
+      const teamMemberId = currentTeamMember?.id;
+
       const newTaskPayload = {
           title: formData.title,
           description: formData.description,
           content: formData.description,
           status: formData.status,
-          assigned_to_id: formData.assigneeId,
+          assigned_to_id: formData.assigneeId || teamMemberId,
+          created_by_team_id: formData.createdById || teamMemberId, // New field for team creators
           membership_id: formData.clientId,
           private: formData.isPrivate || false,
-          // Temporarily store created_by_id in properties until database foreign key is fixed
-          // The FK currently points to client_contacts but should point to team table
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           orchestra_task_id: `TASK-${Date.now()}`,
-          properties: formData.type ? { type: formData.type, dueDate: formData.dueDate, createdById: formData.createdById || user?.id } : { dueDate: formData.dueDate, createdById: formData.createdById || user?.id }
+          properties: formData.type ? { type: formData.type, dueDate: formData.dueDate } : { dueDate: formData.dueDate }
       };
       const { data, error } = await supabase.from('tasks').insert([newTaskPayload]).select();
       if (error) {
           console.error('Error creating task:', error);
           toast.error(`Error creating task: ${error.message}`);
       } else if (data) {
+          const newTask = data[0];
+
+          // If a design URL was provided, create version 1
+          if (formData.designUrl && formData.designUrl.trim()) {
+              const { error: versionError } = await createVersion(
+                  newTask.id,
+                  formData.designUrl.trim(),
+                  'Version 1',
+                  user?.id
+              );
+
+              if (versionError) {
+                  console.error('Error creating version:', versionError);
+                  toast.error('Task created but failed to create version');
+              } else {
+                  toast.success('Task created with version 1');
+              }
+          } else {
+              toast.success('Task created successfully');
+          }
+
           setIsNewTaskModalOpen(false);
-          toast.success('Task created successfully');
           // Reload tasks to show the new task
           await fetchData();
       }
@@ -244,27 +274,12 @@ export default function App() {
       const { error } = await supabase.from('tasks').delete().eq('id', taskId);
       if (!error) {
           setTasks(prev => prev.filter(t => t.id !== taskId));
-          if (activeTask?.id === taskId) setActiveTask(null);
       }
   };
 
-  const openTaskDetails = async (task) => {
-      setActiveTask(task);
-      const { data: commentsData } = await supabase.from('comments').select('*').eq('task_id', task.id).order('created_at', { ascending: true });
-      if (commentsData) {
-          const enrichedComments = commentsData.map(c => {
-              let authorName = 'Unknown', authorAvatar = null;
-              if (c.author_designer_id) {
-                  const designer = team.find(t => t.id === c.author_designer_id);
-                  if (designer) { authorName = designer.full_name; authorAvatar = designer.avatar_url; }
-              } else if (c.author_contact_id) {
-                  const contact = contacts.find(ct => ct.id === c.author_contact_id);
-                  if (contact) authorName = contact.full_name;
-              }
-              return { ...c, authorName, authorAvatar };
-          });
-          setActiveTask(prev => ({ ...prev, comments: enrichedComments }));
-      }
+  const openTaskDetails = (task) => {
+      // Open task in new window/tab
+      window.open(`/task/${task.id}`, '_blank');
   };
 
   // --- HANDLER TO OPEN PORTAL ---
@@ -394,8 +409,7 @@ export default function App() {
       </div>
 
       {/* Modals */}
-      <NewTaskModal isOpen={isNewTaskModalOpen} onClose={() => setIsNewTaskModalOpen(false)} onAddTask={handleAddTask} clients={clients} team={team} initialStatus={newTaskStatus} />
-      {activeTask && <TaskDetails task={activeTask} onClose={() => setActiveTask(null)} onUpdate={handleUpdateTask} team={team} />}
+      <NewTaskModal isOpen={isNewTaskModalOpen} onClose={() => setIsNewTaskModalOpen(false)} onAddTask={handleAddTask} clients={clients} team={team} initialStatus={newTaskStatus} currentUser={user} />
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} tasks={tasks} onSelectTask={openTaskDetails} />
 
       {/* Notifications Dropdown */}

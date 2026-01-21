@@ -7,18 +7,23 @@ import { Avatar } from './Shared';
 import { STATUS_CONFIG } from '../utils/constants';
 import { CustomSelect } from './CustomUI';
 
-export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = [], initialStatus = 'Backlog' }) => {
+export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = [], initialStatus = 'Backlog', currentUser = null }) => {
    if (!isOpen) return null;
+
+   // Find current user's team member ID
+   const currentTeamMember = team.find(t => t.email === currentUser?.email);
+   const currentTeamMemberId = currentTeamMember?.id;
 
    const [title, setTitle] = useState('');
    const [description, setDescription] = useState('');
+   const [designUrl, setDesignUrl] = useState('');
    const [isPrivate, setIsPrivate] = useState(false);
    const [isSubmitting, setIsSubmitting] = useState(false);
 
    const [properties, setProperties] = useState({
      status: initialStatus,
-     createdById: null,
-     assigneeId: null,
+     createdById: currentTeamMemberId,
+     assigneeId: currentTeamMemberId,
      dueDate: '',
      clientId: null,
      type: null,
@@ -26,9 +31,14 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
 
    useEffect(() => {
        if (isOpen) {
-           setProperties(prev => ({ ...prev, status: initialStatus }));
+           setProperties(prev => ({
+               ...prev,
+               status: initialStatus,
+               createdById: currentTeamMemberId,
+               assigneeId: currentTeamMemberId
+           }));
        }
-   }, [initialStatus, isOpen]);
+   }, [initialStatus, isOpen, currentTeamMemberId]);
 
    const handleSubmit = async () => {
      if (!title || isSubmitting) return;
@@ -37,13 +47,22 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
        await onAddTask({
          title,
          description,
+         designUrl,
          isPrivate,
          ...properties
        });
        setTitle('');
        setDescription('');
+       setDesignUrl('');
        setIsPrivate(false);
-       setProperties({ status: 'Backlog', createdById: null, assigneeId: null, dueDate: '', clientId: null, type: null });
+       setProperties({
+           status: 'Backlog',
+           createdById: currentTeamMemberId,
+           assigneeId: currentTeamMemberId,
+           dueDate: '',
+           clientId: null,
+           type: null
+       });
      } catch (error) {
        console.error('Error creating task:', error);
      } finally {
@@ -92,12 +111,25 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                    </div>
                    
                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                       <textarea 
+                       <textarea
                           className="w-full bg-transparent text-neutral-300 text-sm resize-none focus:outline-none h-24 placeholder-neutral-600"
                           placeholder="Type '/' for commands or just start typing a description"
                           value={description}
                           onChange={e => setDescription(e.target.value)}
                        />
+
+                       <div className="mt-6">
+                          <label className="text-xs text-neutral-500 font-medium mb-2 block">Design URL (optional)</label>
+                          <input
+                             type="url"
+                             className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg px-3 py-2 text-neutral-300 text-sm placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
+                             placeholder="https://figma.com/... or any design link"
+                             value={designUrl}
+                             onChange={e => setDesignUrl(e.target.value)}
+                          />
+                          <p className="text-xs text-neutral-600 mt-1">Add a Figma, Loom, YouTube, or website link to create version 1</p>
+                       </div>
+
                        <div className="mt-8">
                           <div className="mb-4 flex items-center gap-2 text-neutral-500 text-xs font-bold uppercase tracking-wider">
                             <LayoutTemplate size={12}/> Start with a template

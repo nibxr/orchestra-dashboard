@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
 
 // --- Custom Dropdown (Replaces native select) ---
-export const CustomSelect = ({ label, icon: Icon, value, options, onChange, placeholder = "Empty", type = "text" }) => {
+export const CustomSelect = ({ label, icon: Icon, value, options, onChange, placeholder = "Empty", type = "text", displayName = null }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -17,6 +17,7 @@ export const CustomSelect = ({ label, icon: Icon, value, options, onChange, plac
   }, []);
 
   const selectedOption = options.find(opt => opt.value === value);
+  const displayLabel = displayName || selectedOption?.label;
 
   return (
     <div className="relative" ref={containerRef}>
@@ -29,16 +30,16 @@ export const CustomSelect = ({ label, icon: Icon, value, options, onChange, plac
            <span className="text-sm">{label}</span>
         </div>
         <div className="flex-1 flex items-center justify-end gap-2 truncate text-right">
-            {selectedOption ? (
+            {displayLabel ? (
                  type === 'user' ? (
                    <div className="flex items-center gap-2">
                      <div className="w-5 h-5 rounded-full bg-neutral-700 flex items-center justify-center text-[10px] text-white">
-                        {selectedOption.label[0]}
+                        {displayLabel[0]}
                      </div>
-                     <span className="text-sm text-neutral-200">{selectedOption.label}</span>
+                     <span className="text-sm text-neutral-200">{displayLabel}</span>
                    </div>
                  ) : (
-                   <span className="text-sm text-neutral-200">{selectedOption.label}</span>
+                   <span className="text-sm text-neutral-200">{displayLabel}</span>
                  )
             ) : (
                 <span className="text-sm text-neutral-600">{placeholder}</span>
