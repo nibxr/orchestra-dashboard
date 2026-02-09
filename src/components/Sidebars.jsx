@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard, BarChart3, CreditCard, Users, Briefcase,
   Globe, Workflow, LayoutTemplate, Terminal, User, Bell,
-  Search, ArrowUpRight, ChevronLeft, RefreshCw, LogOut, Settings as SettingsIcon
+  Search, ArrowUpRight, ChevronLeft, RefreshCw, LogOut, Settings as SettingsIcon,
+  Sun, Moon
 } from 'lucide-react';
 import { DASHBOARD_VIEWS, SETTINGS_VIEWS, APP_MODES } from '../utils/constants';
 import { Avatar } from './Shared';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useConfirm } from './ConfirmModal';
 
 const NavItem = ({ icon: Icon, label, active, onClick }) => (
@@ -115,6 +117,7 @@ export const SettingsSidebar = ({ currentView, setView, setMode }) => {
 
 const UserFooter = ({ setMode }) => {
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const { confirm } = useConfirm();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -135,6 +138,11 @@ const UserFooter = ({ setMode }) => {
   const handleOpenSettings = () => {
     setMode(APP_MODES.SETTINGS);
     setMenuOpen(false);
+  };
+
+  const handleToggleTheme = () => {
+    toggleTheme();
+    // Don't close menu so user can see the change
   };
 
   return (
@@ -163,6 +171,20 @@ const UserFooter = ({ setMode }) => {
             onClick={() => setMenuOpen(false)}
           />
           <div className="absolute bottom-full left-3 right-3 mb-2 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
+            {/* Theme Toggle */}
+            <button
+              onClick={handleToggleTheme}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+              </div>
+              <div className={`w-9 h-5 rounded-full relative transition-colors ${isDark ? 'bg-neutral-700' : 'bg-blue-500'}`}>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${isDark ? 'left-0.5' : 'left-4'}`} />
+              </div>
+            </button>
+            <div className="h-px bg-neutral-800" />
             <button
               onClick={handleOpenSettings}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 transition-colors"

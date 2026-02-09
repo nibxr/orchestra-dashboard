@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [userMembership, setUserMembership] = useState(null); // Client membership for customers
   const [teamMemberId, setTeamMemberId] = useState(null); // Team member ID for team users
   const [clientContactId, setClientContactId] = useState(null); // Client contact ID for customers
+  const [planLimits, setPlanLimits] = useState(null); // Plan limits for customers
   const isInitializedRef = useRef(false);
   const lastUserIdRef = useRef(null); // Track the last authenticated user ID
 
@@ -31,6 +32,7 @@ export const AuthProvider = ({ children }) => {
       setUserMembership(null);
       setTeamMemberId(null);
       setClientContactId(null);
+      setPlanLimits(null);
       return;
     }
 
@@ -51,6 +53,7 @@ export const AuthProvider = ({ children }) => {
         setUserMembership(null);
         setTeamMemberId(teamData.id);
         setClientContactId(null);
+        setPlanLimits(null);
         console.log('[detectUserRole] User detected as team member:', teamData);
         return;
       }
@@ -71,6 +74,32 @@ export const AuthProvider = ({ children }) => {
         setUserMembership(contactData.membership_id);
         setTeamMemberId(null);
         setClientContactId(contactData.id);
+
+        // Fetch plan limits for customer
+        if (contactData.membership_id) {
+          const { data: membershipData } = await supabase
+            .from('client_memberships')
+            .select(`
+              plan_id,
+              "🔄 Plans" (
+                max_active_tasks,
+                turnaround_hours,
+                name
+              )
+            `)
+            .eq('id', contactData.membership_id)
+            .maybeSingle();
+
+          if (membershipData?.['🔄 Plans']) {
+            setPlanLimits({
+              maxActiveTasks: membershipData['🔄 Plans'].max_active_tasks || 1,
+              turnaroundHours: membershipData['🔄 Plans'].turnaround_hours || 72,
+              planName: membershipData['🔄 Plans'].name
+            });
+            console.log('[detectUserRole] Plan limits:', membershipData['🔄 Plans']);
+          }
+        }
+
         console.log('[detectUserRole] User detected as customer:', contactData);
         return;
       }
@@ -81,12 +110,14 @@ export const AuthProvider = ({ children }) => {
       setUserMembership(null);
       setTeamMemberId(null);
       setClientContactId(null);
+      setPlanLimits(null);
     } catch (error) {
       console.error('[detectUserRole] Error detecting user role:', error);
       setUserRole('team'); // Default to team on error
       setUserMembership(null);
       setTeamMemberId(null);
       setClientContactId(null);
+      setPlanLimits(null);
     }
 
     console.log('[detectUserRole] Function complete');
@@ -166,6 +197,7 @@ export const AuthProvider = ({ children }) => {
           setUserMembership(null);
           setTeamMemberId(null);
           setClientContactId(null);
+          setPlanLimits(null);
         }
       } catch (error) {
         console.error('[AuthContext] Error in auth state change:', error);
@@ -261,6 +293,7 @@ export const AuthProvider = ({ children }) => {
     userMembership,
     teamMemberId,
     clientContactId,
+    planLimits,
     signUp,
     signIn,
     signOut,

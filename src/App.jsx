@@ -11,8 +11,10 @@ import { AnalyticsView, PaymentsView, CustomersView } from './components/Dashboa
 import { CyclesView } from './components/CyclesView';
 import { ProfileSettingsView, AgencySettingsView, TeamSettingsView, WorkflowSettingsView, TemplatesView, ClientPortalSettingsView, PlansSettingsView } from './components/SettingsViews';
 import { NewTaskModal } from './components/NewTaskModal';
+import { NewClientModal } from './components/NewClientModal';
 import { DisplayMenu, FilterMenu } from './components/Menus';
 import { SearchModal } from './components/SearchModal';
+import { TaskDetails } from './components/TaskDetails';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 import { useConfirm } from './components/ConfirmModal';
@@ -33,6 +35,7 @@ export default function App() {
   const [contacts, setContacts] = useState([]);
 
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
+  const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
   const [newTaskStatus, setNewTaskStatus] = useState('Backlog');
   const [loading, setLoading] = useState(true);
   
@@ -43,6 +46,7 @@ export default function App() {
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [activeTaskModal, setActiveTaskModal] = useState(null); // Task to show in overlay modal
 
   const [displaySettings, setDisplaySettings] = useState({ view: 'kanban', orderBy: 'last_updated', showArchived: false, showInactive: false, visibleProperties: ['client', 'assignee', 'dueDate', 'id'] });
   const [taskFilter, setTaskFilter] = useState('all');
@@ -58,13 +62,36 @@ export default function App() {
       const { data: contactsData } = await supabase.from('client_contacts').select('*');
       setContacts(contactsData || []);
       const { data: tasksData } = await supabase.from('tasks').select('*');
-      const { data: commentsData } = await supabase.from('comments').select('id, task_id');
+      // Fetch only task-level comments (where version_id is null) for the normal task view
+      const { data: commentsData } = await supabase.from('comments').select('*').is('version_id', null);
 
       if (tasksData) {
           const enrichedTasks = tasksData.map(t => {
               const assignee = teamData?.find(m => m.id === t.assigned_to_id);
               const client = clientsData?.find(c => c.id === t.membership_id);
-              const taskCommentCount = commentsData ? commentsData.filter(c => c.task_id === t.id).length : 0;
+              // Filter task-level comments for this specific task
+              const taskComments = commentsData ? commentsData.filter(c => c.task_id === t.id) : [];
+
+              // Enrich comments with author info
+              const enrichedComments = taskComments.map(comment => {
+                  let authorName = 'Unknown';
+                  let authorAvatar = null;
+
+                  if (comment.author_designer_id) {
+                      const designer = teamData?.find(m => m.id === comment.author_designer_id);
+                      if (designer) {
+                          authorName = designer.full_name || designer.email;
+                          authorAvatar = designer.avatar_url;
+                      }
+                  } else if (comment.author_contact_id) {
+                      const contact = contactsData?.find(c => c.id === comment.author_contact_id);
+                      if (contact) {
+                          authorName = contact.full_name || contact.email;
+                      }
+                  }
+
+                  return { ...comment, authorName, authorAvatar };
+              });
 
               // Get creator - prioritize created_by_team_id, then fall back to created_by_id (client contact) or properties
               let creatorName = null;
@@ -101,7 +128,8 @@ export default function App() {
                   clientName: client ? client.client_name : 'Internal',
                   clientStatus: client ? client.status : 'Active',
                   status: t.status === "Active Task" || t.status === "🔥 Active Task" ? "Active Task" : t.status,
-                  commentCount: taskCommentCount,
+                  comments: enrichedComments, // Use comments from comments table
+                  commentCount: enrichedComments.length,
                   dueDate: t.delivered_at || t.properties?.dueDate
               };
           });
@@ -126,6 +154,8 @@ export default function App() {
           setIsNotificationsOpen(false);
         } else if (isNewTaskModalOpen) {
           setIsNewTaskModalOpen(false);
+        } else if (isNewClientModalOpen) {
+          setIsNewClientModalOpen(false);
         } else if (mode === APP_MODES.SETTINGS) {
           setMode(APP_MODES.DASHBOARD);
         } else if (displayMenuOpen || filterMenuOpen) {
@@ -137,7 +167,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [isNewTaskModalOpen, mode, displayMenuOpen, filterMenuOpen, isSearchOpen, isNotificationsOpen]);
+  }, [isNewTaskModalOpen, isNewClientModalOpen, mode, displayMenuOpen, filterMenuOpen, isSearchOpen, isNotificationsOpen]);
 
   const processedTasks = useMemo(() => {
       let result = [...tasks];
@@ -146,12 +176,6 @@ export default function App() {
       const currentTeamMember = team.find(t => t.email === user?.email);
       const teamMemberId = currentTeamMember?.id;
 
-      console.log('[processedTasks] Total tasks:', result.length);
-      console.log('[processedTasks] userRole:', userRole);
-      console.log('[processedTasks] taskFilter:', taskFilter);
-      console.log('[processedTasks] user?.email:', user?.email);
-      console.log('[processedTasks] user?.id (auth):', user?.id);
-      console.log('[processedTasks] teamMemberId (from team table):', teamMemberId);
 
       // CUSTOMER ROLE: Only show tasks for their client
       if (userRole === 'customer' && userMembership) {
@@ -160,15 +184,7 @@ export default function App() {
       // TEAM ROLE: Apply filters as normal
       else if (userRole === 'team') {
         if (taskFilter === 'mine') {
-          console.log('[processedTasks] Filtering for "mine" - team member ID:', teamMemberId);
-          result = result.filter(t => {
-            const matches = t.assigned_to_id === teamMemberId;
-            if (!matches && t.title) {
-              console.log(`[processedTasks] Task "${t.title}" excluded - assigned_to_id:`, t.assigned_to_id, 'vs', teamMemberId);
-            }
-            return matches;
-          });
-          console.log('[processedTasks] After "mine" filter:', result.length);
+          result = result.filter(t => t.assigned_to_id === teamMemberId);
         }
         else if (taskFilter === 'internal') result = result.filter(t => !t.membership_id);
 
@@ -198,6 +214,9 @@ export default function App() {
   };
 
   const handleAddTask = async (formData) => {
+      console.log('[handleAddTask] formData received:', formData);
+      console.log('[handleAddTask] formData.clientId:', formData.clientId);
+
       // Find the team member ID for the current user
       const currentTeamMember = team.find(t => t.email === user?.email);
       const teamMemberId = currentTeamMember?.id;
@@ -216,6 +235,7 @@ export default function App() {
           orchestra_task_id: `TASK-${Date.now()}`,
           properties: formData.type ? { type: formData.type, dueDate: formData.dueDate } : { dueDate: formData.dueDate }
       };
+      console.log('[handleAddTask] newTaskPayload:', newTaskPayload);
       const { data, error } = await supabase.from('tasks').insert([newTaskPayload]).select();
       if (error) {
           console.error('Error creating task:', error);
@@ -277,9 +297,21 @@ export default function App() {
       }
   };
 
-  const openTaskDetails = (task) => {
-      // Open task in new window/tab
-      window.open(`/task/${task.id}`, '_blank');
+  const openTaskDetails = async (task) => {
+      // Check if task has versions
+      const { data: versions } = await supabase
+          .from('versions')
+          .select('id')
+          .eq('task_id', task.id)
+          .limit(1);
+
+      if (versions && versions.length > 0) {
+          // Has versions - open in new tab for full design review
+          window.open(`/task/${task.id}`, '_blank');
+      } else {
+          // No versions - open in modal overlay
+          setActiveTaskModal(task);
+      }
   };
 
   // --- HANDLER TO OPEN PORTAL ---
@@ -288,13 +320,20 @@ export default function App() {
       setMode(APP_MODES.PORTAL);
   };
 
+  // --- HANDLER FOR CLIENT INVITATION ---
+  const handleInviteClient = (invitationData) => {
+      console.log('Client invitation created:', invitationData);
+      // TODO: Save to database when backend is ready
+      toast.success(`Invitation sent to ${invitationData.clientEmail}`);
+  };
+
   if (loading) return (
-    <div className="h-screen w-screen bg-[#0f0f0f] flex items-center justify-center">
+    <div className="h-screen w-screen bg-[#0f0f0f] theme-bg-primary flex items-center justify-center">
       <div className="text-center">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-lime-400 to-green-500 rounded-full mb-4 animate-pulse shadow-lg shadow-lime-500/50">
           <span className="text-black text-2xl font-bold">D</span>
         </div>
-        <p className="text-neutral-500">Loading Dafolle...</p>
+        <p className="text-neutral-500 theme-text-muted">Loading Dafolle...</p>
       </div>
     </div>
   );
@@ -313,7 +352,7 @@ export default function App() {
 
   return (
     <ProtectedRoute>
-    <div className="flex h-screen w-full bg-[#0f0f0f] font-sans text-neutral-200 overflow-hidden" onClick={() => { setDisplayMenuOpen(false); setFilterMenuOpen(false); }}>
+    <div className="flex h-screen w-full bg-[#0f0f0f] font-sans text-neutral-200 overflow-hidden theme-bg-primary" onClick={() => { setDisplayMenuOpen(false); setFilterMenuOpen(false); }}>
       {mode === APP_MODES.DASHBOARD ? (
         <DashboardSidebar
           currentView={dashboardView}
@@ -333,9 +372,9 @@ export default function App() {
       ) : (
         <SettingsSidebar currentView={settingsView} setView={setSettingsView} setMode={setMode} />
       )}
-      <div className="flex-1 flex flex-col min-w-0 bg-black relative">
+      <div className="flex-1 flex flex-col min-w-0 bg-black theme-bg-secondary relative">
         {mode === APP_MODES.DASHBOARD && (
-            <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-6 bg-[#0f0f0f] shrink-0">
+            <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-6 bg-[#0f0f0f] theme-bg-primary shrink-0">
               <div className="flex items-center gap-4">
                   {dashboardView === DASHBOARD_VIEWS.BOARD ? (
                       <>
@@ -353,6 +392,14 @@ export default function App() {
                   ) : <h1 className="text-lg font-medium text-white capitalize">{dashboardView}</h1>}
               </div>
               <div className="flex items-center gap-4">
+                  {userRole === 'team' && dashboardView === DASHBOARD_VIEWS.CUSTOMERS && (
+                    <button
+                      onClick={() => setIsNewClientModalOpen(true)}
+                      className="flex items-center gap-2 text-xs border border-blue-600 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Plus size={12} /> Invite Client
+                    </button>
+                  )}
                   <div className="relative" onClick={e => e.stopPropagation()}>
                       <button onClick={() => { setFilterMenuOpen(!filterMenuOpen); setDisplayMenuOpen(false); }} className={`flex items-center gap-2 text-xs border px-3 py-1.5 rounded-lg transition-colors ${filterMenuOpen ? 'bg-neutral-800 border-neutral-600 text-white' : 'border-neutral-800 text-neutral-400 hover:text-white'}`}>
                         <Filter size={12} /> Filters {activeFilterCount > 0 && <span className="bg-blue-600 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px]">{activeFilterCount}</span>}
@@ -377,7 +424,7 @@ export default function App() {
                 {dashboardView === DASHBOARD_VIEWS.BOARD && (
                   <>
                       {displaySettings.view === 'kanban' ? (
-                          <KanbanBoard tasks={processedTasks} displaySettings={displaySettings} setActiveTask={openTaskDetails} onOpenNewTask={(status) => { setNewTaskStatus(status); setIsNewTaskModalOpen(true); }} onDeleteTask={handleDeleteTask} onUpdateTask={handleUpdateTask} />
+                          <KanbanBoard tasks={processedTasks} displaySettings={displaySettings} setActiveTask={openTaskDetails} onOpenNewTask={(status) => { setNewTaskStatus(status); setIsNewTaskModalOpen(true); }} onDeleteTask={handleDeleteTask} onUpdateTask={handleUpdateTask} advancedFilters={advancedFilters} clients={clients} />
                       ) : (
                           <ListView tasks={processedTasks} displaySettings={displaySettings} setActiveTask={openTaskDetails} />
                       )}
@@ -410,6 +457,7 @@ export default function App() {
 
       {/* Modals */}
       <NewTaskModal isOpen={isNewTaskModalOpen} onClose={() => setIsNewTaskModalOpen(false)} onAddTask={handleAddTask} clients={clients} team={team} initialStatus={newTaskStatus} currentUser={user} />
+      <NewClientModal isOpen={isNewClientModalOpen} onClose={() => setIsNewClientModalOpen(false)} onInvite={handleInviteClient} />
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} tasks={tasks} onSelectTask={openTaskDetails} />
 
       {/* Notifications Dropdown */}
@@ -432,6 +480,32 @@ export default function App() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Task Details Modal Overlay (for tasks without versions) */}
+      {activeTaskModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setActiveTaskModal(null)}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+          {/* Modal Container - 85% width and height with padding */}
+          <div
+            className="relative w-[85%] h-[85%] max-w-7xl bg-[#0f0f0f] theme-bg-primary rounded-2xl border border-neutral-800 shadow-2xl overflow-hidden animate-scale-in flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* TaskDetails component - fills entire modal */}
+            <TaskDetails
+              task={activeTaskModal}
+              onClose={() => setActiveTaskModal(null)}
+              onUpdate={handleUpdateTask}
+              team={team}
+              isModal={true}
+            />
+          </div>
+        </div>
       )}
     </div>
     </ProtectedRoute>

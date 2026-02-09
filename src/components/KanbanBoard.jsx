@@ -1,12 +1,62 @@
-import React, { useState } from 'react';
-import { Plus, MessageSquare, ArrowUpRight, Calendar, Hash } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, MessageSquare, ArrowUpRight, Calendar, Hash, AlertTriangle } from 'lucide-react';
 import { STATUS_CONFIG } from '../utils/constants';
 import { ContextMenu } from './CustomUI';
+import { TaskLimitBadge } from './TaskLimitIndicator';
+import { formatDueDate, getDueDateStatus } from '../utils/dateUtils';
+import { supabase } from '../supabaseClient';
+import { useToast } from './Toast';
 
-export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask, onUpdateTask, displaySettings }) => {
+export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask, onUpdateTask, displaySettings, taskLimits = {}, advancedFilters = {}, clients = [] }) => {
+  const toast = useToast();
   const [contextMenu, setContextMenu] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverStatus, setDragOverStatus] = useState(null);
+  const [clientTaskLimit, setClientTaskLimit] = useState(null);
+
+  // Check if single client is filtered
+  const singleClientFilter = advancedFilters.client?.length === 1 ? advancedFilters.client[0] : null;
+
+  // Fetch task limit for filtered client
+  useEffect(() => {
+    const fetchClientLimit = async () => {
+      if (singleClientFilter) {
+        const client = clients.find(c => c.id === singleClientFilter);
+
+        if (!client) {
+          setClientTaskLimit(null);
+        } else if (client?.plan_from_agreements) {
+          const { data, error } = await supabase
+            .from('🔄 Plans')
+            .select('tasks_at_once')
+            .eq('whalesync_postgres_id', client.plan_from_agreements)
+            .single();
+
+          if (data?.tasks_at_once) {
+            setClientTaskLimit(parseInt(data.tasks_at_once));
+          } else {
+            setClientTaskLimit(null);
+          }
+        } else {
+          setClientTaskLimit(null);
+        }
+      } else {
+        setClientTaskLimit(null);
+      }
+    };
+
+    fetchClientLimit();
+  }, [singleClientFilter, clients]);
+
+  // Get active task count per membership for limit checking
+  const getActiveTaskCount = (membershipId) => {
+    if (!membershipId) return 0;
+    return tasks.filter(t =>
+      t.membership_id === membershipId &&
+      t.status === 'Active Task' &&
+      !t.archived_at
+    ).length;
+  };
 
   // Check which properties should be visible based on displaySettings
   const visibleProperties = displaySettings?.visibleProperties || [];
@@ -97,9 +147,39 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
     setDragOverStatus(null);
   };
 
-  const handleDrop = (e, newStatus) => {
+  const handleDrop = async (e, newStatus) => {
     e.preventDefault();
     if (draggedTask && draggedTask.status !== newStatus && onUpdateTask) {
+      // Check task limit when moving to Active Task
+      if (newStatus === 'Active Task' && draggedTask.membership_id) {
+        try {
+          const { data: limitCheck, error } = await supabase.rpc('check_task_limit', {
+            p_membership_id: draggedTask.membership_id
+          });
+
+          if (error) {
+            console.error('Error checking task limit:', error);
+            toast.error('Could not verify task limit. Please try again.');
+            setDraggedTask(null);
+            setDragOverStatus(null);
+            return; // Don't allow if check fails
+          }
+
+          if (limitCheck && !limitCheck.can_activate) {
+            toast.error(`Task limit reached: ${limitCheck.current_active}/${limitCheck.max_tasks} active tasks`);
+            setDraggedTask(null);
+            setDragOverStatus(null);
+            return;
+          }
+        } catch (err) {
+          console.error('Error checking task limit:', err);
+          toast.error('Could not verify task limit. Please try again.');
+          setDraggedTask(null);
+          setDragOverStatus(null);
+          return; // Don't allow if check fails
+        }
+      }
+
       onUpdateTask(draggedTask.id, { status: newStatus });
     }
     setDraggedTask(null);
@@ -121,7 +201,20 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
               <div className="flex items-center gap-2">
                 {React.createElement(STATUS_CONFIG[status].icon, { size: 14, className: STATUS_CONFIG[status].color.replace('text-', 'stroke-') })}
                 <h3 className="text-neutral-300 text-sm font-medium">{status}</h3>
-                <span className="bg-neutral-800 text-neutral-500 px-1.5 py-0.5 rounded text-[10px]">{tasks.filter(t => t.status === status).length}</span>
+                {/* Show X/Y format for Active Task when single client is filtered */}
+                {status === 'Active Task' && singleClientFilter && clientTaskLimit ? (
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                    tasks.filter(t => t.status === status).length >= clientTaskLimit
+                      ? 'bg-red-900/50 text-red-400'
+                      : 'bg-neutral-800 text-neutral-500'
+                  }`}>
+                    {tasks.filter(t => t.status === status).length}/{clientTaskLimit}
+                  </span>
+                ) : (
+                  <span className="bg-neutral-800 text-neutral-500 px-1.5 py-0.5 rounded text-[10px]">
+                    {tasks.filter(t => t.status === status).length}
+                  </span>
+                )}
               </div>
               <button onClick={() => onOpenNewTask(status)} className="text-neutral-600 hover:text-white transition-colors opacity-0 group-hover:opacity-100 p-1 hover:bg-neutral-800 rounded">
                   <Plus size={14}/>
@@ -176,13 +269,25 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
                         {task.commentCount || 0}
                     </div>
 
-                    {/* DUE DATE: Show if toggled */}
-                    {showDueDate && task.due_date && (
-                        <div className="flex items-center gap-1 text-[10px] text-neutral-500">
-                            <Calendar size={10} />
-                            {new Date(task.due_date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}
-                        </div>
-                    )}
+                    {/* DUE DATE: Show if toggled with overdue/due-soon styling */}
+                    {showDueDate && task.due_date && (() => {
+                        const dueDateInfo = formatDueDate(task.due_date, task.status);
+                        const dueDateStatus = getDueDateStatus(task.due_date);
+                        const isOverdue = dueDateStatus === 'overdue' && task.status === 'Active Task';
+                        const isDueSoon = dueDateStatus === 'due-soon' && task.status === 'Active Task';
+
+                        return (
+                            <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${
+                                isOverdue ? 'text-red-400 bg-red-500/10' :
+                                isDueSoon ? 'text-orange-400 bg-orange-500/10' :
+                                'text-neutral-500'
+                            }`}>
+                                {isOverdue && <AlertTriangle size={10} />}
+                                {!isOverdue && <Calendar size={10} />}
+                                {dueDateInfo.text || new Date(task.due_date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}
+                            </div>
+                        );
+                    })()}
 
                     {/* REFERENCE ID: Show if toggled */}
                     {showReference && task.orchestra_task_id && (
@@ -200,6 +305,14 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
                       <span className="text-xs font-medium">{status} empty</span>
                   </div>
               )}
+
+              {/* Add task button at bottom of column */}
+              <button
+                  onClick={() => onOpenNewTask(status)}
+                  className="w-full py-3 rounded-lg border border-neutral-700 bg-[#1a1a1a] hover:bg-transparent text-neutral-500 hover:text-neutral-400 hover:border-neutral-600 transition-all flex items-center justify-center"
+              >
+                  <Plus size={16} />
+              </button>
             </div>
           </div>
         ))}

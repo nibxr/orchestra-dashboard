@@ -1,10 +1,62 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Circle, User, Calendar, Plus, MoreHorizontal,
   Paperclip, Smile, Mic, Briefcase,
   Clock, CheckCircle2, Link as LinkIcon, ArrowUpRight, ToggleLeft,
-  Trash2, Archive, Copy, Edit3, Maximize2
+  Trash2, Archive, Copy, Edit3, Maximize2, Star, FileText, AlertTriangle,
+  Cat, UtensilsCrossed, Car, PartyPopper, Music, Flag
 } from 'lucide-react';
+
+// Emoji data organized by category
+const emojiCategories = {
+  recent: { icon: Clock, label: 'Recent', emojis: ['😀', '👍', '❤️', '🎉', '✅', '🔥', '💯', '🚀'] },
+  smileys: {
+    icon: Smile,
+    label: 'Smileys & People',
+    emojis: [
+      '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂',
+      '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋',
+      '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐',
+      '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '😮', '🥱',
+      '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞',
+      '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤝', '🙏', '💪'
+    ]
+  },
+  animals: {
+    icon: Cat,
+    label: 'Animals & Nature',
+    emojis: [
+      '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
+      '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦆',
+      '🌸', '💐', '🌷', '🌹', '🌺', '🌻', '🌼', '🍀', '🌿', '🍃'
+    ]
+  },
+  food: {
+    icon: UtensilsCrossed,
+    label: 'Food & Drink',
+    emojis: [
+      '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍒', '🍑',
+      '🍕', '🍔', '🍟', '🌭', '🥪', '🍿', '☕', '🍺', '🍷', '🧃'
+    ]
+  },
+  activities: {
+    icon: PartyPopper,
+    label: 'Activities',
+    emojis: [
+      '⚽', '🏀', '🏈', '⚾', '🎾', '🎮', '🎯', '🎲', '🎨', '🎭',
+      '🎉', '🎊', '🎁', '🏆', '🥇', '🥈', '🥉', '🎪', '🎡', '🎢'
+    ]
+  },
+  symbols: {
+    icon: Flag,
+    label: 'Symbols',
+    emojis: [
+      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔', '❣️',
+      '✅', '❌', '⭐', '🌟', '💫', '⚡', '🔥', '💯', '✨', '💥',
+      '📌', '📍', '🚩', '🏁', '🔴', '🟡', '🟢', '🔵', '⬛', '⬜'
+    ]
+  }
+};
 import { Avatar } from './Shared';
 import { CustomSelect } from './CustomUI';
 import { supabase } from '../supabaseClient';
@@ -13,8 +65,13 @@ import { useToast } from './Toast';
 import { useConfirm } from './ConfirmModal';
 import { ContentWithEmbeds, EmbedLinkButton } from './EmbedContent';
 import { TextFormattingToolbar, applyFormatting } from './TextFormattingToolbar';
+import { DeliverablesForm } from './DeliverablesForm';
+import { formatDueDate, getDueDateStatus } from '../utils/dateUtils';
+import { createVersion } from '../utils/versionService';
+import FigmaImportModal from './FigmaImportModal';
+import { extractFigmaFileKey } from '../utils/figmaService';
 
-export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false }) => {
+export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false, isModal = false }) => {
     const { user, teamMemberId, clientContactId } = useAuth();
     const toast = useToast();
     const { confirm } = useConfirm();
@@ -27,7 +84,16 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
     const [editedDescription, setEditedDescription] = useState(task.description || '');
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editedCommentContent, setEditedCommentContent] = useState('');
-    const commentTextareaRef = React.useRef(null);
+    const commentTextareaRef = useRef(null);
+    const emojiButtonRef = useRef(null);
+    const [isDeliverablesFormOpen, setIsDeliverablesFormOpen] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [activeEmojiCategory, setActiveEmojiCategory] = useState('recent');
+    const [hasDeliverable, setHasDeliverable] = useState(false);
+    const [isAddingDesignLink, setIsAddingDesignLink] = useState(false);
+    const [designLinkInput, setDesignLinkInput] = useState('');
+    const [hasVersions, setHasVersions] = useState(false);
+    const [isFigmaImportOpen, setIsFigmaImportOpen] = useState(false);
 
     // Sync local state with task prop updates
     useEffect(() => {
@@ -35,6 +101,77 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
         setEditedDescription(task.description || '');
         console.log('[TaskDetails] Task prop updated, comments count:', task.comments?.length);
     }, [task.title, task.description, task.comments]);
+
+    // Check if task has a deliverable record
+    useEffect(() => {
+        const checkDeliverable = async () => {
+            if (!task?.id) return;
+            const { data } = await supabase
+                .from('deliverables')
+                .select('id')
+                .eq('task_id', task.id)
+                .maybeSingle();
+            setHasDeliverable(!!data);
+        };
+        checkDeliverable();
+    }, [task?.id]);
+
+    // Check if task has any versions
+    useEffect(() => {
+        const checkVersions = async () => {
+            if (!task?.id) return;
+            const { data } = await supabase
+                .from('versions')
+                .select('id')
+                .eq('task_id', task.id)
+                .limit(1);
+            setHasVersions(data && data.length > 0);
+        };
+        checkVersions();
+    }, [task?.id]);
+
+    const handleAddDesignLink = async () => {
+        if (!designLinkInput.trim()) return;
+
+        const url = designLinkInput.trim();
+
+        // Check if it's a Figma URL - if so, open the Figma import modal
+        const figmaFileKey = extractFigmaFileKey(url);
+        if (figmaFileKey) {
+            // It's a Figma URL, open the import modal
+            setIsFigmaImportOpen(true);
+            return;
+        }
+
+        // For non-Figma URLs, just create a simple version
+        try {
+            const { error } = await createVersion(
+                task.id,
+                url,
+                'Version 1',
+                user?.id
+            );
+
+            if (error) throw error;
+
+            setHasVersions(true);
+            setIsAddingDesignLink(false);
+            setDesignLinkInput('');
+            toast.success('Design link added - Version 1 created');
+        } catch (e) {
+            console.error('Error creating version:', e);
+            toast.error(`Failed to add design link: ${e.message}`);
+        }
+    };
+
+    const handleFigmaImportComplete = (version, importedFrames) => {
+        setHasVersions(true);
+        setIsAddingDesignLink(false);
+        setDesignLinkInput('');
+        toast.success(`Imported ${importedFrames?.length || 0} frames from Figma`);
+        // Navigate to the design review page
+        window.location.href = `/task/${task.id}`;
+    };
 
     // Find creator from team
     // Prioritize created_by_team_id, then fall back to created_by_id or properties.createdById
@@ -118,6 +255,28 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
         }, 0);
     };
 
+    const handleInsertEmoji = (emoji) => {
+        const textarea = commentTextareaRef.current;
+        if (!textarea) {
+            setComment(prev => prev + emoji);
+            return;
+        }
+
+        const cursorPosition = textarea.selectionStart;
+        const before = comment.slice(0, cursorPosition);
+        const after = comment.slice(cursorPosition);
+        const newText = before + emoji + after;
+        const newCursor = cursorPosition + emoji.length;
+
+        setComment(newText);
+
+        // Restore cursor position after React updates
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(newCursor, newCursor);
+        }, 0);
+    };
+
     const handleSendComment = async () => {
         if (!comment.trim()) return;
 
@@ -158,6 +317,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
             const newCommentPayload = {
                 content: optimisticComment.content,
                 task_id: task.id,
+                version_id: null, // Task-level comment (no version)
                 author_designer_id: teamMemberId || null,
                 author_contact_id: clientContactId || null,
                 orchestra_comment_id: optimisticComment.orchestra_comment_id,
@@ -165,10 +325,14 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
                 is_note: commentType === 'note'
             };
 
+            console.log('[TaskDetails] Inserting comment:', newCommentPayload);
+
             const { data, error } = await supabase
                 .from('comments')
                 .insert([newCommentPayload])
                 .select();
+
+            console.log('[TaskDetails] Insert result - data:', data, 'error:', error);
 
             if (error) throw error;
 
@@ -375,14 +539,37 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
         }
     };
 
+    // Determine container classes based on mode
+    const getContainerClasses = () => {
+        if (isModal) {
+            // Modal mode - fill parent container with proper overflow control
+            return "w-full h-full bg-[#0f0f0f] theme-bg-primary overflow-hidden";
+        }
+        if (isFullPage) {
+            return "w-full h-screen bg-[#0f0f0f] overflow-hidden";
+        }
+        // Slide-in panel mode
+        return "fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in";
+    };
+
+    const getInnerClasses = () => {
+        if (isModal) {
+            return "w-full h-full bg-[#0f0f0f] theme-bg-primary flex flex-col overflow-hidden";
+        }
+        if (isFullPage) {
+            return "w-full h-full bg-[#0f0f0f] flex flex-col overflow-hidden";
+        }
+        return "w-full max-w-4xl h-full bg-[#0f0f0f] shadow-2xl border-l border-neutral-800 flex flex-col animate-slide-in-right";
+    };
+
     return (
         <div
-            className={isFullPage ? "w-full h-screen bg-[#0f0f0f]" : "fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in"}
-            onClick={isFullPage ? undefined : onClose}
+            className={getContainerClasses()}
+            onClick={isFullPage || isModal ? undefined : onClose}
         >
             <div
-                className={isFullPage ? "w-full h-full bg-[#0f0f0f] flex flex-col" : "w-full max-w-4xl h-full bg-[#0f0f0f] shadow-2xl border-l border-neutral-800 flex flex-col animate-slide-in-right"}
-                onClick={isFullPage ? undefined : e => e.stopPropagation()}
+                className={getInnerClasses()}
+                onClick={isFullPage || isModal ? undefined : e => e.stopPropagation()}
             >
                 {/* Header */}
                 <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-6 bg-[#0f0f0f] shrink-0">
@@ -440,10 +627,10 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#0f0f0f]">
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-[#0f0f0f]">
                     <div className="max-w-3xl mx-auto w-full p-12 pb-32">
-                        {/* Open Full Task Button - Only show in sidebar mode */}
-                        {!isFullPage && (
+                        {/* Open Full Task Button - Show in modal mode to allow opening in new tab */}
+                        {isModal && (
                             <a
                                 href={`/task/${task.id}`}
                                 target="_blank"
@@ -525,10 +712,10 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
                                 displayName={creatorName !== 'Unknown' ? creatorName : null}
                             />
 
-                            {/* Assigned To - Interactive */}
+                            {/* Assigned To / Lead Designer - Interactive */}
                             <CustomSelect
-                                label="Assignee"
-                                icon={User}
+                                label="Designer"
+                                icon={Star}
                                 value={task.assigned_to_id}
                                 options={teamOptions}
                                 onChange={handleUpdateAssignee}
@@ -537,15 +724,91 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
                                 displayName={task.assigneeName}
                             />
 
-                            {/* Due Date */}
+                            {/* Due Date - shows manual due date or auto-calculated */}
                             <div className="flex items-center py-1.5 group">
                                 <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
                                     <Calendar size={14} /> Due Date
                                 </div>
                                 <div className="flex-1 text-neutral-300 text-sm">
-                                    <span className="text-neutral-500">{task.dueDate || 'Empty'}</span>
+                                    {(() => {
+                                        // Check for auto-calculated due_date first, then manual dueDate
+                                        const effectiveDueDate = task.due_date || task.dueDate || task.properties?.dueDate || task.delivered_at;
+
+                                        if (effectiveDueDate) {
+                                            const dueDateInfo = formatDueDate(effectiveDueDate, task.status);
+                                            const dueDateStatus = getDueDateStatus(effectiveDueDate);
+                                            const isOverdue = dueDateStatus === 'overdue' && task.status === 'Active Task';
+                                            const isDueSoon = dueDateStatus === 'due-soon' && task.status === 'Active Task';
+
+                                            return (
+                                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded ${
+                                                    isOverdue ? 'text-red-400 bg-red-500/10' :
+                                                    isDueSoon ? 'text-orange-400 bg-orange-500/10' :
+                                                    'text-neutral-400'
+                                                }`}>
+                                                    {isOverdue && <AlertTriangle size={12} />}
+                                                    {dueDateInfo.text || new Date(effectiveDueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </span>
+                                            );
+                                        }
+
+                                        return <span className="text-neutral-500">Empty</span>;
+                                    })()}
                                 </div>
                             </div>
+
+                            {/* Add Design Link - only show if task has no versions */}
+                            {!hasVersions && (
+                                <div className="flex items-center py-1.5 group">
+                                    <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
+                                        <LinkIcon size={14} /> Design Link
+                                    </div>
+                                    <div className="flex-1">
+                                        {isAddingDesignLink ? (
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="url"
+                                                    value={designLinkInput}
+                                                    onChange={(e) => setDesignLinkInput(e.target.value)}
+                                                    placeholder="Paste Figma, Loom, or other link..."
+                                                    className="flex-1 bg-neutral-900 border border-neutral-700 rounded px-3 py-1.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-500"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            handleAddDesignLink();
+                                                        }
+                                                        if (e.key === 'Escape') {
+                                                            setIsAddingDesignLink(false);
+                                                            setDesignLinkInput('');
+                                                        }
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={handleAddDesignLink}
+                                                    disabled={!designLinkInput.trim()}
+                                                    className="px-3 py-1.5 bg-lime-500 text-black text-xs font-bold rounded hover:bg-lime-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    Add
+                                                </button>
+                                                <button
+                                                    onClick={() => { setIsAddingDesignLink(false); setDesignLinkInput(''); }}
+                                                    className="px-2 py-1.5 text-neutral-500 hover:text-white text-xs"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => setIsAddingDesignLink(true)}
+                                                className="text-sm text-neutral-500 hover:text-lime-400 flex items-center gap-1 transition-colors"
+                                            >
+                                                <Plus size={14} /> Add design link
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {isEditingDescription ? (
@@ -708,6 +971,39 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
                                 })}
                             </div>
                         </div>
+
+                        {/* Deliverables Button - For team members */}
+                        {teamMemberId && (
+                            <div className="mt-12 pt-8 border-t border-neutral-800">
+                                <button
+                                    onClick={() => setIsDeliverablesFormOpen(true)}
+                                    className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
+                                        hasDeliverable
+                                            ? 'bg-lime-500/5 border-lime-500/20 hover:border-lime-500/40'
+                                            : 'bg-neutral-900/50 border-neutral-800 hover:border-neutral-600'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                            hasDeliverable ? 'bg-lime-500/10' : 'bg-neutral-800'
+                                        }`}>
+                                            <FileText size={20} className={hasDeliverable ? 'text-lime-400' : 'text-neutral-400'} />
+                                        </div>
+                                        <div className="text-left">
+                                            <span className="text-sm font-medium text-white">Deliverables Form</span>
+                                            <p className="text-xs text-neutral-500 mt-0.5">
+                                                {hasDeliverable ? 'Form completed - Click to edit' : 'Fill out when completing the task'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {hasDeliverable ? (
+                                        <span className="text-xs text-lime-400 bg-lime-500/10 px-2 py-1 rounded">Completed</span>
+                                    ) : (
+                                        <span className="text-xs text-neutral-500">→</span>
+                                    )}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -745,6 +1041,63 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
                             <div className="flex items-center gap-3">
                                 <TextFormattingToolbar onFormat={handleFormatText} />
                                 <EmbedLinkButton onInsert={(url) => setComment(prev => prev + (prev ? '\n' : '') + url)} />
+
+                                {/* Emoji Picker */}
+                                <div className="relative">
+                                    <button
+                                        ref={emojiButtonRef}
+                                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                        className={`p-1.5 rounded transition-colors ${showEmojiPicker ? 'text-white bg-neutral-700' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                        title="Add emoji"
+                                    >
+                                        <Smile size={16} />
+                                    </button>
+                                    {showEmojiPicker && (
+                                        <>
+                                            <div
+                                                className="fixed inset-0 z-40"
+                                                onClick={() => setShowEmojiPicker(false)}
+                                            />
+                                            <div className="absolute bottom-full right-0 mb-2 w-72 bg-[#1a1a1a] border border-neutral-700 rounded-lg shadow-2xl z-50 overflow-hidden">
+                                                {/* Category tabs */}
+                                                <div className="flex items-center gap-1 p-2 border-b border-neutral-800 overflow-x-auto">
+                                                    {Object.entries(emojiCategories).map(([key, category]) => (
+                                                        <button
+                                                            key={key}
+                                                            onClick={() => setActiveEmojiCategory(key)}
+                                                            className={`p-1.5 rounded transition-colors flex-shrink-0 ${
+                                                                activeEmojiCategory === key
+                                                                    ? 'bg-neutral-700 text-white'
+                                                                    : 'text-neutral-500 hover:text-white hover:bg-neutral-800'
+                                                            }`}
+                                                            title={category.label}
+                                                        >
+                                                            <category.icon size={16} />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {/* Emoji grid */}
+                                                <div className="p-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                                    <div className="grid grid-cols-8 gap-1">
+                                                        {emojiCategories[activeEmojiCategory]?.emojis.map((emoji, idx) => (
+                                                            <button
+                                                                key={`${emoji}-${idx}`}
+                                                                onClick={() => {
+                                                                    handleInsertEmoji(emoji);
+                                                                    setShowEmojiPicker(false);
+                                                                }}
+                                                                className="w-8 h-8 flex items-center justify-center rounded hover:bg-neutral-700 transition-colors text-lg"
+                                                            >
+                                                                {emoji}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
                                 <button
                                 onClick={handleSendComment}
                                 disabled={!comment.trim()}
@@ -757,6 +1110,27 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false 
                     </div>
                 </div>
             </div>
+
+            {/* Deliverables Form Modal */}
+            <DeliverablesForm
+                isOpen={isDeliverablesFormOpen}
+                onClose={() => setIsDeliverablesFormOpen(false)}
+                task={task}
+                onSave={() => setHasDeliverable(true)}
+            />
+
+            {/* Figma Import Modal */}
+            <FigmaImportModal
+                isOpen={isFigmaImportOpen}
+                onClose={() => {
+                    setIsFigmaImportOpen(false);
+                    setDesignLinkInput('');
+                    setIsAddingDesignLink(false);
+                }}
+                taskId={task.id}
+                onImportComplete={handleFigmaImportComplete}
+                initialUrl={designLinkInput}
+            />
         </div>
     );
 };

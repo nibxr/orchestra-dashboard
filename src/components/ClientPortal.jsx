@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, FileText, CreditCard, LogOut, Clock, CheckCircle2, ArrowRight, Download, Folder, List as ListIcon, ArrowUpRight, Plus, X, AlertCircle, Calendar } from 'lucide-react';
+import { LayoutGrid, FileText, CreditCard, LogOut, Clock, CheckCircle2, ArrowRight, Download, Folder, List as ListIcon, ArrowUpRight, Plus, X, AlertCircle, Calendar, Zap, Settings } from 'lucide-react';
 // Correct relative paths based on standard src/ structure
 import { supabase } from '../supabaseClient';
 import { STATUS_CONFIG } from '../utils/constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from './Toast';
+import { TaskLimitIndicator } from './TaskLimitIndicator';
+import { redirectToCustomerPortal } from '../utils/stripeService';
 
 export const ClientPortal = ({ client, onExit }) => {
     const toast = useToast();
@@ -21,7 +23,13 @@ export const ClientPortal = ({ client, onExit }) => {
     const [newComment, setNewComment] = useState('');
     const [draggedTask, setDraggedTask] = useState(null);
     const [dragOverStatus, setDragOverStatus] = useState(null);
-    const { user } = useAuth();
+    const { user, planLimits } = useAuth();
+
+    // Calculate active task count for limits
+    const activeTaskCount = tasks.filter(t =>
+        (t.status === 'Active Task' || t.status === '🔥 Active Task') && !t.archived_at
+    ).length;
+    const maxActiveTasks = planLimits?.maxActiveTasks || 1;
 
     // Financial State
     const [financials, setFinancials] = useState(null);
@@ -307,21 +315,60 @@ export const ClientPortal = ({ client, onExit }) => {
                             {/* Active Projects Card */}
                             <section>
                                 <h2 className="text-lg font-bold text-white mb-4">Active Subscription</h2>
-                                <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 flex items-center justify-between group hover:border-neutral-700 transition-all">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-neutral-900 flex items-center justify-center text-white">
-                                            <Folder size={24} style={{color: brandColor}} />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-white font-bold text-lg">{client.offer_type || 'Design Retainer'}</h3>
-                                            <div className="flex items-center gap-2 text-sm text-neutral-500">
-                                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Active • Renews on {client.next_cycle_end_date || 'Dec 31'}
+                                <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 group hover:border-neutral-700 transition-all">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-xl bg-neutral-900 flex items-center justify-center text-white">
+                                                <Folder size={24} style={{color: brandColor}} />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-white font-bold text-lg">{planLimits?.planName || client.offer_type || 'Design Retainer'}</h3>
+                                                <div className="flex items-center gap-2 text-sm text-neutral-500">
+                                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Active • Renews on {client.next_cycle_end_date || 'Dec 31'}
+                                                </div>
                                             </div>
                                         </div>
+                                        <button
+                                            onClick={() => {
+                                                if (client.stripe_customer_id) {
+                                                    redirectToCustomerPortal(client.stripe_customer_id).catch(err => {
+                                                        toast.error('Unable to open billing portal');
+                                                        console.error(err);
+                                                    });
+                                                } else {
+                                                    setView('invoices');
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-white text-black text-sm font-bold rounded-lg hover:bg-neutral-200 transition-colors flex items-center gap-2"
+                                        >
+                                            <Settings size={14} />
+                                            Manage Billing
+                                        </button>
                                     </div>
-                                    <button onClick={() => setView('invoices')} className="px-4 py-2 bg-white text-black text-sm font-bold rounded-lg hover:bg-neutral-200 transition-colors">
-                                        Manage Billing
-                                    </button>
+
+                                    {/* Plan Limits Display */}
+                                    {planLimits && (
+                                        <div className="pt-4 mt-4 border-t border-neutral-800 grid grid-cols-2 gap-4">
+                                            <div className="flex items-center gap-3 p-3 bg-neutral-900/50 rounded-lg">
+                                                <Zap size={18} className="text-lime-400" />
+                                                <div>
+                                                    <div className="text-xs text-neutral-500">Active Tasks</div>
+                                                    <div className="text-sm font-medium text-white">
+                                                        {activeTaskCount}/{maxActiveTasks} at a time
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3 p-3 bg-neutral-900/50 rounded-lg">
+                                                <Clock size={18} className="text-blue-400" />
+                                                <div>
+                                                    <div className="text-xs text-neutral-500">Turnaround</div>
+                                                    <div className="text-sm font-medium text-white">
+                                                        {planLimits.turnaroundHours}h per task
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </section>
 

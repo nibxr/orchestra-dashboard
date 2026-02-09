@@ -73,10 +73,12 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
    const statusOptions = Object.keys(STATUS_CONFIG).map(s => ({ value: s, label: s }));
    
    // Correctly map client_name and id based on your CSV structure
-   const clientOptions = clients.map(c => ({ 
-       value: c.id, 
-       label: c.client_name || "Unknown Client" 
+   const clientOptions = clients.map(c => ({
+       value: c.id,
+       label: c.client_name || "Unknown Client"
    }));
+   console.log('[NewTaskModal] clients array:', clients.length, 'items');
+   console.log('[NewTaskModal] clientOptions:', clientOptions);
 
    // Correctly map full_name and id based on your CSV structure
    const assigneeOptions = team.map(t => ({ 
@@ -155,12 +157,15 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                    </div>
 
                    <div className="space-y-1 mb-8">
-                       <CustomSelect 
-                           label="Customer" 
-                           icon={User} 
-                           value={properties.clientId} 
-                           options={clientOptions} 
-                           onChange={v => setProperties({...properties, clientId: v})} 
+                       <CustomSelect
+                           label="Customer"
+                           icon={User}
+                           value={properties.clientId}
+                           options={clientOptions}
+                           onChange={v => {
+                               console.log('[NewTaskModal] Customer selected:', v);
+                               setProperties({...properties, clientId: v});
+                           }}
                            placeholder="Add customer"
                        />
 

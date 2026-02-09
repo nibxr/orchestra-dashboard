@@ -13,7 +13,7 @@ export const detectEmbedType = (url) => {
   if (url.match(/loom\.com\/(share|embed)\/([a-zA-Z0-9]+)/)) {
     return 'loom';
   }
-  if (url.match(/figma\.com\/(file|proto)\/([^/]+)/)) {
+  if (url.match(/figma\.com\/(file|design|proto)\/([^/]+)/)) {
     return 'figma';
   }
   if (url.match(/drive\.google\.com|docs\.google\.com|sheets\.google\.com|slides\.google\.com/)) {

@@ -189,7 +189,28 @@ const DesignReviewPage = () => {
         .single();
 
       if (taskError) throw taskError;
-      setTask(taskData);
+
+      // Fetch client to enrich task with clientName
+      let clientName = 'Internal';
+      if (taskData.membership_id) {
+        const { data: clientData } = await supabase
+          .from('client_memberships')
+          .select('client_name')
+          .eq('id', taskData.membership_id)
+          .single();
+
+        if (clientData?.client_name) {
+          clientName = clientData.client_name;
+        }
+      }
+
+      // Enrich task with clientName and dueDate
+      // Priority: due_date (auto-calculated) > delivered_at > properties.dueDate
+      setTask({
+        ...taskData,
+        clientName,
+        dueDate: taskData.due_date || taskData.delivered_at || taskData.properties?.dueDate || null
+      });
 
       // Fetch versions
       const { data: versionsData, error: versionsError } = await getTaskVersions(taskId);
@@ -223,6 +244,8 @@ const DesignReviewPage = () => {
   };
 
   const fetchComments = async () => {
+    // Fetch only version-specific comments (comments that have a version_id)
+    // Task-level comments (version_id is null) are shown only in the normal task view
     const { data, error } = await supabase
       .from('comments')
       .select(`
@@ -231,6 +254,7 @@ const DesignReviewPage = () => {
         attachments:comment_attachments(*)
       `)
       .eq('task_id', taskId)
+      .not('version_id', 'is', null) // Only version comments, not task-level comments
       .order('created_at', { ascending: true });
 
     if (!error) {
@@ -273,8 +297,10 @@ const DesignReviewPage = () => {
     };
   };
 
-  const handleVersionChange = (version) => {
+  const handleVersionChange = async (version) => {
     setCurrentVersion(version);
+    // Refresh versions list to pick up any new versions
+    await fetchVersions();
   };
 
   const handleAddComment = async (commentData) => {
@@ -415,10 +441,10 @@ const DesignReviewPage = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-neutral-50 dark:bg-neutral-900">
+      <div className="flex items-center justify-center h-screen bg-[#0f0f0f] theme-bg-primary">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-2" />
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">Loading task...</p>
+          <p className="text-sm text-neutral-500 theme-text-muted">Loading task...</p>
         </div>
       </div>
     );
@@ -464,6 +490,13 @@ const DesignReviewPage = () => {
 
   // Handle task updates
   const handleUpdateTask = async (taskId, updates) => {
+    // If only updating comments, skip database update (comments are in separate table)
+    // The comment was already inserted directly into the comments table
+    if (Object.keys(updates).length === 1 && updates.comments) {
+      setTask(prev => ({ ...prev, ...updates }));
+      return { error: null };
+    }
+
     const { error } = await supabase
       .from('tasks')
       .update({ ...updates, updated_at: new Date().toISOString() })

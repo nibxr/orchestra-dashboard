@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, Hand, ZoomIn, ZoomOut, Maximize2, User, Calendar, Tag, Building2, Filter, ChevronRight, ChevronLeft, ChevronDown, ExternalLink, Trash2, Smile, Link2, Type, MoreHorizontal, Bold, Italic, Strikethrough, Underline, List, ListOrdered, CheckSquare, Paperclip, X, Search, Clock, Cat, UtensilsCrossed, Car, Ban, PartyPopper, Music, Flag, Copy, Plus, Share2 } from 'lucide-react';
+import { MessageCircle, Hand, ZoomIn, ZoomOut, Maximize2, User, Calendar, Tag, Building2, Filter, ChevronRight, ChevronLeft, ChevronDown, ExternalLink, Trash2, Smile, Link2, Type, MoreHorizontal, Bold, Italic, Strikethrough, Underline, List, ListOrdered, CheckSquare, Paperclip, X, Search, Clock, Cat, UtensilsCrossed, Car, Ban, PartyPopper, Music, Flag, Copy, Plus, Share2, Upload } from 'lucide-react';
 import { CustomSelect } from './CustomUI';
 import { STATUS_CONFIG } from '../utils/constants';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import CommentPinsOverlay from './CommentPinsOverlay';
+import CommentPin from './CommentPin';
+import FigmaImportModal from './FigmaImportModal';
+import { getVersionFrames } from '../utils/figmaService';
+import { DeliverablesForm } from './DeliverablesForm';
 
 // Emoji data organized by category
 const emojiCategories = {
@@ -355,6 +359,35 @@ export const ImprovedDesignReview = ({
   const [highlightedPinId, setHighlightedPinId] = useState(null);
   const iframeRef = useRef(null);
   const canvasContainerRef = useRef(null);
+  const framesContainerRef = useRef(null);
+
+  // Figma import state
+  const [showFigmaImport, setShowFigmaImport] = useState(false);
+  const [versionFrames, setVersionFrames] = useState([]);
+  const [loadingFrames, setLoadingFrames] = useState(false);
+
+  // Deliverables state
+  const [showDeliverablesForm, setShowDeliverablesForm] = useState(false);
+
+  // Fetch frames when version changes
+  useEffect(() => {
+    const fetchFrames = async () => {
+      if (currentVersion?.id) {
+        setLoadingFrames(true);
+        const { data: frames } = await getVersionFrames(currentVersion.id);
+        setVersionFrames(frames || []);
+        setLoadingFrames(false);
+        // Auto-enable version filter when switching versions
+        setHideOtherVersions(true);
+      } else {
+        setVersionFrames([]);
+      }
+    };
+    fetchFrames();
+  }, [currentVersion?.id]);
+
+  // Determine display mode: 'frames' for imported frames, 'embed' for URL embeds
+  const displayMode = versionFrames.length > 0 ? 'frames' : 'embed';
 
   // Status options
   const statusOptions = Object.keys(STATUS_CONFIG).map(s => ({ value: s, label: s }));
@@ -422,10 +455,33 @@ export const ImprovedDesignReview = ({
 
     const currentTeamMember = team?.find(t => t.email === user?.email);
 
-    // Calculate relative position (percentage of canvas container)
-    const containerRect = canvasContainerRef.current?.getBoundingClientRect();
-    const relativeX = containerRect ? (commentBoxPosition.x / containerRect.width) * 100 : 0;
-    const relativeY = containerRect ? (commentBoxPosition.y / containerRect.height) * 100 : 0;
+    let relativeX = 0;
+    let relativeY = 0;
+
+    if (displayMode === 'frames' && framesContainerRef.current) {
+      // For frames mode, calculate position relative to the frames container
+      const framesRect = framesContainerRef.current.getBoundingClientRect();
+      const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+
+      // The click position is in viewport coordinates relative to canvasContainer
+      // We need to convert it to be relative to the framesContainer (which is transformed)
+      // Account for the transform (pan + zoom)
+      const clickX = commentBoxPosition.x;
+      const clickY = commentBoxPosition.y;
+
+      // Get the frames container position relative to canvas container
+      const framesOffsetX = framesRect.left - (containerRect?.left || 0);
+      const framesOffsetY = framesRect.top - (containerRect?.top || 0);
+
+      // Calculate position as percentage of frames container
+      relativeX = ((clickX - framesOffsetX) / framesRect.width) * 100;
+      relativeY = ((clickY - framesOffsetY) / framesRect.height) * 100;
+    } else {
+      // For embed mode, use canvas container
+      const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+      relativeX = containerRect ? (commentBoxPosition.x / containerRect.width) * 100 : 0;
+      relativeY = containerRect ? (commentBoxPosition.y / containerRect.height) * 100 : 0;
+    }
 
     await onAddComment({
       content: positionedCommentText,
@@ -585,14 +641,24 @@ export const ImprovedDesignReview = ({
                     <div className="border-t border-neutral-800">
                       <button
                         onClick={() => {
-                          // TODO: Implement add new version functionality
-                          console.log('Add new version');
+                          setShowFigmaImport(true);
                           setVersionMenuOpen(false);
                         }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-blue-400 hover:bg-neutral-800"
                       >
-                        <Plus size={16} />
-                        Add new version
+                        <Upload size={16} />
+                        Import from Figma
+                      </button>
+                      <button
+                        onClick={() => {
+                          // TODO: Add URL input modal for regular embeds
+                          console.log('Add version via URL');
+                          setVersionMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-400 hover:bg-neutral-800"
+                      >
+                        <Link2 size={16} />
+                        Add embed URL
                       </button>
                     </div>
                   </div>
@@ -825,6 +891,7 @@ export const ImprovedDesignReview = ({
                   editedDescription={editedDescription}
                   setEditedDescription={setEditedDescription}
                   handleUpdateDescription={handleUpdateDescription}
+                  onOpenDeliverables={() => setShowDeliverablesForm(true)}
                 />
               ) : (
                 <CommentsTab
@@ -873,42 +940,166 @@ export const ImprovedDesignReview = ({
             onMouseLeave={handleCanvasMouseUp}
           >
             {currentVersion ? (
-              <div
-                style={{
-                  transform: `translate(${panPosition.x}px, ${panPosition.y}px) scale(${zoomLevel})`,
-                  transformOrigin: 'center center',
-                  transition: isPanning ? 'none' : 'transform 0.1s ease-out',
-                  width: '80%',
-                  height: '80%',
-                  pointerEvents: canvasMode === 'comment' ? 'none' : 'auto'
-                }}
-              >
-                <iframe
-                  ref={iframeRef}
-                  src={currentVersion.embed_url}
-                  className="w-full h-full rounded-lg shadow-2xl"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
+              <>
+                {/* Display imported frames in a grid */}
+                {displayMode === 'frames' && versionFrames.length > 0 && (
+                  <div
+                    ref={framesContainerRef}
+                    className="relative p-8"
+                    style={{
+                      transform: `translate(${panPosition.x}px, ${panPosition.y}px) scale(${zoomLevel})`,
+                      transformOrigin: 'center center',
+                      transition: isPanning ? 'none' : 'transform 0.1s ease-out'
+                    }}
+                  >
+                    {/* Grid layout for frames */}
+                    <div
+                      className="grid gap-8"
+                      style={{
+                        gridTemplateColumns: versionFrames.length === 1
+                          ? '1fr'
+                          : versionFrames.length === 2
+                            ? 'repeat(2, 1fr)'
+                            : 'repeat(auto-fit, minmax(400px, 1fr))',
+                        alignItems: 'start' // Prevent boxes from stretching to match tallest
+                      }}
+                    >
+                      {versionFrames.map((frame, index) => (
+                        <div
+                          key={frame.id || index}
+                          className="relative bg-neutral-800 rounded-xl overflow-hidden shadow-2xl"
+                          data-frame-id={frame.id}
+                          data-frame-index={index}
+                          style={{
+                            width: 'fit-content',
+                            pointerEvents: canvasMode === 'view' ? 'none' : 'auto' // Disable image interaction in move mode
+                          }}
+                        >
+                          {/* Frame name label - scales inversely with zoom */}
+                          <div
+                            className="absolute top-2 left-2 z-10 bg-black/70 backdrop-blur-sm rounded px-2 py-1"
+                            style={{
+                              transform: `scale(${1 / zoomLevel})`,
+                              transformOrigin: 'top left'
+                            }}
+                          >
+                            <span className="text-white text-xs font-medium whitespace-nowrap">{frame.frame_name}</span>
+                          </div>
+                          {/* Frame image - prevent dragging */}
+                          <img
+                            src={frame.image_url}
+                            alt={frame.frame_name}
+                            className="w-full h-auto block select-none"
+                            draggable={false}
+                            style={{ pointerEvents: 'none' }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Comment Pins - inside transformed container so they move with frames */}
+                    {!hideCommentBubbles && (
+                      <div className="absolute inset-0 pointer-events-none">
+                        {comments
+                          .filter(comment => comment.version_id === currentVersion?.id && comment.position_x != null && comment.position_y != null)
+                          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                          .map((comment, index) => {
+                            const author = team?.find(t => t.id === comment.author_designer_id);
+                            const enrichedComment = {
+                              ...comment,
+                              authorName: author?.full_name || null,
+                              authorAvatar: author?.avatar_url || null
+                            };
+                            return (
+                              <div
+                                key={comment.id}
+                                className="pointer-events-auto absolute"
+                                style={{
+                                  left: `${comment.position_x}%`,
+                                  top: `${comment.position_y}%`,
+                                  transform: `translate(-50%, -50%) scale(${1 / zoomLevel})`,
+                                  transformOrigin: 'center center'
+                                }}
+                              >
+                                <CommentPin
+                                  comment={enrichedComment}
+                                  pinNumber={index + 1}
+                                  isActive={comment.id === activeCommentId}
+                                  isHighlighted={comment.id === highlightedPinId}
+                                  onClick={() => {
+                                    setActiveCommentId(comment.id);
+                                    setHighlightedPinId(null);
+                                    setActiveTab('comments');
+                                    if (!sidebarOpen) setSidebarOpen(true);
+                                    setTimeout(() => {
+                                      const el = document.getElementById(`comment-${comment.id}`);
+                                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }, 100);
+                                  }}
+                                />
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Display embed iframe (existing behavior) */}
+                {displayMode === 'embed' && currentVersion.embed_url && (
+                  <div
+                    style={{
+                      transform: `translate(${panPosition.x}px, ${panPosition.y}px) scale(${zoomLevel})`,
+                      transformOrigin: 'center center',
+                      transition: isPanning ? 'none' : 'transform 0.1s ease-out',
+                      width: '80%',
+                      height: '80%',
+                      pointerEvents: canvasMode === 'comment' ? 'none' : 'auto'
+                    }}
+                  >
+                    <iframe
+                      ref={iframeRef}
+                      src={currentVersion.embed_url}
+                      className="w-full h-full rounded-lg shadow-2xl"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                )}
+
+                {/* Loading state for frames */}
+                {loadingFrames && (
+                  <div className="text-center text-neutral-500">
+                    <div className="w-8 h-8 border-2 border-neutral-600 border-t-white rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-sm">Loading frames...</p>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center text-neutral-500">
                 <p>No version selected</p>
-                <p className="text-sm mt-2">Add a design URL to get started</p>
+                <button
+                  onClick={() => setShowFigmaImport(true)}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  Import from Figma
+                </button>
               </div>
             )}
 
-            {/* Comment Pins Overlay - shows positioned comments on canvas */}
-            {!hideCommentBubbles && (
+            {/* Comment Pins Overlay - only for embed mode (frames mode has pins inside transformed container) */}
+            {!hideCommentBubbles && displayMode === 'embed' && (
               <CommentPinsOverlay
-                comments={comments.map(comment => {
-                  const author = team?.find(t => t.id === comment.author_designer_id);
-                  return {
-                    ...comment,
-                    authorName: author?.full_name || null,
-                    authorAvatar: author?.avatar_url || null
-                  };
-                })}
+                comments={comments
+                  .filter(comment => comment.version_id === currentVersion?.id)
+                  .map(comment => {
+                    const author = team?.find(t => t.id === comment.author_designer_id);
+                    return {
+                      ...comment,
+                      authorName: author?.full_name || null,
+                      authorAvatar: author?.avatar_url || null
+                    };
+                  })}
                 activeCommentId={activeCommentId}
                 highlightedPinId={highlightedPinId}
                 onPinClick={(comment) => {
@@ -1004,6 +1195,34 @@ export const ImprovedDesignReview = ({
           </div>
         </div>
       </div>
+
+      {/* Figma Import Modal */}
+      <FigmaImportModal
+        isOpen={showFigmaImport}
+        onClose={() => setShowFigmaImport(false)}
+        taskId={task.id}
+        onImportComplete={(newVersion, importedFrames) => {
+          // Refresh versions list - this will trigger re-fetch in parent
+          if (onVersionChange) {
+            onVersionChange(newVersion);
+          }
+          // Update local frames state immediately
+          setVersionFrames(importedFrames.map((frame, index) => ({
+            ...frame,
+            image_url: frame.url,
+            frame_name: frame.frameName,
+            order_index: index
+          })));
+        }}
+      />
+
+      {/* Deliverables Form Modal */}
+      <DeliverablesForm
+        isOpen={showDeliverablesForm}
+        onClose={() => setShowDeliverablesForm(false)}
+        task={task}
+        onSave={() => setShowDeliverablesForm(false)}
+      />
     </div>
   );
 };
@@ -1025,7 +1244,8 @@ const DetailsTab = ({
   setIsEditingDescription,
   editedDescription,
   setEditedDescription,
-  handleUpdateDescription
+  handleUpdateDescription,
+  onOpenDeliverables
 }) => {
   const [isEditingDueDate, setIsEditingDueDate] = useState(false);
   const [editedDueDate, setEditedDueDate] = useState(task.dueDate || '');
@@ -1210,7 +1430,17 @@ const DetailsTab = ({
             className="flex-1 text-neutral-300 text-sm text-right"
             onClick={() => setIsEditingDueDate(true)}
           >
-            {task.dueDate || <span className="text-neutral-600">Empty</span>}
+            {task.dueDate ? (
+              new Date(task.dueDate).toLocaleString(undefined, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })
+            ) : (
+              <span className="text-neutral-600">Empty</span>
+            )}
           </div>
         )}
       </div>
@@ -1362,11 +1592,28 @@ const DetailsTab = ({
         ) : (
           <div
             onClick={() => setIsEditingDescription(true)}
-            className="text-neutral-300 text-sm cursor-pointer hover:bg-neutral-900 p-3 rounded min-h-[60px]"
+            className="text-neutral-300 text-sm cursor-pointer hover:bg-neutral-800/50 p-3 rounded min-h-[60px]"
             dangerouslySetInnerHTML={{ __html: task.description || '<span class="text-neutral-600 italic">Click to add description...</span>' }}
           />
         )}
       </div>
+
+      {/* Deliverables Section */}
+      <div className="px-4 py-4 border-t border-neutral-800">
+        <h3 className="text-sm font-medium text-neutral-400 mb-3 px-2">Deliverables</h3>
+        <button
+          onClick={onOpenDeliverables}
+          className="w-full text-left p-3 rounded-lg bg-neutral-900/50 border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-800/50 transition-colors group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-neutral-400 group-hover:text-neutral-300">
+              Click to open deliverables form...
+            </span>
+            <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-400" />
+          </div>
+        </button>
+      </div>
+
     </div>
   );
 };

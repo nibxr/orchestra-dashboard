@@ -34,6 +34,7 @@ export const FullPageTaskView = () => {
 
       // Fetch clients
       const { data: clientsData } = await supabase.from('client_memberships').select('*');
+      console.log('[FullPageTaskView] clientsData fetched:', clientsData?.length, 'clients');
 
       // Fetch comments
       const { data: commentsData } = await supabase
@@ -45,7 +46,17 @@ export const FullPageTaskView = () => {
       // Enrich task with related data
       const assignee = teamData?.find(m => m.id === taskData.assigned_to_id);
       const client = clientsData?.find(c => c.id === taskData.membership_id);
-      const creator = teamData?.find(m => m.id === taskData.created_by_id);
+      // Fix: Check both created_by_team_id (team members) and created_by_id (legacy/client contacts)
+      const creator = teamData?.find(m =>
+          m.id === taskData.created_by_team_id || m.id === taskData.created_by_id
+      );
+
+      // Debug logging
+      console.log('[FullPageTaskView] taskData.membership_id:', taskData.membership_id);
+      console.log('[FullPageTaskView] client found:', client);
+      console.log('[FullPageTaskView] client?.client_name:', client?.client_name);
+      console.log('[FullPageTaskView] assignee found:', assignee?.full_name);
+      console.log('[FullPageTaskView] creator found:', creator?.full_name);
 
       // Enrich comments with author names
       const enrichedComments = commentsData?.map(comment => {
@@ -79,6 +90,8 @@ export const FullPageTaskView = () => {
         comments: enrichedComments
       };
 
+      console.log('[FullPageTaskView] ENRICHED TASK:', enrichedTask);
+      console.log('[FullPageTaskView] enrichedTask.clientName:', enrichedTask.clientName);
       setTask(enrichedTask);
       setTeam(teamData || []);
     } catch (error) {
