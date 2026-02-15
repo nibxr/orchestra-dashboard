@@ -9,6 +9,7 @@ import DesignReviewSidebar from './DesignReviewSidebar';
 import DesignCanvas from './DesignCanvas';
 import { TaskDetails } from './TaskDetails';
 import { ImprovedDesignReview } from './ImprovedDesignReview';
+import { VersionlessTaskView } from './VersionlessTaskView';
 
 /**
  * DesignReviewPage - Main orchestrator for the design review interface
@@ -181,53 +182,60 @@ const DesignReviewPage = () => {
     setError(null);
 
     try {
-      // Fetch task
-      const { data: taskData, error: taskError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('id', taskId)
-        .single();
+      // Fetch all data in parallel for better performance
+      const [
+        { data: taskData, error: taskError },
+        { data: versionsData, error: versionsError },
+        { data: currentVer }
+      ] = await Promise.all([
+        supabase.from('tasks').select('*').eq('id', taskId).single(),
+        getTaskVersions(taskId),
+        getCurrentVersion(taskId)
+      ]);
 
       if (taskError) throw taskError;
-
-      // Fetch client to enrich task with clientName
-      let clientName = 'Internal';
-      if (taskData.membership_id) {
-        const { data: clientData } = await supabase
-          .from('client_memberships')
-          .select('client_name')
-          .eq('id', taskData.membership_id)
-          .single();
-
-        if (clientData?.client_name) {
-          clientName = clientData.client_name;
-        }
-      }
-
-      // Enrich task with clientName and dueDate
-      // Priority: due_date (auto-calculated) > delivered_at > properties.dueDate
-      setTask({
-        ...taskData,
-        clientName,
-        dueDate: taskData.due_date || taskData.delivered_at || taskData.properties?.dueDate || null
-      });
-
-      // Fetch versions
-      const { data: versionsData, error: versionsError } = await getTaskVersions(taskId);
       if (versionsError) throw versionsError;
 
-      setVersions(versionsData || []);
+      console.log('Fetched task data:', taskData); // Debug log
 
-      // Get current version or first version
-      const { data: currentVer } = await getCurrentVersion(taskId);
-      if (currentVer) {
-        setCurrentVersion(currentVer);
-      } else if (versionsData && versionsData.length > 0) {
-        setCurrentVersion(versionsData[0]);
+      // Fetch client name if needed (parallel with comments)
+      const fetchClientPromise = taskData.membership_id
+        ? supabase.from('client_memberships').select('client_name').eq('id', taskData.membership_id).single()
+        : Promise.resolve({ data: null });
+
+      const [{ data: clientData }, commentsResult] = await Promise.all([
+        fetchClientPromise,
+        fetchComments()
+      ]);
+
+      const clientName = clientData?.client_name || 'Internal';
+
+      // Normalize status: Remove emojis and extra spaces
+      let normalizedStatus = taskData.status || 'Backlog';
+      if (normalizedStatus) {
+        normalizedStatus = normalizedStatus.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
       }
 
-      // Fetch comments
-      await fetchComments();
+      console.log('Status normalization:', {
+        original: taskData.status,
+        normalized: normalizedStatus
+      });
+
+      // Enrich task with clientName and dueDate
+      const enrichedTask = {
+        ...taskData,
+        clientName,
+        dueDate: taskData.due_date || taskData.delivered_at || taskData.properties?.dueDate || null,
+        status: normalizedStatus
+      };
+
+      console.log('Enriched task:', enrichedTask); // Debug log
+
+      // Set all state at once
+      setTask(enrichedTask);
+      setVersions(versionsData || []);
+      setCurrentVersion(currentVer || (versionsData && versionsData.length > 0 ? versionsData[0] : null));
+
     } catch (err) {
       console.error('Error fetching task data:', err);
       setError(err.message);
@@ -435,16 +443,21 @@ const DesignReviewPage = () => {
     setActiveCommentId(comment.id);
   };
 
-  // Determine view mode (canvas vs legacy)
-  const viewMode = versions.length > 0 ? 'canvas' : 'legacy';
-
   // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0f0f0f] theme-bg-primary">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-2" />
-          <p className="text-sm text-neutral-500 theme-text-muted">Loading task...</p>
+        <div className="flex flex-col items-center gap-4">
+          {/* Minimalist spinner */}
+          <div className="relative">
+            <div className="w-12 h-12 border-2 border-neutral-800 rounded-full"></div>
+            <div className="w-12 h-12 border-2 border-white border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+          </div>
+          {/* Clean text */}
+          <div className="text-center space-y-1">
+            <p className="text-sm font-medium text-white">Loading</p>
+            <p className="text-xs text-neutral-600">Please wait...</p>
+          </div>
         </div>
       </div>
     );
@@ -510,20 +523,23 @@ const DesignReviewPage = () => {
     return { error };
   };
 
-  // Fallback to legacy view if no versions
-  if (viewMode === 'legacy') {
+  // Versionless task → New sidebar layout
+  if (versions.length === 0) {
     return (
-      <TaskDetails
+      <VersionlessTaskView
         task={task}
-        isFullPage={true}
-        onClose={() => window.history.back()}
-        onUpdate={handleUpdateTask}
         team={team}
+        onUpdateTask={handleUpdateTask}
+        onVersionCreated={async () => {
+          // Refetch to trigger UI transition
+          await fetchVersions();
+          await fetchTaskData();
+        }}
       />
     );
   }
 
-  // Main design review interface with new improved UI
+  // Versioned task → Existing UI
   return (
     <ImprovedDesignReview
       task={task}

@@ -202,7 +202,7 @@ const EmojiPicker = ({ onSelect, onClose, position = 'auto', triggerRef }) => {
 };
 
 // Quick Reaction Picker - compact version for comment hover
-const QuickReactionPicker = ({ onSelect, onOpenFull }) => {
+export const QuickReactionPicker = ({ onSelect, onOpenFull }) => {
   const quickEmojis = ['🔥', '✅', '👀', '🙌', '👍', '👎'];
 
   return (
@@ -228,7 +228,7 @@ const QuickReactionPicker = ({ onSelect, onOpenFull }) => {
 };
 
 // Smart positioned emoji picker wrapper that prevents overflow
-const SmartEmojiPickerWrapper = ({ triggerRef, onSelect, onClose, children }) => {
+export const SmartEmojiPickerWrapper = ({ triggerRef, onSelect, onClose, children }) => {
   const [position, setPosition] = useState({ top: 0, left: 0, openUpward: false, openLeftward: false });
   const wrapperRef = useRef(null);
 

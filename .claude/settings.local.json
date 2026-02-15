@@ -6,7 +6,10 @@
       "Bash(git -C \"C:\\\\Users\\\\user\\\\.claude-worktrees\\\\orchestra-dashboard\\\\eager-cray\" log --oneline --all -20)",
       "Bash(git -C \"C:\\\\Users\\\\user\\\\.claude-worktrees\\\\orchestra-dashboard\\\\eager-cray\" show dd9d89b --stat)",
       "Bash(git -C \"C:\\\\Users\\\\user\\\\.claude-worktrees\\\\orchestra-dashboard\\\\eager-cray\" diff dd9d89b~1..dd9d89b -- src/App.jsx)",
-      "Bash(git -C \"C:\\\\Users\\\\user\\\\.claude-worktrees\\\\orchestra-dashboard\\\\eager-cray\" show bd493a0:src/App.jsx)"
+      "Bash(git -C \"C:\\\\Users\\\\user\\\\.claude-worktrees\\\\orchestra-dashboard\\\\eager-cray\" show bd493a0:src/App.jsx)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

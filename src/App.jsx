@@ -46,7 +46,6 @@ export default function App() {
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [activeTaskModal, setActiveTaskModal] = useState(null); // Task to show in overlay modal
 
   const [displaySettings, setDisplaySettings] = useState({ view: 'kanban', orderBy: 'last_updated', showArchived: false, showInactive: false, visibleProperties: ['client', 'assignee', 'dueDate', 'id'] });
   const [taskFilter, setTaskFilter] = useState('all');
@@ -119,6 +118,13 @@ export default function App() {
                   }
               }
 
+              // Normalize status: Remove emojis and extra spaces
+              let normalizedStatus = t.status || 'Backlog';
+              if (normalizedStatus) {
+                // Remove all emojis and trim
+                normalizedStatus = normalizedStatus.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+              }
+
               return {
                   ...t,
                   creatorName,
@@ -127,7 +133,7 @@ export default function App() {
                   assigneeAvatar: assignee ? assignee.avatar_url : null,
                   clientName: client ? client.client_name : 'Internal',
                   clientStatus: client ? client.status : 'Active',
-                  status: t.status === "Active Task" || t.status === "🔥 Active Task" ? "Active Task" : t.status,
+                  status: normalizedStatus,
                   comments: enrichedComments, // Use comments from comments table
                   commentCount: enrichedComments.length,
                   dueDate: t.delivered_at || t.properties?.dueDate
@@ -297,21 +303,9 @@ export default function App() {
       }
   };
 
-  const openTaskDetails = async (task) => {
-      // Check if task has versions
-      const { data: versions } = await supabase
-          .from('versions')
-          .select('id')
-          .eq('task_id', task.id)
-          .limit(1);
-
-      if (versions && versions.length > 0) {
-          // Has versions - open in new tab for full design review
-          window.open(`/task/${task.id}`, '_blank');
-      } else {
-          // No versions - open in modal overlay
-          setActiveTaskModal(task);
-      }
+  const openTaskDetails = (task) => {
+      // Navigate to task page in same window
+      window.location.href = `/task/${task.id}`;
   };
 
   // --- HANDLER TO OPEN PORTAL ---
@@ -329,11 +323,27 @@ export default function App() {
 
   if (loading) return (
     <div className="h-screen w-screen bg-[#0f0f0f] theme-bg-primary flex items-center justify-center">
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-lime-400 to-green-500 rounded-full mb-4 animate-pulse shadow-lg shadow-lime-500/50">
-          <span className="text-black text-2xl font-bold">D</span>
+      <div className="flex flex-col items-center gap-6">
+        {/* Minimalist spinner - same as task loading */}
+        <div className="relative">
+          <div className="w-12 h-12 border-2 border-neutral-800 rounded-full"></div>
+          <div className="w-12 h-12 border-2 border-white border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
         </div>
-        <p className="text-neutral-500 theme-text-muted">Loading Dafolle...</p>
+
+        {/* Loading text and branding */}
+        <div className="text-center space-y-3">
+          <p className="text-sm font-medium text-white">Loading</p>
+          <p
+            className="text-neutral-700 tracking-[0.3em] uppercase"
+            style={{
+              fontWeight: 100,
+              fontSize: '11px',
+              letterSpacing: '0.3em'
+            }}
+          >
+            Dafolle
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -480,32 +490,6 @@ export default function App() {
             </div>
           </div>
         </>
-      )}
-
-      {/* Task Details Modal Overlay (for tasks without versions) */}
-      {activeTaskModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={() => setActiveTaskModal(null)}
-        >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
-          {/* Modal Container - 85% width and height with padding */}
-          <div
-            className="relative w-[85%] h-[85%] max-w-7xl bg-[#0f0f0f] theme-bg-primary rounded-2xl border border-neutral-800 shadow-2xl overflow-hidden animate-scale-in flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* TaskDetails component - fills entire modal */}
-            <TaskDetails
-              task={activeTaskModal}
-              onClose={() => setActiveTaskModal(null)}
-              onUpdate={handleUpdateTask}
-              team={team}
-              isModal={true}
-            />
-          </div>
-        </div>
       )}
     </div>
     </ProtectedRoute>

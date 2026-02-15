@@ -3,6 +3,47 @@ import { supabase } from '../supabaseClient';
 const FIGMA_API_BASE = 'https://api.figma.com/v1';
 
 /**
+ * Sleep for a given number of milliseconds
+ */
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Retry a function with exponential backoff
+ * @param {Function} fn - The async function to retry
+ * @param {number} maxRetries - Maximum number of retries (default: 2)
+ * @param {number} baseDelay - Base delay in ms (default: 3000)
+ * @returns {Promise} - The result of the function
+ */
+const retryWithBackoff = async (fn, maxRetries = 2, baseDelay = 3000) => {
+  let lastError;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      // Don't retry on non-rate-limit errors
+      if (!error.message?.includes('429') && !error.message?.includes('rate limit')) {
+        throw error;
+      }
+
+      // Don't retry if we've exhausted attempts
+      if (attempt === maxRetries) {
+        throw error;
+      }
+
+      // Calculate delay with exponential backoff: 3s, 6s
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Rate limited. Retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+      await sleep(delay);
+    }
+  }
+
+  throw lastError;
+};
+
+/**
  * Extract file key from a Figma URL
  * Supports formats:
  * - https://www.figma.com/file/ABC123/filename
@@ -20,7 +61,7 @@ export const extractFigmaFileKey = (url) => {
  * Fetch Figma file data (frames, pages, etc.)
  */
 export const getFigmaFile = async (fileKey, accessToken) => {
-  try {
+  return retryWithBackoff(async () => {
     const response = await fetch(`${FIGMA_API_BASE}/files/${fileKey}`, {
       headers: {
         'X-Figma-Token': accessToken
@@ -28,15 +69,29 @@ export const getFigmaFile = async (fileKey, accessToken) => {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
+
+      // Check if we're rate limited with a long retry-after
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('retry-after');
+        const rateLimitType = response.headers.get('x-figma-rate-limit-type');
+        const planTier = response.headers.get('x-figma-plan-tier');
+
+        if (retryAfter && parseInt(retryAfter) > 3600) { // More than 1 hour
+          const hours = Math.floor(parseInt(retryAfter) / 3600);
+          throw new Error(
+            `⏰ Figma API rate limit exceeded. Your ${planTier || 'current'} plan has reached its limit. ` +
+            `You need to wait ${hours} hours, upgrade your Figma plan, or use a different Figma access token. ` +
+            `Rate limit: ${rateLimitType || 'unknown'}`
+          );
+        }
+      }
+
       throw new Error(error.message || `Figma API error: ${response.status}`);
     }
 
     return await response.json();
-  } catch (error) {
-    console.error('Error fetching Figma file:', error);
-    throw error;
-  }
+  });
 };
 
 /**
@@ -99,7 +154,7 @@ const findFramesInNode = (node, pageName, depth = 0) => {
 export const exportFigmaFrames = async (fileKey, nodeIds, accessToken, options = {}) => {
   const { format = 'png', scale = 2 } = options;
 
-  try {
+  return retryWithBackoff(async () => {
     const idsParam = nodeIds.join(',');
     const response = await fetch(
       `${FIGMA_API_BASE}/images/${fileKey}?ids=${idsParam}&format=${format}&scale=${scale}`,
@@ -111,16 +166,30 @@ export const exportFigmaFrames = async (fileKey, nodeIds, accessToken, options =
     );
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
+
+      // Check if we're rate limited with a long retry-after
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('retry-after');
+        const rateLimitType = response.headers.get('x-figma-rate-limit-type');
+        const planTier = response.headers.get('x-figma-plan-tier');
+
+        if (retryAfter && parseInt(retryAfter) > 3600) { // More than 1 hour
+          const hours = Math.floor(parseInt(retryAfter) / 3600);
+          throw new Error(
+            `⏰ Figma API rate limit exceeded. Your ${planTier || 'current'} plan has reached its limit. ` +
+            `You need to wait ${hours} hours, upgrade your Figma plan, or use a different Figma access token. ` +
+            `Rate limit: ${rateLimitType || 'unknown'}`
+          );
+        }
+      }
+
       throw new Error(error.message || `Figma API error: ${response.status}`);
     }
 
     const data = await response.json();
     return data.images; // Returns { nodeId: imageUrl, ... }
-  } catch (error) {
-    console.error('Error exporting Figma frames:', error);
-    throw error;
-  }
+  });
 };
 
 /**
@@ -321,15 +390,36 @@ export const importFigmaFrames = async (
       throw new Error('Invalid Figma URL');
     }
 
-    onProgress?.({ stage: 'exporting', message: 'Exporting frames from Figma...' });
+    onProgress?.({ stage: 'fetching', message: 'Fetching file metadata...' });
 
-    // Export frames as images
-    const imageUrls = await exportFigmaFrames(fileKey, selectedFrameIds, accessToken);
-
-    // Get file data to get frame metadata
+    // Get file data first to get frame metadata
     const fileData = await getFigmaFile(fileKey, accessToken);
     const allFrames = extractFramesFromFile(fileData);
     const selectedFrames = allFrames.filter(f => selectedFrameIds.includes(f.id));
+
+    // Wait before making next API call to avoid rate limiting
+    await sleep(1000);
+
+    onProgress?.({ stage: 'exporting', message: 'Exporting frames from Figma...' });
+
+    // Export frames as images (batch into groups of 10 to avoid rate limits)
+    const imageUrls = {};
+    const BATCH_SIZE = 10;
+
+    for (let i = 0; i < selectedFrameIds.length; i += BATCH_SIZE) {
+      const batchIds = selectedFrameIds.slice(i, i + BATCH_SIZE);
+      const batchUrls = await exportFigmaFrames(fileKey, batchIds, accessToken);
+      Object.assign(imageUrls, batchUrls);
+
+      // Wait between batches if there are more batches to process
+      if (i + BATCH_SIZE < selectedFrameIds.length) {
+        await sleep(2000); // 2 second delay between batches
+        onProgress?.({
+          stage: 'exporting',
+          message: `Exporting frames ${Math.min(i + BATCH_SIZE, selectedFrameIds.length)}/${selectedFrameIds.length}...`
+        });
+      }
+    }
 
     onProgress?.({ stage: 'uploading', message: 'Uploading images...', total: selectedFrameIds.length });
 
@@ -359,6 +449,11 @@ export const importFigmaFrames = async (
       // Upload to storage
       const uploaded = await uploadFigmaFrame(taskId, versionId, frameData || { id: frameId }, blob);
       uploadedFrames.push(uploaded);
+
+      // Small delay between frames to avoid rate limiting (not needed for last frame)
+      if (i < selectedFrameIds.length - 1) {
+        await sleep(300); // 300ms delay between frames
+      }
     }
 
     onProgress?.({ stage: 'saving', message: 'Saving frame data...' });
