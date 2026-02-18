@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, Hand, ZoomIn, ZoomOut, Maximize2, User, Calendar, Tag, Building2, Filter, ChevronRight, ChevronLeft, ChevronDown, ExternalLink, Trash2, Smile, Link2, Type, MoreHorizontal, Bold, Italic, Strikethrough, Underline, List, ListOrdered, CheckSquare, Paperclip, X, Search, Clock, Cat, UtensilsCrossed, Car, Ban, PartyPopper, Music, Flag, Copy, Plus, Share2, Upload } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { MessageCircle, Hand, ZoomIn, ZoomOut, Maximize2, User, Calendar, Tag, Building2, Filter, ChevronRight, ChevronLeft, ChevronDown, ExternalLink, Trash2, Smile, Link2, Type, MoreHorizontal, Bold, Italic, Strikethrough, Underline, List, ListOrdered, CheckSquare, Paperclip, X, Search, Clock, Cat, UtensilsCrossed, Car, Ban, PartyPopper, Music, Flag, Copy, Plus, Share2, Upload, ArrowLeft, Globe, Code2, Loader2 } from 'lucide-react';
 import { CustomSelect } from './CustomUI';
 import { STATUS_CONFIG } from '../utils/constants';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from './Toast';
 import CommentPinsOverlay from './CommentPinsOverlay';
 import CommentPin from './CommentPin';
 import FigmaImportModal from './FigmaImportModal';
 import { getVersionFrames } from '../utils/figmaService';
+import { createVersion, deleteVersion } from '../utils/versionService';
 import { DeliverablesForm } from './DeliverablesForm';
 
 // Emoji data organized by category
@@ -335,6 +338,8 @@ export const ImprovedDesignReview = ({
   currentUserId
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const toast = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -365,6 +370,18 @@ export const ImprovedDesignReview = ({
   const [showFigmaImport, setShowFigmaImport] = useState(false);
   const [versionFrames, setVersionFrames] = useState([]);
   const [loadingFrames, setLoadingFrames] = useState(false);
+
+  // Embed/Website URL modal state
+  const [showEmbedModal, setShowEmbedModal] = useState(false);
+  const [showWebsiteModal, setShowWebsiteModal] = useState(false);
+  const [embedUrlInput, setEmbedUrlInput] = useState('');
+  const [websiteUrlInput, setWebsiteUrlInput] = useState('');
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
+
+  // Delete version state
+  const [showDeleteVersionModal, setShowDeleteVersionModal] = useState(false);
+  const [versionToDelete, setVersionToDelete] = useState(null);
+  const [isDeletingVersion, setIsDeletingVersion] = useState(false);
 
   // Deliverables state
   const [showDeliverablesForm, setShowDeliverablesForm] = useState(false);
@@ -568,11 +585,90 @@ export const ImprovedDesignReview = ({
     }
   };
 
+  // Add embed URL as a new version
+  const handleAddEmbed = async () => {
+    if (!embedUrlInput.trim()) return;
+    setIsCreatingVersion(true);
+    try {
+      const { data, error } = await createVersion(task.id, embedUrlInput.trim(), null, user?.id);
+      if (error) throw error;
+      toast.success('Embed added successfully');
+      setEmbedUrlInput('');
+      setShowEmbedModal(false);
+      if (onVersionChange) onVersionChange(data);
+    } catch (error) {
+      console.error('Error creating embed version:', error);
+      toast.error('Failed to add embed');
+    } finally {
+      setIsCreatingVersion(false);
+    }
+  };
+
+  // Add website URL as a new version
+  const handleAddWebsite = async () => {
+    if (!websiteUrlInput.trim()) return;
+    setIsCreatingVersion(true);
+    try {
+      const { data, error } = await createVersion(task.id, websiteUrlInput.trim(), null, user?.id);
+      if (error) throw error;
+      toast.success('Website added successfully');
+      setWebsiteUrlInput('');
+      setShowWebsiteModal(false);
+      if (onVersionChange) onVersionChange(data);
+    } catch (error) {
+      console.error('Error creating website version:', error);
+      toast.error('Failed to add website');
+    } finally {
+      setIsCreatingVersion(false);
+    }
+  };
+
+  // Delete a version
+  const handleDeleteVersion = async () => {
+    if (!versionToDelete) return;
+    setIsDeletingVersion(true);
+    try {
+      const { error } = await deleteVersion(versionToDelete.id);
+      if (error) throw error;
+
+      toast.success(`Version ${versionToDelete.version_number} deleted`);
+
+      // If we deleted the current version, switch to another one
+      if (currentVersion?.id === versionToDelete.id) {
+        const remaining = versions.filter(v => v.id !== versionToDelete.id);
+        if (remaining.length > 0) {
+          onVersionChange(remaining[remaining.length - 1]);
+        } else {
+          // No versions left — navigate back to dashboard
+          navigate('/');
+        }
+      } else {
+        // Just refresh the list via onVersionChange with current
+        if (onVersionChange && currentVersion) onVersionChange(currentVersion);
+      }
+
+      setShowDeleteVersionModal(false);
+      setVersionToDelete(null);
+    } catch (error) {
+      console.error('Error deleting version:', error);
+      toast.error('Failed to delete version');
+    } finally {
+      setIsDeletingVersion(false);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-[#0f0f0f]">
       {/* Header */}
-      <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-6 bg-[#0f0f0f] shrink-0 relative">
+      <div className="h-14 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between px-6 bg-white dark:bg-[#0f0f0f] shrink-0 relative">
         <div className="flex items-center gap-4">
+          {/* Back button */}
+          <button
+            onClick={() => navigate('/')}
+            className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+          >
+            <ArrowLeft size={20} />
+          </button>
           {/* Task Title - Editable */}
           {isEditingTitle ? (
             <input
@@ -588,11 +684,11 @@ export const ImprovedDesignReview = ({
                 }
               }}
               autoFocus
-              className="bg-transparent text-white font-medium text-base px-2 py-1 border border-neutral-700 rounded focus:outline-none focus:border-neutral-500"
+              className="bg-transparent text-neutral-900 dark:text-white font-medium text-base px-2 py-1 border border-neutral-300 dark:border-neutral-700 rounded focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500"
             />
           ) : (
             <h1
-              className="text-white font-medium cursor-pointer hover:bg-neutral-800/50 px-2 py-1 rounded"
+              className="text-neutral-900 dark:text-white font-medium cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800/50 px-2 py-1 rounded"
               onClick={() => setIsEditingTitle(true)}
             >
               {task.title}
@@ -604,61 +700,97 @@ export const ImprovedDesignReview = ({
             <div className="relative">
               <button
                 onClick={() => setVersionMenuOpen(!versionMenuOpen)}
-                className="flex items-center gap-1.5 bg-neutral-900 text-neutral-300 text-sm px-3 py-1.5 rounded border border-neutral-800 hover:border-neutral-600 transition-colors"
+                className="flex items-center gap-1.5 bg-neutral-100 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-300 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors"
               >
-                <span>v{currentVersion?.version_number || 1}</span>
-                <ChevronDown size={14} className={`transition-transform ${versionMenuOpen ? 'rotate-180' : ''}`} />
+                <span>Version {currentVersion?.version_number || 1}</span>
+                <ChevronDown size={12} className={`transition-transform ${versionMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Version dropdown menu */}
               {versionMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setVersionMenuOpen(false)} />
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
+                  <div className="absolute top-full left-0 mt-1.5 w-52 bg-white dark:bg-[#161616] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-lg dark:shadow-2xl z-50 overflow-hidden animate-scale-up">
                     {/* Version list */}
-                    <div className="max-h-48 overflow-y-auto">
+                    <div className="p-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                      <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider px-2.5 py-1.5">Versions</p>
                       {versions.map((v) => (
-                        <button
+                        <div
                           key={v.id}
-                          onClick={() => {
-                            onVersionChange(v);
-                            setVersionMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                          className={`group w-full flex items-center gap-2.5 px-2.5 py-2 text-sm rounded-lg transition-colors ${
                             currentVersion?.id === v.id
-                              ? 'text-white bg-neutral-800'
-                              : 'text-neutral-300 hover:bg-neutral-800'
+                              ? 'text-neutral-900 dark:text-white bg-neutral-100 dark:bg-neutral-800/80'
+                              : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
                           }`}
                         >
-                          v{v.version_number}
-                          {currentVersion?.id === v.id && (
-                            <span className="ml-auto text-xs text-neutral-500">Current</span>
-                          )}
-                        </button>
+                          <button
+                            onClick={() => {
+                              onVersionChange(v);
+                              setVersionMenuOpen(false);
+                            }}
+                            className="flex-1 flex items-center gap-2.5 text-left"
+                          >
+                            <span className="font-medium">v{v.version_number}</span>
+                            {v.embed_type && (
+                              <span className="text-[10px] text-neutral-400 dark:text-neutral-500 capitalize">{v.embed_type}</span>
+                            )}
+                            {currentVersion?.id === v.id && (
+                              <span className="ml-auto text-[10px] text-neutral-400 dark:text-neutral-500">Current</span>
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setVersionToDelete(v);
+                              setShowDeleteVersionModal(true);
+                              setVersionMenuOpen(false);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded text-neutral-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all"
+                            title="Delete version"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       ))}
                     </div>
-                    {/* Add new version */}
-                    <div className="border-t border-neutral-800">
+                    {/* Add new version options */}
+                    <div className="border-t border-neutral-100 dark:border-neutral-800 p-1.5">
+                      <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider px-2.5 py-1.5">Add new</p>
                       <button
                         onClick={() => {
                           setShowFigmaImport(true);
                           setVersionMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-blue-400 hover:bg-neutral-800"
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 rounded-lg transition-colors"
                       >
-                        <Upload size={16} />
-                        Import from Figma
+                        <svg width="14" height="14" viewBox="0 0 38 57" fill="currentColor" className="opacity-60">
+                          <path d="M19 28.5C19 23.2533 23.2533 19 28.5 19C33.7467 19 38 23.2533 38 28.5C38 33.7467 33.7467 38 28.5 38C23.2533 38 19 33.7467 19 28.5Z"/>
+                          <path d="M0 47.5C0 42.2533 4.25329 38 9.5 38H19V47.5C19 52.7467 14.7467 57 9.5 57C4.25329 57 0 52.7467 0 47.5Z"/>
+                          <path d="M19 0V19H28.5C33.7467 19 38 14.7467 38 9.5C38 4.25329 33.7467 0 28.5 0H19Z"/>
+                          <path d="M0 9.5C0 14.7467 4.25329 19 9.5 19H19V0H9.5C4.25329 0 0 4.25329 0 9.5Z"/>
+                          <path d="M0 28.5C0 33.7467 4.25329 38 9.5 38H19V19H9.5C4.25329 19 0 23.2533 0 28.5Z"/>
+                        </svg>
+                        Figma
                       </button>
                       <button
                         onClick={() => {
-                          // TODO: Add URL input modal for regular embeds
-                          console.log('Add version via URL');
+                          setShowEmbedModal(true);
                           setVersionMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-400 hover:bg-neutral-800"
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 rounded-lg transition-colors"
                       >
-                        <Link2 size={16} />
-                        Add embed URL
+                        <Code2 size={14} className="opacity-60" />
+                        Embed
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowWebsiteModal(true);
+                          setVersionMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 rounded-lg transition-colors"
+                      >
+                        <Globe size={14} className="opacity-60" />
+                        Website
                       </button>
                     </div>
                   </div>
@@ -1215,6 +1347,160 @@ export const ImprovedDesignReview = ({
           })));
         }}
       />
+
+      {/* Embed URL Modal */}
+      {showEmbedModal && (
+        <div
+          className="fixed inset-0 bg-black/30 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => { setShowEmbedModal(false); setEmbedUrlInput(''); }}
+        >
+          <div
+            className="bg-white dark:bg-[#161616] w-full max-w-md rounded-2xl shadow-lg dark:shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden animate-scale-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                  <Code2 size={18} className="text-neutral-500 dark:text-neutral-400" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Add Embed</h2>
+                  <p className="text-xs text-neutral-500">YouTube, Loom, Vimeo, Miro, and more</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowEmbedModal(false); setEmbedUrlInput(''); }}
+                className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1.5 block">Embed URL</label>
+                <input
+                  type="url"
+                  value={embedUrlInput}
+                  onChange={(e) => setEmbedUrlInput(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && embedUrlInput.trim()) handleAddEmbed();
+                  }}
+                />
+              </div>
+              <button
+                onClick={handleAddEmbed}
+                disabled={!embedUrlInput.trim() || isCreatingVersion}
+                className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  !embedUrlInput.trim() || isCreatingVersion
+                    ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'
+                    : 'bg-neutral-900 dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200'
+                }`}
+              >
+                {isCreatingVersion ? <><Loader2 size={14} className="animate-spin" /> Adding...</> : 'Add Embed'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Website URL Modal */}
+      {showWebsiteModal && (
+        <div
+          className="fixed inset-0 bg-black/30 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => { setShowWebsiteModal(false); setWebsiteUrlInput(''); }}
+        >
+          <div
+            className="bg-white dark:bg-[#161616] w-full max-w-md rounded-2xl shadow-lg dark:shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden animate-scale-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                  <Globe size={18} className="text-neutral-500 dark:text-neutral-400" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Add Website</h2>
+                  <p className="text-xs text-neutral-500">Display any website in the canvas</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowWebsiteModal(false); setWebsiteUrlInput(''); }}
+                className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1.5 block">Website URL</label>
+                <input
+                  type="url"
+                  value={websiteUrlInput}
+                  onChange={(e) => setWebsiteUrlInput(e.target.value)}
+                  placeholder="https://example.com"
+                  className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && websiteUrlInput.trim()) handleAddWebsite();
+                  }}
+                />
+              </div>
+              <button
+                onClick={handleAddWebsite}
+                disabled={!websiteUrlInput.trim() || isCreatingVersion}
+                className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  !websiteUrlInput.trim() || isCreatingVersion
+                    ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'
+                    : 'bg-neutral-900 dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200'
+                }`}
+              >
+                {isCreatingVersion ? <><Loader2 size={14} className="animate-spin" /> Adding...</> : 'Add Website'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Version Confirmation Modal */}
+      {showDeleteVersionModal && versionToDelete && (
+        <div
+          className="fixed inset-0 bg-black/30 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => { setShowDeleteVersionModal(false); setVersionToDelete(null); }}
+        >
+          <div
+            className="bg-white dark:bg-[#161616] w-full max-w-sm rounded-2xl shadow-lg dark:shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden animate-scale-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center mb-4">
+                <Trash2 size={18} className="text-red-500 dark:text-red-400" />
+              </div>
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-1">Delete version {versionToDelete.version_number}?</h3>
+              <p className="text-xs text-neutral-500 mb-5">
+                This will remove this version and its associated data. This action cannot be undone.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowDeleteVersionModal(false); setVersionToDelete(null); }}
+                  className="flex-1 py-2 text-sm font-medium rounded-lg transition-colors bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteVersion}
+                  disabled={isDeletingVersion}
+                  className="flex-1 py-2 text-sm font-medium rounded-lg transition-colors bg-red-500 text-white hover:bg-red-600 flex items-center justify-center gap-2"
+                >
+                  {isDeletingVersion ? <><Loader2 size={14} className="animate-spin" /> Deleting...</> : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Deliverables Form Modal */}
       <DeliverablesForm

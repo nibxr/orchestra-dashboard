@@ -87,13 +87,13 @@ const Toast = ({ toast, onRemove }) => {
 
   return (
     <div
-      className={`pointer-events-auto bg-[#0f0f0f] border ${getBorderColor()} rounded-lg shadow-xl p-4 min-w-[300px] max-w-[400px] flex items-start gap-3 animate-slide-in-right`}
+      className={`pointer-events-auto bg-white dark:bg-[#0f0f0f] border ${getBorderColor()} rounded-lg shadow-xl p-4 min-w-[300px] max-w-[400px] flex items-start gap-3 animate-slide-in-right`}
     >
       <div className="flex-shrink-0 mt-0.5">{getIcon()}</div>
-      <div className="flex-1 text-sm text-neutral-200">{message}</div>
+      <div className="flex-1 text-sm text-neutral-700 dark:text-neutral-200">{message}</div>
       <button
         onClick={() => onRemove(id)}
-        className="flex-shrink-0 text-neutral-500 hover:text-white transition-colors"
+        className="flex-shrink-0 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
       >
         <X size={16} />
       </button>

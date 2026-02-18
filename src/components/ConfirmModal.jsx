@@ -108,7 +108,7 @@ const ConfirmModal = ({ state }) => {
       />
 
       {/* Modal */}
-      <div className="relative bg-[#0f0f0f] border border-neutral-800 rounded-lg shadow-2xl w-full max-w-md mx-4 animate-fade-in">
+      <div className="relative bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-2xl w-full max-w-md mx-4 animate-fade-in">
         {/* Header */}
         <div className="flex items-start gap-3 p-6 pb-4">
           <div
@@ -125,7 +125,7 @@ const ConfirmModal = ({ state }) => {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-white mb-1">
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-1">
               {state.title}
             </h3>
             {state.message && (
@@ -134,7 +134,7 @@ const ConfirmModal = ({ state }) => {
           </div>
           <button
             onClick={state.onCancel}
-            className="flex-shrink-0 text-neutral-500 hover:text-white transition-colors"
+            className="flex-shrink-0 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
           >
             <X size={20} />
           </button>
@@ -150,7 +150,7 @@ const ConfirmModal = ({ state }) => {
                 setInputValue(e.target.value);
                 state.onInputChange?.(e.target.value);
               }}
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-lime-500 transition-colors"
+              className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-neutral-900 dark:text-white text-sm focus:outline-none focus:border-lime-600 dark:focus:border-lime-500 transition-colors"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -164,10 +164,10 @@ const ConfirmModal = ({ state }) => {
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-3 p-6 pt-4 border-t border-neutral-800">
+        <div className="flex items-center gap-3 p-6 pt-4 border-t border-neutral-200 dark:border-neutral-800">
           <button
             onClick={state.onCancel}
-            className="flex-1 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-sm font-medium transition-colors"
+            className="flex-1 px-4 py-2 bg-neutral-100 dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-900 dark:text-white rounded-lg text-sm font-medium transition-colors"
           >
             {state.cancelText}
           </button>
@@ -175,7 +175,7 @@ const ConfirmModal = ({ state }) => {
             onClick={state.onConfirm}
             className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               isDanger
-                ? 'bg-red-500 hover:bg-red-600 text-white'
+                ? 'bg-red-500 hover:bg-red-600 text-neutral-900 dark:text-white'
                 : 'bg-lime-500 hover:bg-lime-600 text-black'
             }`}
           >

@@ -3,99 +3,19 @@
 @tailwind utilities;
 
 /* ========================================
-   THEME VARIABLES
+   GLOBAL FONT
    ======================================== */
-:root {
-  /* Dark theme (default) */
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #141414;
-  --bg-tertiary: #1a1a1a;
-  --bg-hover: #262626;
-  --bg-active: #333333;
-
-  --border-primary: #262626;
-  --border-secondary: #333333;
-  --border-hover: #404040;
-
-  --text-primary: #ffffff;
-  --text-secondary: #e5e5e5;
-  --text-tertiary: #a3a3a3;
-  --text-muted: #737373;
-  --text-placeholder: #525252;
-
-  --scrollbar-thumb: #262626;
-  --scrollbar-thumb-hover: #404040;
-}
-
-.light {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f9fafb;
-  --bg-tertiary: #f3f4f6;
-  --bg-hover: #e5e7eb;
-  --bg-active: #d1d5db;
-
-  --border-primary: #e5e7eb;
-  --border-secondary: #d1d5db;
-  --border-hover: #9ca3af;
-
-  --text-primary: #111827;
-  --text-secondary: #1f2937;
-  --text-tertiary: #4b5563;
-  --text-muted: #6b7280;
-  --text-placeholder: #9ca3af;
-
-  --scrollbar-thumb: #d1d5db;
-  --scrollbar-thumb-hover: #9ca3af;
+* {
+  font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  scroll-behavior: smooth;
 }
 
 /* ========================================
    BASE STYLES
    ======================================== */
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-secondary);
+  @apply bg-white dark:bg-[#0f0f0f] text-neutral-800 dark:text-neutral-200;
   transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-/* ========================================
-   THEME-AWARE UTILITY CLASSES
-   ======================================== */
-@layer utilities {
-  /* Background utilities */
-  .theme-bg-primary {
-    background-color: var(--bg-primary);
-  }
-  .theme-bg-secondary {
-    background-color: var(--bg-secondary);
-  }
-  .theme-bg-tertiary {
-    background-color: var(--bg-tertiary);
-  }
-  .theme-bg-hover:hover {
-    background-color: var(--bg-hover);
-  }
-
-  /* Border utilities */
-  .theme-border {
-    border-color: var(--border-primary);
-  }
-  .theme-border-secondary {
-    border-color: var(--border-secondary);
-  }
-
-  /* Text utilities */
-  .theme-text-primary {
-    color: var(--text-primary);
-  }
-  .theme-text-secondary {
-    color: var(--text-secondary);
-  }
-  .theme-text-tertiary {
-    color: var(--text-tertiary);
-  }
-  .theme-text-muted {
-    color: var(--text-muted);
-  }
 }
 
 /* ========================================
@@ -110,11 +30,11 @@ body {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
+    @apply bg-neutral-300 dark:bg-neutral-700;
     border-radius: 3px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
+    @apply bg-neutral-400 dark:bg-neutral-600;
   }
 
   /* ========================================
@@ -132,6 +52,14 @@ body {
     animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
+  .animate-scale-up {
+    animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-view-enter {
+    animation: viewEnter 0.15s ease-out forwards;
+  }
+
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -146,263 +74,43 @@ body {
     from { transform: translateX(100%); }
     to { transform: translateX(0); }
   }
+
+  @keyframes scaleUp {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes viewEnter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 }
 
 /* ========================================
-   LIGHT MODE OVERRIDES
-   These override Tailwind's default dark colors
+   LIGHT MODE: Input styling
    ======================================== */
-
-/* Main backgrounds - important for full coverage */
-.light .bg-\[\#0f0f0f\] {
-  background-color: var(--bg-primary);
-}
-
-.light .bg-\[\#0a0a0a\] {
-  background-color: var(--bg-primary);
-}
-
-.light .bg-\[\#141414\] {
-  background-color: var(--bg-secondary);
-}
-
-.light .bg-\[\#1a1a1a\] {
-  background-color: var(--bg-tertiary);
-}
-
-.light .bg-black {
-  background-color: var(--bg-secondary);
-}
-
-/* Semi-transparent grey boxes - make fully transparent or light in light mode */
-.light .bg-neutral-900\/50 {
-  background-color: var(--bg-tertiary);
-}
-
-.light .bg-neutral-800\/50 {
-  background-color: var(--bg-hover);
-}
-
-.light .bg-neutral-800\/30 {
-  background-color: rgba(229, 231, 235, 0.5);
-}
-
-.light .bg-neutral-900\/30 {
-  background-color: rgba(243, 244, 246, 0.5);
-}
-
-.light .bg-white\/10 {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.light .bg-white\/20 {
-  background-color: rgba(0, 0, 0, 0.1);
-}
-
-.light .hover\:bg-white\/20:hover {
-  background-color: rgba(0, 0, 0, 0.1);
-}
-
-/* Borders */
-.light .border-neutral-800 {
-  border-color: var(--border-primary);
-}
-
-.light .border-neutral-700 {
-  border-color: var(--border-secondary);
-}
-
-/* Text colors */
-.light .text-white {
-  color: var(--text-primary);
-}
-
-.light .text-neutral-200 {
-  color: var(--text-secondary);
-}
-
-.light .text-neutral-300 {
-  color: var(--text-secondary);
-}
-
-.light .text-neutral-400 {
-  color: var(--text-tertiary);
-}
-
-.light .text-neutral-500 {
-  color: var(--text-muted);
-}
-
-.light .text-neutral-600 {
-  color: var(--text-placeholder);
-}
-
-/* Background hovers */
-.light .hover\:bg-neutral-800:hover {
-  background-color: var(--bg-hover);
-}
-
-.light .hover\:bg-neutral-800\/30:hover {
-  background-color: rgba(229, 231, 235, 0.3);
-}
-
-.light .hover\:bg-neutral-800\/50:hover {
-  background-color: rgba(229, 231, 235, 0.5);
-}
-
-/* Background colors */
-.light .bg-neutral-800 {
-  background-color: var(--bg-hover);
-}
-
-.light .bg-neutral-900 {
-  background-color: var(--bg-tertiary);
-}
-
-.light .bg-neutral-700 {
-  background-color: var(--bg-active);
-}
-
-/* Kanban cards and tertiary backgrounds */
-.light .bg-\[\#1a1a1a\] {
-  background-color: var(--bg-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-/* Secondary background color */
-.light .bg-\[\#141414\] {
-  background-color: var(--bg-secondary);
-}
-
-/* Modals - make them white with shadow */
-.light .bg-\[\#0f0f0f\] {
-  background-color: var(--bg-primary);
-}
-
-/* Modal container backgrounds */
-.light .bg-\[\#1a1a1a\].border {
-  background-color: var(--bg-primary);
-  border-color: var(--border-primary);
-}
-
-/* Modals and overlays */
-.light .bg-black\/80 {
-  background-color: rgba(0, 0, 0, 0.3);
-}
-
-/* Backdrop blur overlay */
-.light .backdrop-blur-sm {
-  backdrop-filter: blur(4px);
-}
-
-/* Blue/selected state backgrounds */
-.light .bg-blue-500\/10 {
-  background-color: rgba(59, 130, 246, 0.1);
-}
-
-.light .bg-blue-600\/10 {
-  background-color: rgba(37, 99, 235, 0.1);
-}
-
-.light .hover\:bg-blue-600\/20:hover {
-  background-color: rgba(37, 99, 235, 0.2);
-}
-
-/* Inputs */
 .light input,
 .light textarea,
 .light select {
-  background-color: var(--bg-primary);
-  border-color: var(--border-primary);
-  color: var(--text-primary);
+  background-color: #ffffff;
+  border-color: #e5e7eb;
+  color: #111827;
 }
 
 .light input::placeholder,
 .light textarea::placeholder {
-  color: var(--text-placeholder);
+  color: #9ca3af;
 }
 
 .light input:focus,
 .light textarea:focus {
-  border-color: var(--border-hover);
+  border-color: #9ca3af;
   outline: none;
 }
 
-/* Buttons */
-.light .bg-white {
-  background-color: var(--text-primary);
-}
-
-.light .text-black {
-  color: var(--bg-primary);
-}
-
-/* Hover text colors */
-.light .hover\:text-white:hover {
-  color: var(--text-primary);
-}
-
-.light .hover\:text-neutral-300:hover {
-  color: var(--text-secondary);
-}
-
-.light .hover\:text-neutral-400:hover {
-  color: var(--text-tertiary);
-}
-
-/* Focus states */
-.light .focus\:border-neutral-600:focus {
-  border-color: var(--border-hover);
-}
-
-/* Placeholder colors */
-.light .placeholder-neutral-600::placeholder {
-  color: var(--text-placeholder);
-}
-
-.light .placeholder-neutral-700::placeholder {
-  color: var(--text-muted);
-}
-
-/* Active/Selected states */
-.light .bg-blue-600 {
-  background-color: #2563eb;
-}
-
-.light .text-blue-500 {
-  color: #3b82f6;
-}
-
-/* Status colors remain the same in light mode for consistency */
-.light .text-green-400 {
-  color: #22c55e;
-}
-
-.light .text-yellow-400 {
-  color: #eab308;
-}
-
-.light .text-red-400 {
-  color: #f87171;
-}
-
-.light .text-orange-400 {
-  color: #fb923c;
-}
-
-/* Shadows for light mode */
-.light .shadow-sm {
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-.light .shadow-md {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-.light .shadow-xl {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-.light .shadow-2xl {
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+/* ========================================
+   LIGHT MODE: Modal overlay
+   ======================================== */
+.light .bg-black\/80 {
+  background-color: rgba(0, 0, 0, 0.3);
 }

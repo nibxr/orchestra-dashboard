@@ -27,7 +27,7 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
           setClientTaskLimit(null);
         } else if (client?.plan_from_agreements) {
           const { data, error } = await supabase
-            .from('🔄 Plans')
+            .from('Plans')
             .select('tasks_at_once')
             .eq('whalesync_postgres_id', client.plan_from_agreements)
             .single();
@@ -153,30 +153,51 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
       // Check task limit when moving to Active Task
       if (newStatus === 'Active Task' && draggedTask.membership_id) {
         try {
+          // First try the RPC check
           const { data: limitCheck, error } = await supabase.rpc('check_task_limit', {
             p_membership_id: draggedTask.membership_id
           });
 
-          if (error) {
-            console.error('Error checking task limit:', error);
-            toast.error('Could not verify task limit. Please try again.');
-            setDraggedTask(null);
-            setDragOverStatus(null);
-            return; // Don't allow if check fails
-          }
+          console.log('[KanbanBoard] check_task_limit result:', limitCheck, 'error:', error);
 
-          if (limitCheck && !limitCheck.can_activate) {
+          if (!error && limitCheck && !limitCheck.can_activate) {
             toast.error(`Task limit reached: ${limitCheck.current_active}/${limitCheck.max_tasks} active tasks`);
             setDraggedTask(null);
             setDragOverStatus(null);
             return;
+          }
+
+          // Fallback: client-side count check against plan limit
+          const currentActiveCount = tasks.filter(t =>
+            t.membership_id === draggedTask.membership_id &&
+            t.status === 'Active Task' &&
+            !t.archived_at
+          ).length;
+
+          const client = clients.find(c => c.id === draggedTask.membership_id);
+          if (client?.plan_from_agreements) {
+            const { data: planData } = await supabase
+              .from('Plans')
+              .select('tasks_at_once')
+              .eq('whalesync_postgres_id', client.plan_from_agreements)
+              .single();
+
+            const maxTasks = planData?.tasks_at_once ? parseInt(planData.tasks_at_once) : null;
+            console.log('[KanbanBoard] Client-side check: active=', currentActiveCount, 'max=', maxTasks);
+
+            if (maxTasks && currentActiveCount >= maxTasks) {
+              toast.error(`Task limit reached: ${currentActiveCount}/${maxTasks} active tasks`);
+              setDraggedTask(null);
+              setDragOverStatus(null);
+              return;
+            }
           }
         } catch (err) {
           console.error('Error checking task limit:', err);
           toast.error('Could not verify task limit. Please try again.');
           setDraggedTask(null);
           setDragOverStatus(null);
-          return; // Don't allow if check fails
+          return;
         }
       }
 
@@ -188,7 +209,7 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
 
   return (
     <div className="flex-1 overflow-x-auto h-full p-6">
-      <div className="flex gap-6 h-full min-w-max">
+      <div className="flex gap-5 h-full min-w-max">
         {Object.keys(STATUS_CONFIG).map(status => (
           <div
             key={status}
@@ -198,30 +219,30 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
             onDrop={(e) => handleDrop(e, status)}
           >
             <div className="flex items-center justify-between mb-4 px-1 group">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 {React.createElement(STATUS_CONFIG[status].icon, { size: 14, className: STATUS_CONFIG[status].color.replace('text-', 'stroke-') })}
-                <h3 className="text-neutral-300 text-sm font-medium">{status}</h3>
+                <h3 className="text-neutral-900 dark:text-white text-sm font-medium tracking-tight">{status}</h3>
                 {/* Show X/Y format for Active Task when single client is filtered */}
                 {status === 'Active Task' && singleClientFilter && clientTaskLimit ? (
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
                     tasks.filter(t => t.status === status).length >= clientTaskLimit
-                      ? 'bg-red-900/50 text-red-400'
-                      : 'bg-neutral-800 text-neutral-500'
+                      ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                      : 'bg-neutral-200/80 dark:bg-neutral-800/80 text-neutral-600 dark:text-neutral-500 border border-neutral-300/50 dark:border-neutral-700/50'
                   }`}>
                     {tasks.filter(t => t.status === status).length}/{clientTaskLimit}
                   </span>
                 ) : (
-                  <span className="bg-neutral-800 text-neutral-500 px-1.5 py-0.5 rounded text-[10px]">
+                  <span className="bg-neutral-200/80 dark:bg-neutral-800/80 text-neutral-600 dark:text-neutral-500 border border-neutral-300/50 dark:border-neutral-700/50 px-2 py-0.5 rounded-full text-[10px] font-medium">
                     {tasks.filter(t => t.status === status).length}
                   </span>
                 )}
               </div>
-              <button onClick={() => onOpenNewTask(status)} className="text-neutral-600 hover:text-white transition-colors opacity-0 group-hover:opacity-100 p-1 hover:bg-neutral-800 rounded">
+              <button onClick={() => onOpenNewTask(status)} className="text-neutral-400 dark:text-neutral-600 hover:text-neutral-900 dark:hover:text-white transition-all duration-200 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800/80 rounded-md">
                   <Plus size={14}/>
               </button>
             </div>
 
-            <div className={`flex-1 overflow-y-auto space-y-3 pr-1 pb-20 custom-scrollbar transition-all duration-300 ${dragOverStatus === status ? 'bg-white/5 border-2 border-white rounded-lg shadow-lg shadow-white/30' : 'border-2 border-transparent'}`}>
+            <div className={`flex-1 overflow-y-auto space-y-2.5 pt-2 pr-3 pb-20 custom-scrollbar transition-all duration-300 ${dragOverStatus === status ? 'bg-neutral-100 dark:bg-white/5 border-2 border-neutral-900 dark:border-white/30 rounded-xl shadow-lg shadow-neutral-300/30 dark:shadow-white/10' : 'border-2 border-transparent'}`}>
               {tasks.filter(t => t.status === status).map(task => (
                 <div
                   key={task.id}
@@ -230,16 +251,16 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
                   onDragEnd={handleDragEnd}
                   onClick={() => setActiveTask(task)}
                   onContextMenu={(e) => handleContextMenu(e, task)}
-                  className={`group bg-[#1a1a1a] border border-neutral-800 hover:border-neutral-600 rounded-lg p-4 cursor-move shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 relative select-none ${draggedTask?.id === task.id ? 'opacity-50' : ''}`}
+                  className={`group bg-white dark:bg-[#141414] border-[1.5px] border-neutral-200/60 dark:border-neutral-800/80 hover:border-neutral-300 dark:hover:border-neutral-700 rounded-xl p-3.5 cursor-pointer shadow-sm hover:shadow-md hover:shadow-neutral-200/50 dark:hover:shadow-lg dark:hover:shadow-black/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-neutral-50 dark:hover:bg-[#1a1a1a] relative select-none ${draggedTask?.id === task.id ? 'opacity-40 scale-95' : ''}`}
                 >
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex justify-between items-start mb-2.5">
                      {/* CLIENT NAME: Only show if 'client' or 'project' is toggled in Display menu */}
                      {showClient && (
-                         <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider truncate max-w-[120px]">
+                         <span className="text-[10px] text-neutral-500 font-semibold uppercase tracking-wide truncate max-w-[120px]">
                              {task.clientName || 'Internal'}
                          </span>
                      )}
-                     
+
                      {/* Spacer if client name is hidden but we need layout stability, or just flex gap */}
                      {!showClient && <div />}
 
@@ -247,26 +268,26 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
                      {showAssignee && (
                         <div className="flex gap-2 items-center">
                             {task.assigneeAvatar ? (
-                                <img src={task.assigneeAvatar} alt={task.assigneeName} className="w-5 h-5 rounded-full border border-neutral-700 object-cover" />
+                                <img src={task.assigneeAvatar} alt={task.assigneeName} className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-700/70 object-cover ring-1 ring-neutral-200 dark:ring-neutral-800" />
                             ) : (
-                                task.assigneeName && <div className="text-[10px] bg-neutral-800 text-neutral-400 w-5 h-5 rounded-full flex items-center justify-center border border-neutral-700">{task.assigneeName[0]}</div>
+                                task.assigneeName && <div className="text-[10px] bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 w-5 h-5 rounded-full flex items-center justify-center border border-neutral-300 dark:border-neutral-700/70 font-medium">{task.assigneeName[0]}</div>
                             )}
                         </div>
                      )}
                   </div>
-                  
-                  <h4 className="text-sm text-neutral-200 font-medium mb-2 leading-snug line-clamp-2">{task.title}</h4>
-                  
+
+                  <h4 className="text-sm text-neutral-900 dark:text-white font-medium mb-2 leading-tight line-clamp-2 tracking-tight">{task.title}</h4>
+
                   {task.description && (
                       <p className="text-xs text-neutral-500 mb-3 line-clamp-2 break-words leading-relaxed">
                           {task.description}
                       </p>
                   )}
 
-                  <div className="flex items-center gap-3 mt-3 pt-2 border-t border-neutral-800/50 text-neutral-600">
-                    <div className="flex items-center gap-1 text-[10px]">
-                        <MessageSquare size={10} /> 
-                        {task.commentCount || 0}
+                  <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-neutral-200/60 dark:border-neutral-800/60 text-neutral-400 dark:text-neutral-600">
+                    <div className="flex items-center gap-1 text-[10px] font-medium">
+                        <MessageSquare size={11} className="opacity-70" />
+                        <span>{task.commentCount || 0}</span>
                     </div>
 
                     {/* DUE DATE: Show if toggled with overdue/due-soon styling */}
@@ -277,41 +298,41 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
                         const isDueSoon = dueDateStatus === 'due-soon' && task.status === 'Active Task';
 
                         return (
-                            <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${
-                                isOverdue ? 'text-red-400 bg-red-500/10' :
-                                isDueSoon ? 'text-orange-400 bg-orange-500/10' :
-                                'text-neutral-500'
+                            <div className={`flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full transition-colors ${
+                                isOverdue ? 'text-red-400 bg-red-500/10 border border-red-500/20' :
+                                isDueSoon ? 'text-orange-400 bg-orange-500/10 border border-orange-500/20' :
+                                'text-neutral-500 bg-neutral-100 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700/50'
                             }`}>
-                                {isOverdue && <AlertTriangle size={10} />}
-                                {!isOverdue && <Calendar size={10} />}
-                                {dueDateInfo.text || new Date(task.due_date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}
+                                {isOverdue && <AlertTriangle size={11} />}
+                                {!isOverdue && <Calendar size={11} className="opacity-70" />}
+                                <span>{dueDateInfo.text || new Date(task.due_date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</span>
                             </div>
                         );
                     })()}
 
                     {/* REFERENCE ID: Show if toggled */}
                     {showReference && task.orchestra_task_id && (
-                        <div className="flex items-center gap-1 text-[10px] text-neutral-500">
-                            <Hash size={10} />
-                            {task.orchestra_task_id.slice(-4)}
+                        <div className="flex items-center gap-1 text-[10px] font-medium text-neutral-500">
+                            <Hash size={11} className="opacity-70" />
+                            <span>{task.orchestra_task_id.slice(-4)}</span>
                         </div>
                     )}
                   </div>
                 </div>
               ))}
               {tasks.filter(t => t.status === status).length === 0 && (
-                  <div className="border border-dashed border-neutral-800 rounded-lg h-24 flex flex-col items-center justify-center text-neutral-600 gap-2 opacity-50 hover:opacity-100 transition-opacity cursor-default">
-                      <div className="p-2 bg-neutral-900 rounded-full"><ArrowUpRight size={12}/></div>
-                      <span className="text-xs font-medium">{status} empty</span>
+                  <div className="border border-dashed border-neutral-300/60 dark:border-neutral-800/60 rounded-xl h-24 flex flex-col items-center justify-center text-neutral-400 dark:text-neutral-600 gap-2 opacity-40 hover:opacity-70 transition-all duration-200 cursor-default">
+                      <div className="p-2 bg-neutral-100 dark:bg-neutral-900/50 rounded-full"><ArrowUpRight size={12}/></div>
+                      <span className="text-xs font-medium tracking-tight">{status} empty</span>
                   </div>
               )}
 
               {/* Add task button at bottom of column */}
               <button
                   onClick={() => onOpenNewTask(status)}
-                  className="w-full py-3 rounded-lg border border-neutral-700 bg-[#1a1a1a] hover:bg-transparent text-neutral-500 hover:text-neutral-400 hover:border-neutral-600 transition-all flex items-center justify-center"
+                  className="w-full py-2.5 rounded-xl border border-neutral-300/60 dark:border-neutral-800/80 bg-neutral-100 dark:bg-[#161616] hover:bg-neutral-200 dark:hover:bg-[#1f1f1f] text-neutral-500 dark:text-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-400 hover:border-neutral-400 dark:hover:border-neutral-700 transition-all duration-200 flex items-center justify-center"
               >
-                  <Plus size={16} />
+                  <Plus size={15} />
               </button>
             </div>
           </div>

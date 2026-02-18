@@ -58,21 +58,21 @@ export const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0f0f0f] flex items-center justify-center p-4">
+    <div className="min-h-screen w-full bg-white dark:bg-[#0f0f0f] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-lime-400 to-green-500 rounded-full mb-4 shadow-lg shadow-lime-500/50">
             <span className="text-black text-2xl font-bold">D</span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Dafolle</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Dafolle</h1>
           <p className="text-neutral-500 text-sm">
             {isLogin ? 'Sign in to your account' : 'Create your account'}
           </p>
         </div>
 
         {/* Auth Form */}
-        <div className="bg-[#1a1a1a] border border-neutral-800 rounded-2xl p-8">
+        <div className="bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Error Message */}
             {error && (
@@ -104,7 +104,7 @@ export const AuthPage = () => {
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="John Doe"
                     required={!isLogin}
-                    className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg pl-12 pr-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                    className="w-full bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-lg pl-12 pr-4 py-3 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                   />
                 </div>
               </div>
@@ -123,7 +123,7 @@ export const AuthPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg pl-12 pr-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                  className="w-full bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-lg pl-12 pr-4 py-3 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                 />
               </div>
             </div>
@@ -141,12 +141,12 @@ export const AuthPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg pl-12 pr-12 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                  className="w-full bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-lg pl-12 pr-12 py-3 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-400 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-500 dark:hover:text-neutral-400 transition-colors"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -167,7 +167,7 @@ export const AuthPage = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
                     required={!isLogin}
-                    className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg pl-12 pr-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                    className="w-full bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-lg pl-12 pr-4 py-3 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                   />
                 </div>
               </div>
@@ -177,7 +177,7 @@ export const AuthPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-white hover:bg-neutral-200 text-black font-bold py-3 rounded-lg transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-white hover:bg-neutral-200 dark:hover:bg-neutral-200 text-black font-bold py-3 rounded-lg transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <span>Loading...</span>
@@ -194,17 +194,17 @@ export const AuthPage = () => {
           <div className="mt-6 text-center">
             <button
               onClick={toggleMode}
-              className="text-sm text-neutral-400 hover:text-white transition-colors"
+              className="text-sm text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
             >
               {isLogin ? (
                 <>
                   Don't have an account?{' '}
-                  <span className="text-white font-medium">Sign Up</span>
+                  <span className="text-neutral-900 dark:text-white font-medium">Sign Up</span>
                 </>
               ) : (
                 <>
                   Already have an account?{' '}
-                  <span className="text-white font-medium">Sign In</span>
+                  <span className="text-neutral-900 dark:text-white font-medium">Sign In</span>
                 </>
               )}
             </button>
@@ -246,19 +246,19 @@ export const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0f0f0f] flex items-center justify-center p-4">
+    <div className="min-h-screen w-full bg-white dark:bg-[#0f0f0f] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-lime-400 to-green-500 rounded-full mb-4 shadow-lg shadow-lime-500/50">
             <span className="text-black text-2xl font-bold">D</span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Reset Password</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Reset Password</h1>
           <p className="text-neutral-500 text-sm">
             We'll send you a link to reset your password
           </p>
         </div>
 
-        <div className="bg-[#1a1a1a] border border-neutral-800 rounded-2xl p-8">
+        <div className="bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 flex items-start gap-3">
@@ -286,7 +286,7 @@ export const ForgotPasswordPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg pl-12 pr-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                  className="w-full bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-lg pl-12 pr-4 py-3 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                 />
               </div>
             </div>
@@ -294,14 +294,14 @@ export const ForgotPasswordPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-white hover:bg-neutral-200 text-black font-bold py-3 rounded-lg transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-white hover:bg-neutral-200 dark:hover:bg-neutral-200 text-black font-bold py-3 rounded-lg transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <a href="/" className="text-sm text-neutral-400 hover:text-white transition-colors">
+            <a href="/" className="text-sm text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">
               Back to Sign In
             </a>
           </div>

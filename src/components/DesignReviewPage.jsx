@@ -446,17 +446,17 @@ const DesignReviewPage = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#0f0f0f] theme-bg-primary">
+      <div className="flex items-center justify-center h-screen bg-white dark:bg-[#0f0f0f] animate-fade-in">
         <div className="flex flex-col items-center gap-4">
           {/* Minimalist spinner */}
           <div className="relative">
-            <div className="w-12 h-12 border-2 border-neutral-800 rounded-full"></div>
-            <div className="w-12 h-12 border-2 border-white border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+            <div className="w-12 h-12 border-2 border-neutral-200 dark:border-neutral-800 rounded-full"></div>
+            <div className="w-12 h-12 border-2 border-neutral-900 dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
           </div>
           {/* Clean text */}
           <div className="text-center space-y-1">
-            <p className="text-sm font-medium text-white">Loading</p>
-            <p className="text-xs text-neutral-600">Please wait...</p>
+            <p className="text-sm font-medium text-neutral-900 dark:text-white">Loading</p>
+            <p className="text-xs text-neutral-400 dark:text-neutral-600">Please wait...</p>
           </div>
         </div>
       </div>

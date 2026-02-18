@@ -81,7 +81,7 @@ export const AuthProvider = ({ children }) => {
             .from('client_memberships')
             .select(`
               plan_id,
-              "🔄 Plans" (
+              "Plans" (
                 max_active_tasks,
                 turnaround_hours,
                 name
@@ -90,13 +90,13 @@ export const AuthProvider = ({ children }) => {
             .eq('id', contactData.membership_id)
             .maybeSingle();
 
-          if (membershipData?.['🔄 Plans']) {
+          if (membershipData?.['Plans']) {
             setPlanLimits({
-              maxActiveTasks: membershipData['🔄 Plans'].max_active_tasks || 1,
-              turnaroundHours: membershipData['🔄 Plans'].turnaround_hours || 72,
-              planName: membershipData['🔄 Plans'].name
+              maxActiveTasks: membershipData['Plans'].max_active_tasks || 1,
+              turnaroundHours: membershipData['Plans'].turnaround_hours || 72,
+              planName: membershipData['Plans'].name
             });
-            console.log('[detectUserRole] Plan limits:', membershipData['🔄 Plans']);
+            console.log('[detectUserRole] Plan limits:', membershipData['Plans']);
           }
         }
 

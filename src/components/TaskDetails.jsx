@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   X, Circle, User, Calendar, Plus, MoreHorizontal,
   Paperclip, Smile, Mic, Briefcase,
@@ -72,6 +73,7 @@ import FigmaImportModal from './FigmaImportModal';
 import { extractFigmaFileKey } from '../utils/figmaService';
 
 export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false, isModal = false }) => {
+    const taskNavigate = useNavigate();
     const { user, teamMemberId, clientContactId } = useAuth();
     const toast = useToast();
     const { confirm } = useConfirm();
@@ -170,7 +172,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
         setDesignLinkInput('');
         toast.success(`Imported ${importedFrames?.length || 0} frames from Figma`);
         // Navigate to the design review page
-        window.location.href = `/task/${task.id}`;
+        taskNavigate(`/task/${task.id}`);
     };
 
     // Find creator from team

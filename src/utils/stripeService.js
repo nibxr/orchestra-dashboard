@@ -9,7 +9,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 /**
  * Create a Stripe Checkout session
  * @param {string} membershipId - The client membership ID
- * @param {string} planId - The plan ID from the 🔄 Plans table
+ * @param {string} planId - The plan ID from the Plans table
  * @param {string} successUrl - URL to redirect after successful payment
  * @param {string} cancelUrl - URL to redirect if payment is cancelled
  * @returns {Promise<{url: string}|{error: Error}>}
@@ -18,7 +18,7 @@ export const createCheckoutSession = async (membershipId, planId, successUrl, ca
     try {
         // Get the plan details to get stripe_price_id
         const { data: plan, error: planError } = await supabase
-            .from('🔄 Plans')
+            .from('Plans')
             .select('stripe_price_id, name')
             .eq('id', planId)
             .single();
@@ -82,7 +82,7 @@ export const getSubscriptionStatus = async (membershipId) => {
                 stripe_customer_id,
                 stripe_subscription_id,
                 plan_id,
-                "🔄 Plans" (
+                "Plans" (
                     id,
                     name,
                     max_active_tasks,
@@ -99,7 +99,7 @@ export const getSubscriptionStatus = async (membershipId) => {
             membershipId: membership.id,
             stripeCustomerId: membership.stripe_customer_id,
             stripeSubscriptionId: membership.stripe_subscription_id,
-            plan: membership['🔄 Plans'],
+            plan: membership['Plans'],
             isActive: !!membership.stripe_subscription_id
         };
     } catch (error) {
@@ -151,7 +151,7 @@ export const getPlanLimits = async (membershipId) => {
             .from('client_memberships')
             .select(`
                 plan_id,
-                "🔄 Plans" (
+                "Plans" (
                     max_active_tasks,
                     turnaround_hours
                 )
@@ -161,7 +161,7 @@ export const getPlanLimits = async (membershipId) => {
 
         if (error) throw error;
 
-        const plan = membership['🔄 Plans'];
+        const plan = membership['Plans'];
         return {
             maxActiveTasks: plan?.max_active_tasks || 1,
             turnaroundHours: plan?.turnaround_hours || 72

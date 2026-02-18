@@ -9,7 +9,10 @@
       "Bash(git -C \"C:\\\\Users\\\\user\\\\.claude-worktrees\\\\orchestra-dashboard\\\\eager-cray\" show bd493a0:src/App.jsx)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(node fix-theme.cjs:*)",
+      "Bash(node:*)",
+      "Bash(npx vite build)"
     ]
   }
 }

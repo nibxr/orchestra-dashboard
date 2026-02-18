@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import { Filter, Settings, Plus, X, Bell } from 'lucide-react';
 
@@ -25,12 +26,14 @@ export default function App() {
   const { user, userRole, userMembership } = useAuth();
   const { confirm } = useConfirm();
   const toast = useToast();
+  const navigate = useNavigate();
   const [mode, setMode] = useState(APP_MODES.DASHBOARD);
   const [dashboardView, setDashboardView] = useState(DASHBOARD_VIEWS.BOARD);
   const [settingsView, setSettingsView] = useState(SETTINGS_VIEWS.AGENCY);
   
   const [tasks, setTasks] = useState([]);
   const [clients, setClients] = useState([]);
+  const [agreements, setAgreements] = useState([]);
   const [team, setTeam] = useState([]);
   const [contacts, setContacts] = useState([]);
 
@@ -58,6 +61,23 @@ export default function App() {
       setTeam(teamData || []);
       const { data: clientsData } = await supabase.from('client_memberships').select('*');
       setClients(clientsData || []);
+
+      // Fetch agreements and plans for the Customers view
+      const { data: agreementsData } = await supabase.from('Agreements').select('*');
+      const { data: plansData } = await supabase.from('Plans').select('whalesync_postgres_id, plan_name');
+
+      // Build agreements list with client name from client_memberships and plan name from plans
+      const enrichedAgreements = (agreementsData || []).map(a => {
+        const membership = (clientsData || []).find(c => c.id === a.client_memberships);
+        const plan = a.plans ? (plansData || []).find(p => p.whalesync_postgres_id === a.plans) : null;
+        return {
+          ...a,
+          client_name: membership?.client_name || 'Unknown',
+          membership_id: a.client_memberships,
+          plan_name: plan?.plan_name || null,
+        };
+      });
+      setAgreements(enrichedAgreements);
       const { data: contactsData } = await supabase.from('client_contacts').select('*');
       setContacts(contactsData || []);
       const { data: tasksData } = await supabase.from('tasks').select('*');
@@ -223,6 +243,52 @@ export default function App() {
       console.log('[handleAddTask] formData received:', formData);
       console.log('[handleAddTask] formData.clientId:', formData.clientId);
 
+      // Check task limit when creating as Active Task for a client
+      if (formData.status === 'Active Task' && formData.clientId) {
+          try {
+              // First try the RPC check
+              const { data: limitCheck, error } = await supabase.rpc('check_task_limit', {
+                  p_membership_id: formData.clientId
+              });
+
+              console.log('[handleAddTask] check_task_limit result:', limitCheck, 'error:', error);
+
+              if (!error && limitCheck && !limitCheck.can_activate) {
+                  toast.error(`Task limit reached: ${limitCheck.current_active}/${limitCheck.max_tasks} active tasks for this client`);
+                  return;
+              }
+
+              // Fallback: also check client-side count against plan limit
+              const currentActiveCount = tasks.filter(t =>
+                  t.membership_id === formData.clientId &&
+                  t.status === 'Active Task' &&
+                  !t.archived_at
+              ).length;
+
+              // Get the plan limit for this client
+              const client = clients.find(c => c.id === formData.clientId);
+              if (client?.plan_from_agreements) {
+                  const { data: planData } = await supabase
+                      .from('Plans')
+                      .select('tasks_at_once')
+                      .eq('whalesync_postgres_id', client.plan_from_agreements)
+                      .single();
+
+                  const maxTasks = planData?.tasks_at_once ? parseInt(planData.tasks_at_once) : null;
+                  console.log('[handleAddTask] Client-side check: active=', currentActiveCount, 'max=', maxTasks);
+
+                  if (maxTasks && currentActiveCount >= maxTasks) {
+                      toast.error(`Task limit reached: ${currentActiveCount}/${maxTasks} active tasks for this client`);
+                      return;
+                  }
+              }
+          } catch (err) {
+              console.error('Error checking task limit:', err);
+              toast.error('Could not verify task limit. Please try again.');
+              return;
+          }
+      }
+
       // Find the team member ID for the current user
       const currentTeamMember = team.find(t => t.email === user?.email);
       const teamMemberId = currentTeamMember?.id;
@@ -304,8 +370,7 @@ export default function App() {
   };
 
   const openTaskDetails = (task) => {
-      // Navigate to task page in same window
-      window.location.href = `/task/${task.id}`;
+      navigate(`/task/${task.id}`);
   };
 
   // --- HANDLER TO OPEN PORTAL ---
@@ -322,27 +387,39 @@ export default function App() {
   };
 
   if (loading) return (
-    <div className="h-screen w-screen bg-[#0f0f0f] theme-bg-primary flex items-center justify-center">
+    <div className="h-screen w-screen bg-white dark:bg-[#0f0f0f] flex items-center justify-center">
       <div className="flex flex-col items-center gap-6">
-        {/* Minimalist spinner - same as task loading */}
+        {/* Minimalist spinner */}
         <div className="relative">
-          <div className="w-12 h-12 border-2 border-neutral-800 rounded-full"></div>
-          <div className="w-12 h-12 border-2 border-white border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+          <div className="w-12 h-12 border-2 border-neutral-200 dark:border-neutral-800 rounded-full"></div>
+          <div className="w-12 h-12 border-2 border-neutral-900 dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
         </div>
 
         {/* Loading text and branding */}
-        <div className="text-center space-y-3">
-          <p className="text-sm font-medium text-white">Loading</p>
-          <p
-            className="text-neutral-700 tracking-[0.3em] uppercase"
-            style={{
-              fontWeight: 100,
-              fontSize: '11px',
-              letterSpacing: '0.3em'
-            }}
-          >
-            Dafolle
-          </p>
+        <div className="text-center flex flex-col items-center gap-3">
+          
+          <div className="flex flex-col items-center" style={{ gap: '10px' }}>
+            <p
+              className="text-neutral-300 dark:text-white tracking-[0.3em] uppercase leading-none"
+              style={{
+                fontWeight: 200,
+                fontSize: '33px',
+                letterSpacing: '0.3em'
+              }}
+            >
+              Dafolle
+            </p>
+            <p
+              className="text-neutral-300 dark:text-white tracking-[0.3em] uppercase leading-none"
+              style={{
+                fontWeight: 200,
+                fontSize: '16px',
+                letterSpacing: '0.3em'
+              }}
+            >
+              Studio
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -362,18 +439,24 @@ export default function App() {
 
   return (
     <ProtectedRoute>
-    <div className="flex h-screen w-full bg-[#0f0f0f] font-sans text-neutral-200 overflow-hidden theme-bg-primary" onClick={() => { setDisplayMenuOpen(false); setFilterMenuOpen(false); }}>
+    <div className="flex h-screen w-full bg-neutral-50 dark:bg-[#0f0f0f] font-sans text-neutral-800 dark:text-neutral-200 overflow-hidden theme-bg-primary" onClick={() => { setDisplayMenuOpen(false); setFilterMenuOpen(false); }}>
       {mode === APP_MODES.DASHBOARD ? (
         <DashboardSidebar
           currentView={dashboardView}
           setView={setDashboardView}
           setMode={setMode}
           clients={clients}
+          activeClientId={advancedFilters.client?.[0] || null}
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
           onClientClick={(clientId) => {
             setDashboardView(DASHBOARD_VIEWS.BOARD);
-            setAdvancedFilters({ assignee: [], client: [clientId] });
+            // Toggle: if already selected, deselect
+            if (advancedFilters.client?.[0] === clientId) {
+              setAdvancedFilters({ ...advancedFilters, client: [] });
+            } else {
+              setAdvancedFilters({ ...advancedFilters, client: [clientId] });
+            }
           }}
           onClearFilters={() => {
             setAdvancedFilters({ assignee: [], client: [] });
@@ -382,55 +465,57 @@ export default function App() {
       ) : (
         <SettingsSidebar currentView={settingsView} setView={setSettingsView} setMode={setMode} />
       )}
-      <div className="flex-1 flex flex-col min-w-0 bg-black theme-bg-secondary relative">
+      <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#0f0f0f] theme-bg-secondary relative">
         {mode === APP_MODES.DASHBOARD && (
-            <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-6 bg-[#0f0f0f] theme-bg-primary shrink-0">
+            <div className="h-14 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between px-6 bg-white dark:bg-[#0f0f0f] theme-bg-primary shrink-0">
               <div className="flex items-center gap-4">
                   {dashboardView === DASHBOARD_VIEWS.BOARD ? (
                       <>
                         {userRole === 'team' && (
-                          <div className="flex bg-neutral-900 rounded-lg p-1 text-xs font-medium">
-                            <button onClick={() => setTaskFilter('all')} className={`px-3 py-1 rounded-md transition-all ${taskFilter === 'all' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>All tasks</button>
-                            <button onClick={() => setTaskFilter('mine')} className={`px-3 py-1 rounded-md transition-all ${taskFilter === 'mine' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>For me</button>
-                            <button onClick={() => setTaskFilter('internal')} className={`px-3 py-1 rounded-md transition-all ${taskFilter === 'internal' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>Internal</button>
+                          <div className="flex bg-neutral-100 dark:bg-neutral-900 rounded-lg p-1 text-xs font-medium">
+                            <button onClick={() => setTaskFilter('all')} className={`px-3 py-1 rounded-md transition-all ${taskFilter === 'all' ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>All tasks</button>
+                            <button onClick={() => setTaskFilter('mine')} className={`px-3 py-1 rounded-md transition-all ${taskFilter === 'mine' ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>For me</button>
+                            <button onClick={() => setTaskFilter('internal')} className={`px-3 py-1 rounded-md transition-all ${taskFilter === 'internal' ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>Internal</button>
                           </div>
                         )}
                         {userRole === 'customer' && (
-                          <h1 className="text-lg font-medium text-white">Your Tasks</h1>
+                          <h1 className="text-lg font-medium text-neutral-900 dark:text-white">Your Tasks</h1>
                         )}
                       </>
-                  ) : <h1 className="text-lg font-medium text-white capitalize">{dashboardView}</h1>}
+                  ) : <h1 className="text-lg font-medium text-neutral-900 dark:text-white capitalize">{dashboardView}</h1>}
               </div>
               <div className="flex items-center gap-4">
                   {userRole === 'team' && dashboardView === DASHBOARD_VIEWS.CUSTOMERS && (
                     <button
                       onClick={() => setIsNewClientModalOpen(true)}
-                      className="flex items-center gap-2 text-xs border border-blue-600 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 px-3 py-1.5 rounded-lg transition-colors"
+                      className="flex items-center gap-2 text-xs font-medium bg-neutral-200 dark:bg-white/10 hover:bg-neutral-300 dark:hover:bg-white/20 text-neutral-700 dark:text-white px-3 py-1.5 rounded-lg transition-colors"
                     >
                       <Plus size={12} /> Invite Client
                     </button>
                   )}
-                  <div className="relative" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => { setFilterMenuOpen(!filterMenuOpen); setDisplayMenuOpen(false); }} className={`flex items-center gap-2 text-xs border px-3 py-1.5 rounded-lg transition-colors ${filterMenuOpen ? 'bg-neutral-800 border-neutral-600 text-white' : 'border-neutral-800 text-neutral-400 hover:text-white'}`}>
-                        <Filter size={12} /> Filters {activeFilterCount > 0 && <span className="bg-blue-600 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px]">{activeFilterCount}</span>}
+                  <div className="flex bg-neutral-100 dark:bg-neutral-900 rounded-lg p-1 text-xs font-medium">
+                    <div className="relative" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => { setFilterMenuOpen(!filterMenuOpen); setDisplayMenuOpen(false); }} className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all ${filterMenuOpen ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>
+                        <Filter size={12} /> Filters {activeFilterCount > 0 && <span className="bg-neutral-900 dark:bg-white/20 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px]">{activeFilterCount}</span>}
                       </button>
                       {filterMenuOpen && <FilterMenu filters={advancedFilters} onUpdate={setAdvancedFilters} team={team} clients={clients} onClose={() => setFilterMenuOpen(false)} />}
-                  </div>
-                  <div className="relative" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => { setDisplayMenuOpen(!displayMenuOpen); setFilterMenuOpen(false); }} className={`flex items-center gap-2 text-xs border px-3 py-1.5 rounded-lg transition-colors ${displayMenuOpen ? 'bg-neutral-800 border-neutral-600 text-white' : 'border-neutral-800 text-neutral-400 hover:text-white'}`}>
+                    </div>
+                    <div className="relative" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => { setDisplayMenuOpen(!displayMenuOpen); setFilterMenuOpen(false); }} className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all ${displayMenuOpen ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>
                         <Settings size={12} /> Display
-                    </button>
-                    {displayMenuOpen && <DisplayMenu settings={displaySettings} onUpdate={setDisplaySettings} onClose={() => setDisplayMenuOpen(false)} />}
+                      </button>
+                      {displayMenuOpen && <DisplayMenu settings={displaySettings} onUpdate={setDisplaySettings} onClose={() => setDisplayMenuOpen(false)} />}
+                    </div>
                   </div>
-                  <div className="w-px h-6 bg-neutral-800 mx-2"></div>
-                  <button onClick={() => { setNewTaskStatus('Backlog'); setIsNewTaskModalOpen(true); }} className="bg-white/10 hover:bg-white/20 text-white rounded-full p-2 transition-all active:scale-95"><Plus size={16} /></button>
+                  <div className="w-px h-6 bg-neutral-200 dark:bg-neutral-800 mx-2"></div>
+                  <button onClick={() => { setNewTaskStatus('Backlog'); setIsNewTaskModalOpen(true); }} className="bg-neutral-200 dark:bg-white/10 hover:bg-neutral-300 dark:hover:bg-white/20 text-neutral-700 dark:text-white rounded-full p-2 transition-all active:scale-95"><Plus size={16} /></button>
               </div>
             </div>
         )}
 
         <div className="flex-1 overflow-hidden relative flex flex-col">
           {mode === APP_MODES.DASHBOARD && (
-              <>
+              <div key={dashboardView} className="flex-1 flex flex-col overflow-hidden animate-view-enter">
                 {dashboardView === DASHBOARD_VIEWS.BOARD && (
                   <>
                       {displaySettings.view === 'kanban' ? (
@@ -442,17 +527,17 @@ export default function App() {
                 )}
                 {dashboardView === DASHBOARD_VIEWS.CUSTOMERS && (
                     <CustomersView
-                        clients={clients}
-                        onOpenPortal={handleOpenPortal} // Pass the handler
+                        agreements={agreements}
+                        onOpenPortal={handleOpenPortal}
                     />
                 )}
                 {dashboardView === DASHBOARD_VIEWS.CYCLES && <CyclesView />}
                 {dashboardView === DASHBOARD_VIEWS.ANALYTICS && <AnalyticsView tasks={processedTasks} clients={clients} team={team} />}
                 {dashboardView === DASHBOARD_VIEWS.PAYMENTS && <PaymentsView />}
-              </>
+              </div>
           )}
           {mode === APP_MODES.SETTINGS && (
-              <div className="h-full overflow-y-auto custom-scrollbar">
+              <div key={settingsView} className="h-full overflow-y-auto custom-scrollbar animate-view-enter">
                   {settingsView === SETTINGS_VIEWS.PROFILE && <ProfileSettingsView />}
                   {settingsView === SETTINGS_VIEWS.AGENCY && <AgencySettingsView />}
                   {settingsView === SETTINGS_VIEWS.TEAM && <TeamSettingsView team={team} />}
@@ -474,10 +559,10 @@ export default function App() {
       {isNotificationsOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)} />
-          <div className="fixed top-4 right-4 w-96 bg-[#0f0f0f] border border-neutral-800 rounded-xl shadow-2xl z-50 animate-scale-in">
-            <div className="px-6 py-4 border-b border-neutral-800 flex items-center justify-between">
-              <h3 className="text-white font-bold text-sm">Notifications</h3>
-              <button onClick={() => setIsNotificationsOpen(false)} className="text-neutral-500 hover:text-white">
+          <div className="fixed top-4 right-4 w-96 bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-2xl z-50 animate-scale-in">
+            <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+              <h3 className="text-neutral-900 dark:text-white font-bold text-sm">Notifications</h3>
+              <button onClick={() => setIsNotificationsOpen(false)} className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white">
                 <X size={16} />
               </button>
             </div>

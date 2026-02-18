@@ -16,55 +16,141 @@ import { useConfirm } from './ConfirmModal';
 // --- PROFILE SETTINGS ---
 export const ProfileSettingsView = () => {
     const { user, updateProfile, updatePassword, signOut } = useAuth();
+    const toast = useToast();
     const { confirm } = useConfirm();
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState({ type: '', text: '' });
+    const [passwordLoading, setPasswordLoading] = useState(false);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const [teamMember, setTeamMember] = useState(null);
     const [profileData, setProfileData] = useState({
-        full_name: user?.user_metadata?.full_name || '',
-        avatar_url: user?.user_metadata?.avatar_url || ''
+        full_name: '',
+        avatar_url: ''
     });
     const [passwordData, setPasswordData] = useState({
         newPassword: '',
         confirmPassword: ''
     });
 
+    // Fetch team member data on mount
+    useEffect(() => {
+        const fetchTeamMember = async () => {
+            if (!user?.email) return;
+            const { data } = await supabase
+                .from('team')
+                .select('id, full_name, avatar_url, profil_pic, email, status')
+                .eq('email', user.email)
+                .maybeSingle();
+            if (data) {
+                setTeamMember(data);
+                setProfileData({
+                    full_name: data.full_name || user?.user_metadata?.full_name || '',
+                    avatar_url: data.avatar_url || data.profil_pic || user?.user_metadata?.avatar_url || ''
+                });
+            } else {
+                setProfileData({
+                    full_name: user?.user_metadata?.full_name || '',
+                    avatar_url: user?.user_metadata?.avatar_url || ''
+                });
+            }
+        };
+        fetchTeamMember();
+    }, [user?.email]);
+
+    const displayName = profileData.full_name || user?.email || 'User';
+    const displayAvatar = profileData.avatar_url;
+
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please select an image file');
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error('Image must be under 2MB');
+            return;
+        }
+
+        setAvatarUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+            const filePath = `avatars/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            setProfileData(prev => ({ ...prev, avatar_url: publicUrl }));
+            toast.success('Avatar uploaded');
+        } catch (err) {
+            // If storage bucket doesn't exist, fall back to URL input
+            console.warn('Avatar upload failed, using URL input instead:', err.message);
+            toast.error('Upload not available — enter a URL instead');
+        } finally {
+            setAvatarUploading(false);
+        }
+    };
+
     const handleUpdateProfile = async () => {
         setLoading(true);
-        setMessage({ type: '', text: '' });
-
         try {
-            const { error } = await updateProfile(profileData);
+            // Update Supabase Auth user_metadata
+            const { error } = await updateProfile({
+                full_name: profileData.full_name,
+                avatar_url: profileData.avatar_url
+            });
             if (error) throw error;
 
-            setMessage({ type: 'success', text: 'Profile updated successfully!' });
+            // Also update team table if we have a team member record
+            if (teamMember?.id) {
+                const { error: teamError } = await supabase
+                    .from('team')
+                    .update({
+                        full_name: profileData.full_name,
+                        avatar_url: profileData.avatar_url
+                    })
+                    .eq('id', teamMember.id);
+                if (teamError) console.warn('Team table update failed:', teamError.message);
+            }
+
+            toast.success('Profile updated');
         } catch (err) {
-            setMessage({ type: 'error', text: err.message });
+            toast.error(err.message);
         } finally {
             setLoading(false);
         }
     };
 
     const handleUpdatePassword = async () => {
-        setLoading(true);
-        setMessage({ type: '', text: '' });
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            toast.error('Passwords do not match');
+            return;
+        }
+        if (passwordData.newPassword.length < 6) {
+            toast.error('Password must be at least 6 characters');
+            return;
+        }
 
+        setPasswordLoading(true);
         try {
-            if (passwordData.newPassword !== passwordData.confirmPassword) {
-                throw new Error('Passwords do not match');
-            }
-            if (passwordData.newPassword.length < 6) {
-                throw new Error('Password must be at least 6 characters');
-            }
-
             const { error } = await updatePassword(passwordData.newPassword);
             if (error) throw error;
 
-            setMessage({ type: 'success', text: 'Password updated successfully!' });
+            toast.success('Password updated');
             setPasswordData({ newPassword: '', confirmPassword: '' });
         } catch (err) {
-            setMessage({ type: 'error', text: err.message });
+            toast.error(err.message);
         } finally {
-            setLoading(false);
+            setPasswordLoading(false);
         }
     };
 
@@ -83,139 +169,192 @@ export const ProfileSettingsView = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-8 animate-fade-in pb-24">
+        <div className="max-w-2xl mx-auto p-8 animate-fade-in pb-24">
+            {/* Page Header */}
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white mb-2">Profile Settings</h1>
-                <p className="text-neutral-500 text-sm">Manage your personal account settings and preferences.</p>
+                <h1 className="text-xl font-semibold text-neutral-900 dark:text-white mb-1">Profile</h1>
+                <p className="text-sm text-neutral-400">Manage your personal account settings.</p>
             </div>
 
-            {/* Message */}
-            {message.text && (
-                <div className={`mb-6 p-4 rounded-lg flex items-start gap-3 ${
-                    message.type === 'success'
-                        ? 'bg-green-500/10 border border-green-500/50'
-                        : 'bg-red-500/10 border border-red-500/50'
-                }`}>
-                    <AlertCircle size={18} className={message.type === 'success' ? 'text-green-500' : 'text-red-500'} />
-                    <p className={`text-sm ${message.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
-                        {message.text}
-                    </p>
-                </div>
-            )}
-
-            {/* Profile Information */}
-            <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 mb-8">
-                <h3 className="text-sm font-bold text-white mb-4">Profile Information</h3>
-
-                {/* Avatar */}
-                <div className="mb-6">
-                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
-                        Profile Picture
-                    </label>
-                    <div className="flex items-center gap-4">
+            {/* Avatar & Identity Section */}
+            <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 mb-6">
+                <div className="flex items-start gap-5">
+                    {/* Avatar with upload */}
+                    <div className="relative group">
                         <Avatar
-                            name={profileData.full_name || user?.email}
-                            url={profileData.avatar_url}
-                            size="lg"
+                            name={displayName}
+                            url={displayAvatar}
+                            size="2xl"
                         />
-                        <div className="flex flex-col gap-2">
+                        <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                            {avatarUploading ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            ) : (
+                                <Upload size={16} className="text-white" />
+                            )}
                             <input
-                                type="text"
-                                value={profileData.avatar_url}
-                                onChange={(e) => setProfileData({...profileData, avatar_url: e.target.value})}
-                                placeholder="Avatar URL"
-                                className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-neutral-600"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleAvatarUpload}
+                                className="hidden"
+                                disabled={avatarUploading}
                             />
-                            <p className="text-[10px] text-neutral-600">Enter a URL for your profile picture</p>
-                        </div>
+                        </label>
+                    </div>
+
+                    {/* Identity info */}
+                    <div className="flex-1 min-w-0 pt-1">
+                        <h2 className="text-lg font-semibold text-neutral-900 dark:text-white truncate">{displayName}</h2>
+                        <p className="text-sm text-neutral-400 truncate">{user?.email}</p>
+                        {teamMember?.status && (
+                            <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-500">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                {teamMember.status}
+                            </span>
+                        )}
                     </div>
                 </div>
 
-                {/* Email (read-only) */}
-                <div className="mb-6">
-                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
-                        Email Address
-                    </label>
-                    <input
-                        type="email"
-                        value={user?.email || ''}
-                        disabled
-                        className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-500 cursor-not-allowed"
-                    />
-                    <p className="text-[10px] text-neutral-600 mt-1">Email cannot be changed</p>
-                </div>
-
-                {/* Full Name */}
-                <div className="mb-6">
-                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
-                        Full Name
+                {/* Avatar URL fallback input */}
+                <div className="mt-5 pt-5 border-t border-neutral-100 dark:border-neutral-800">
+                    <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">
+                        Avatar URL
                     </label>
                     <input
                         type="text"
-                        value={profileData.full_name}
-                        onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
-                        placeholder="John Doe"
-                        className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neutral-600"
+                        value={profileData.avatar_url}
+                        onChange={(e) => setProfileData({ ...profileData, avatar_url: e.target.value })}
+                        placeholder="https://example.com/avatar.jpg"
+                        className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2 px-3 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                     />
+                    <p className="text-[10px] text-neutral-400 mt-1.5">Or upload an image by hovering over your avatar</p>
+                </div>
+            </div>
+
+            {/* Profile Information */}
+            <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 mb-6">
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-5">Personal Information</h3>
+
+                <div className="space-y-5">
+                    {/* Full Name */}
+                    <div>
+                        <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">
+                            Full Name
+                        </label>
+                        <input
+                            type="text"
+                            value={profileData.full_name}
+                            onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
+                            placeholder="Your full name"
+                            className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                        />
+                    </div>
+
+                    {/* Email (read-only) */}
+                    <div>
+                        <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">
+                            Email Address
+                        </label>
+                        <input
+                            type="email"
+                            value={user?.email || ''}
+                            disabled
+                            className="w-full bg-neutral-100 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-400 cursor-not-allowed"
+                        />
+                        <p className="text-[10px] text-neutral-400 mt-1.5">Email cannot be changed</p>
+                    </div>
                 </div>
 
-                <div className="flex justify-end pt-4 border-t border-neutral-800">
+                <div className="flex justify-end pt-5 mt-5 border-t border-neutral-100 dark:border-neutral-800">
                     <button
                         onClick={handleUpdateProfile}
                         disabled={loading}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-all active:scale-95 disabled:opacity-50"
+                        className="flex items-center gap-2 px-5 py-2 bg-neutral-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all active:scale-[0.97] disabled:opacity-50"
                     >
                         {loading ? (
-                            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                            <div className="w-3.5 h-3.5 border-2 border-white/30 dark:border-black/30 border-t-white dark:border-t-black rounded-full animate-spin"></div>
                         ) : (
-                            <Save size={16} />
+                            <Save size={14} />
                         )}
-                        Save Profile
+                        Save Changes
                     </button>
                 </div>
             </div>
 
             {/* Change Password */}
-            <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 mb-8">
-                <h3 className="text-sm font-bold text-white mb-4">Change Password</h3>
+            <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 mb-6">
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-5">Change Password</h3>
 
-                <div className="space-y-4">
+                <div className="space-y-5">
                     <div>
-                        <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
+                        <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">
                             New Password
                         </label>
                         <input
                             type="password"
                             value={passwordData.newPassword}
-                            onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                            onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                             placeholder="••••••••"
-                            className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neutral-600"
+                            className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
+                        <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">
                             Confirm Password
                         </label>
                         <input
                             type="password"
                             value={passwordData.confirmPassword}
-                            onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                            onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                             placeholder="••••••••"
-                            className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neutral-600"
+                            className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                         />
                     </div>
                 </div>
 
-                <div className="flex justify-end pt-4 border-t border-neutral-800 mt-6">
+                {/* Password strength indicator */}
+                {passwordData.newPassword && (
+                    <div className="mt-4">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="flex-1 flex gap-1">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div
+                                        key={i}
+                                        className={`h-1 flex-1 rounded-full transition-colors ${
+                                            passwordData.newPassword.length >= i * 3
+                                                ? passwordData.newPassword.length >= 12 ? 'bg-emerald-500' : passwordData.newPassword.length >= 8 ? 'bg-amber-500' : 'bg-red-500'
+                                                : 'bg-neutral-200 dark:bg-neutral-800'
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                            <span className="text-[10px] text-neutral-400">
+                                {passwordData.newPassword.length < 6 ? 'Too short' : passwordData.newPassword.length < 8 ? 'Weak' : passwordData.newPassword.length < 12 ? 'Good' : 'Strong'}
+                            </span>
+                        </div>
+                        {passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
+                            <p className="text-[11px] text-red-500 flex items-center gap-1">
+                                <X size={12} /> Passwords don&apos;t match
+                            </p>
+                        )}
+                        {passwordData.confirmPassword && passwordData.newPassword === passwordData.confirmPassword && passwordData.newPassword.length >= 6 && (
+                            <p className="text-[11px] text-emerald-500 flex items-center gap-1">
+                                <Check size={12} /> Passwords match
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                <div className="flex justify-end pt-5 mt-5 border-t border-neutral-100 dark:border-neutral-800">
                     <button
                         onClick={handleUpdatePassword}
-                        disabled={loading || !passwordData.newPassword}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-all active:scale-95 disabled:opacity-50"
+                        disabled={passwordLoading || !passwordData.newPassword || !passwordData.confirmPassword || passwordData.newPassword !== passwordData.confirmPassword || passwordData.newPassword.length < 6}
+                        className="flex items-center gap-2 px-5 py-2 bg-neutral-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all active:scale-[0.97] disabled:opacity-50"
                     >
-                        {loading ? (
-                            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                        {passwordLoading ? (
+                            <div className="w-3.5 h-3.5 border-2 border-white/30 dark:border-black/30 border-t-white dark:border-t-black rounded-full animate-spin"></div>
                         ) : (
-                            <Lock size={16} />
+                            <Lock size={14} />
                         )}
                         Update Password
                     </button>
@@ -223,18 +362,20 @@ export const ProfileSettingsView = () => {
             </div>
 
             {/* Sign Out */}
-            <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
-                <h3 className="text-sm font-bold text-white mb-2">Sign Out</h3>
-                <p className="text-xs text-neutral-500 mb-4">
-                    Sign out of your account on this device.
-                </p>
-                <button
-                    onClick={handleSignOut}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-red-500/10 text-red-500 border border-red-500/50 rounded-lg text-sm font-bold hover:bg-red-500/20 transition-all active:scale-95"
-                >
-                    <LogOut size={16} />
-                    Sign Out
-                </button>
+            <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-1">Sign Out</h3>
+                        <p className="text-xs text-neutral-400">Sign out of your account on this device.</p>
+                    </div>
+                    <button
+                        onClick={handleSignOut}
+                        className="flex items-center gap-2 px-4 py-2 text-red-500 border border-red-500/20 rounded-lg text-xs font-semibold hover:bg-red-500/10 transition-all active:scale-[0.97]"
+                    >
+                        <LogOut size={14} />
+                        Sign Out
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -400,6 +541,11 @@ export const TeamSettingsView = ({ team }) => {
 
     useEffect(() => { if(team) setLocalTeam(team); }, [team]);
 
+    // Filter out "Left company" members and sort alphabetically
+    const visibleMembers = localTeam
+        .filter(m => !(m.status || '').toLowerCase().includes('left'))
+        .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+
     const handleInvite = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -407,69 +553,164 @@ export const TeamSettingsView = ({ team }) => {
             const { data, error } = await supabase.from('team').insert([{ full_name: inviteName, email: inviteEmail, status: 'Active', notes: `Role: ${inviteRole}` }]).select();
             if (error) throw error;
             if (data) { setLocalTeam([...localTeam, data[0]]); setIsInviteOpen(false); setInviteName(''); setInviteEmail(''); }
+            toast.success('Member invited');
         } catch (error) { toast.error("Failed to invite member."); } finally { setLoading(false); }
     };
 
-    const handleDelete = async (id) => {
-        const confirmed = await confirm({
-            title: 'Remove Member',
-            message: 'Are you sure you want to remove this member from the team?',
-            confirmText: 'Remove',
-            cancelText: 'Cancel',
-            variant: 'danger'
-        });
+    const getStatusStyle = (status) => {
+        const s = (status || '').toLowerCase();
+        if (s === 'active') return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+        if (s === 'inactive' || s === 'disabled') return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border-neutral-200 dark:border-neutral-700';
+        if (s === 'invited' || s === 'pending') return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+        return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border-neutral-200 dark:border-neutral-700';
+    };
 
-        if (!confirmed) return;
+    const getStatusDot = (status) => {
+        const s = (status || '').toLowerCase();
+        if (s === 'active') return 'bg-emerald-500';
+        if (s === 'invited' || s === 'pending') return 'bg-amber-500';
+        return 'bg-neutral-400';
+    };
 
-        try {
-            const { error } = await supabase.from('team').delete().eq('id', id);
-            if (error) throw error;
-            setLocalTeam(localTeam.filter(m => m.id !== id));
-        } catch(e) { console.error(e); }
+    const getRoleFromNotes = (notes) => {
+        if (!notes) return 'Member';
+        return notes.replace('Role: ', '') || 'Member';
     };
 
     return (
-        <div className="max-w-6xl mx-auto p-8 animate-fade-in pb-24 h-full flex flex-col">
-             <div className="flex items-center justify-between mb-8">
-                <div><h1 className="text-2xl font-bold text-white mb-2">Team Members</h1><p className="text-neutral-500 text-sm">Manage access and roles.</p></div>
-                <button onClick={() => setIsInviteOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-colors"><UserPlus size={16} /> Invite Member</button>
-            </div>
-            <div className="bg-[#0f0f0f] border border-neutral-800 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
-                <div className="bg-[#141414] text-neutral-500 font-medium text-xs uppercase tracking-wider border-b border-neutral-800">
-                    <div className="flex">
-                        <div className="px-6 py-4 font-medium w-1/3">Name</div>
-                        <div className="px-6 py-4 font-medium flex-1">Email</div>
-                        <div className="px-6 py-4 font-medium w-32">Status</div>
-                        <div className="px-6 py-4 font-medium text-right w-24">Actions</div>
-                    </div>
+        <div className="max-w-2xl mx-auto p-8 animate-fade-in pb-24">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-xl font-semibold text-neutral-900 dark:text-white mb-1">Team</h1>
+                    <p className="text-sm text-neutral-400">Manage your team members and roles.</p>
                 </div>
-                <div className="overflow-y-auto flex-1 custom-scrollbar">
-                    <div className="divide-y divide-neutral-800/50">
-                        {localTeam.map((member) => (
-                            <div key={member.id} className="flex group hover:bg-[#1a1a1a] transition-colors">
-                                <div className="px-6 py-4 w-1/3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400 font-bold text-xs border border-neutral-700">{member.full_name ? member.full_name[0] : '?'}</div>
-                                        <div><div className="text-white font-medium">{member.full_name}</div><div className="text-neutral-500 text-xs">{member.notes ? member.notes.replace('Role: ', '') : 'Member'}</div></div>
+                <button
+                    onClick={() => setIsInviteOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all active:scale-[0.97]"
+                >
+                    <UserPlus size={14} /> Invite
+                </button>
+            </div>
+
+            {/* Team count */}
+            <div className="mb-4">
+                <span className="text-xs text-neutral-400">{visibleMembers.length} active member{visibleMembers.length !== 1 ? 's' : ''}</span>
+            </div>
+
+            {/* Team list */}
+            <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden divide-y divide-neutral-100 dark:divide-neutral-800/50">
+                {visibleMembers.length === 0 ? (
+                    <div className="py-16 text-center">
+                        <User size={32} className="mx-auto mb-3 text-neutral-300 dark:text-neutral-700" />
+                        <p className="text-sm text-neutral-400">No team members yet</p>
+                    </div>
+                ) : (
+                    visibleMembers.map((member) => (
+                        <div
+                            key={member.id}
+                            className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-neutral-50 dark:hover:bg-white/[0.02]"
+                        >
+                            {/* Avatar */}
+                            <div className="shrink-0">
+                                {member.avatar_url || member.profil_pic ? (
+                                    <img
+                                        src={member.avatar_url || member.profil_pic}
+                                        alt={member.full_name}
+                                        className="w-10 h-10 rounded-full object-cover border border-neutral-200 dark:border-neutral-700"
+                                    />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center text-neutral-500 dark:text-neutral-300 font-semibold text-sm">
+                                        {member.full_name ? member.full_name[0].toUpperCase() : '?'}
                                     </div>
-                                </div>
-                                <div className="px-6 py-4 text-neutral-400 flex-1">{member.email}</div>
-                                <div className="px-6 py-4 w-32"><span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Active</span></div>
-                                <div className="px-6 py-4 text-right w-24"><button onClick={() => handleDelete(member.id)} className="p-2 text-neutral-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button></div>
+                                )}
                             </div>
-                        ))}
-                    </div>
-                </div>
+
+                            {/* Name, Role & Email */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-neutral-900 dark:text-white truncate">
+                                        {member.full_name || 'Unnamed'}
+                                    </span>
+                                    <span className="text-[10px] font-medium text-neutral-400 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-1.5 py-0.5 rounded shrink-0">
+                                        {getRoleFromNotes(member.notes)}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-neutral-400 truncate mt-0.5">{member.email || '-'}</p>
+                            </div>
+
+                            {/* Status */}
+                            <div className="shrink-0">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border ${getStatusStyle(member.status)}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(member.status)}`}></span>
+                                    {member.status || 'Active'}
+                                </span>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
+
+            {/* Invite Modal */}
             {isInviteOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-[#0f0f0f] border border-neutral-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-scale-up">
-                        <div className="p-6 border-b border-neutral-800 flex justify-between items-center bg-[#141414]"><h3 className="font-bold text-white">Invite Team Member</h3><button onClick={() => setIsInviteOpen(false)}><X size={20} className="text-neutral-400 hover:text-white"/></button></div>
-                        <form onSubmit={handleInvite} className="p-6 space-y-4">
-                            <div className="space-y-2"><label className="text-xs font-medium text-neutral-400 uppercase">Full Name</label><input required type="text" className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-white transition-colors" value={inviteName} onChange={e => setInviteName(e.target.value)}/></div>
-                            <div className="space-y-2"><label className="text-xs font-medium text-neutral-400 uppercase">Email Address</label><input required type="email" className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-white transition-colors" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}/></div>
-                            <div className="space-y-2"><label className="text-xs font-medium text-neutral-400 uppercase">Role</label><select className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-white transition-colors" value={inviteRole} onChange={e => setInviteRole(e.target.value)}><option value="Admin">Admin</option><option value="Designer">Designer</option><option value="Project Manager">Project Manager</option></select></div>
-                            <button type="submit" disabled={loading} className="w-full py-3 mt-2 bg-white text-black font-bold rounded-lg hover:bg-neutral-200 transition-colors disabled:opacity-50">{loading ? 'Sending...' : 'Send Invite'}</button>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-[2px] p-4 animate-fade-in" onClick={() => setIsInviteOpen(false)}>
+                    <div
+                        className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 w-full max-w-md rounded-xl shadow-2xl overflow-hidden animate-scale-up"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="px-6 py-4 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center">
+                            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Invite Team Member</h3>
+                            <button onClick={() => setIsInviteOpen(false)} className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors p-1">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleInvite} className="p-6 space-y-5">
+                            <div>
+                                <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">Full Name</label>
+                                <input
+                                    required
+                                    type="text"
+                                    className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                                    placeholder="John Doe"
+                                    value={inviteName}
+                                    onChange={e => setInviteName(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">Email Address</label>
+                                <input
+                                    required
+                                    type="email"
+                                    className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                                    placeholder="john@example.com"
+                                    value={inviteEmail}
+                                    onChange={e => setInviteEmail(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">Role</label>
+                                <select
+                                    className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors cursor-pointer"
+                                    value={inviteRole}
+                                    onChange={e => setInviteRole(e.target.value)}
+                                >
+                                    <option value="Admin">Admin</option>
+                                    <option value="Designer">Designer</option>
+                                    <option value="Project Manager">Project Manager</option>
+                                </select>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full py-2.5 bg-neutral-900 dark:bg-white text-white dark:text-black font-semibold text-sm rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {loading ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 dark:border-black/30 border-t-white dark:border-t-black rounded-full animate-spin"></div>
+                                ) : (
+                                    <UserPlus size={14} />
+                                )}
+                                {loading ? 'Inviting...' : 'Send Invite'}
+                            </button>
                         </form>
                     </div>
                 </div>
@@ -749,11 +990,11 @@ export const PlansSettingsView = () => {
     const fetchPlans = async () => {
         try {
             console.log('Fetching plans from Supabase...');
-            console.log('Table name: 🔄 Plans');
+            console.log('Table name: Plans');
             console.log('Allowed plan IDs:', ALLOWED_PLAN_IDS);
 
             const { data, error } = await supabase
-                .from('🔄 Plans')
+                .from('Plans')
                 .select('*')
                 .in('whalesync_postgres_id', ALLOWED_PLAN_IDS)
                 .order('monthly_price_ht', { ascending: true });
@@ -786,7 +1027,7 @@ export const PlansSettingsView = () => {
             if (editingPlan.whalesync_postgres_id) {
                 // Update existing plan
                 const { error } = await supabase
-                    .from('🔄 Plans')
+                    .from('Plans')
                     .update({
                         plan_name: editingPlan.plan_name,
                         monthly_price_ht: parseFloat(editingPlan.monthly_price_ht),
@@ -801,7 +1042,7 @@ export const PlansSettingsView = () => {
             } else {
                 // Create new plan
                 const { error } = await supabase
-                    .from('🔄 Plans')
+                    .from('Plans')
                     .insert([{
                         plan_name: editingPlan.plan_name,
                         monthly_price_ht: parseFloat(editingPlan.monthly_price_ht),
@@ -838,7 +1079,7 @@ export const PlansSettingsView = () => {
 
         try {
             const { error } = await supabase
-                .from('🔄 Plans')
+                .from('Plans')
                 .delete()
                 .eq('whalesync_postgres_id', id);
 

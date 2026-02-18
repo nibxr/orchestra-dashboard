@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Globe, Tag, User, Calendar, Building2, Check, X,
   Bold, Italic, Strikethrough, Underline, List, ListOrdered,
   CheckSquare, Paperclip, Type, Smile, MoreHorizontal, Copy,
-  Trash2, ChevronRight
+  Trash2, ChevronRight, Code2, Loader2
 } from 'lucide-react';
 import { CustomSelect } from './CustomUI';
 import { createVersion } from '../utils/versionService';
@@ -22,6 +23,7 @@ import {
 export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated }) => {
   const { user } = useAuth();
   const toast = useToast();
+  const goBack = useNavigate();
 
   // Task field state
   const [isEditingDueDate, setIsEditingDueDate] = useState(false);
@@ -45,6 +47,9 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
   // Add asset state
   const [isAddingWebsite, setIsAddingWebsite] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState('');
+  const [isAddingEmbed, setIsAddingEmbed] = useState(false);
+  const [embedUrl, setEmbedUrl] = useState('');
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
   const [showFigmaImport, setShowFigmaImport] = useState(false);
 
   // Comments state
@@ -635,6 +640,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
       return;
     }
 
+    setIsCreatingVersion(true);
     try {
       const { data, error } = await createVersion(
         task.id,
@@ -645,13 +651,45 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
 
       if (error) throw error;
 
-      toast.success('Version created successfully');
+      toast.success('Website added successfully');
       setWebsiteUrl('');
       setIsAddingWebsite(false);
       onVersionCreated();
     } catch (error) {
       console.error('Error creating version:', error);
-      toast.error('Failed to create version');
+      toast.error('Failed to add website');
+    } finally {
+      setIsCreatingVersion(false);
+    }
+  };
+
+  // Add embed asset
+  const handleAddEmbed = async () => {
+    if (!embedUrl.trim()) {
+      toast.error('Please enter a URL');
+      return;
+    }
+
+    setIsCreatingVersion(true);
+    try {
+      const { data, error } = await createVersion(
+        task.id,
+        embedUrl,
+        'Version 1',
+        user?.id
+      );
+
+      if (error) throw error;
+
+      toast.success('Embed added successfully');
+      setEmbedUrl('');
+      setIsAddingEmbed(false);
+      onVersionCreated();
+    } catch (error) {
+      console.error('Error creating embed:', error);
+      toast.error('Failed to add embed');
+    } finally {
+      setIsCreatingVersion(false);
     }
   };
 
@@ -694,16 +732,16 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
   }, {});
 
   return (
-    <div className="flex flex-col h-screen bg-[#0f0f0f] theme-bg-primary">
+    <div className="flex flex-col h-screen bg-white dark:bg-[#0f0f0f] animate-fade-in">
       {/* Header */}
-      <div className="h-14 border-b border-neutral-800 flex items-center px-6 bg-[#0f0f0f] theme-bg-primary shrink-0">
+      <div className="h-14 border-b border-neutral-200 dark:border-neutral-800 flex items-center px-6 bg-white dark:bg-[#0f0f0f] shrink-0">
         <button
-          onClick={() => window.history.back()}
-          className="text-neutral-400 hover:text-white transition-colors"
+          onClick={() => goBack('/')}
+          className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
         >
           <ArrowLeft size={20} />
         </button>
-        <h1 className="ml-4 text-lg font-medium text-white truncate">{task.title}</h1>
+        <h1 className="ml-4 text-lg font-medium text-neutral-900 dark:text-white truncate">{task.title}</h1>
       </div>
 
       {/* Main Layout */}
@@ -795,31 +833,40 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             </div>
 
             {/* Add Asset Section */}
-            <div className="pt-4 border-t border-neutral-800 mt-4">
-              <h3 className="text-sm font-medium text-neutral-400 mb-3 px-2">Add asset</h3>
-
-              {/* Website Button */}
-              <button
-                onClick={() => setIsAddingWebsite(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 border-2 border-dashed border-neutral-700 hover:border-neutral-600 rounded-lg transition-colors text-neutral-400 hover:text-white mb-2"
-              >
-                <Globe size={16} />
-                <span className="text-sm">Website</span>
-              </button>
+            <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 mt-4">
+              <h3 className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-3 px-2">Add asset</h3>
 
               {/* Figma Button */}
               <button
                 onClick={() => setShowFigmaImport(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 border-2 border-dashed border-neutral-700 hover:border-neutral-600 rounded-lg transition-colors text-neutral-400 hover:text-white mb-2"
+                className="w-full flex items-center gap-3 px-3 py-2.5 border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-600 rounded-lg transition-colors text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white mb-2"
               >
-                <svg width="16" height="16" viewBox="0 0 38 57" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M19 28.5C19 23.2533 23.2533 19 28.5 19C33.7467 19 38 23.2533 38 28.5C38 33.7467 33.7467 38 28.5 38C23.2533 38 19 33.7467 19 28.5Z" fill="currentColor"/>
-                  <path d="M0 47.5C0 42.2533 4.25329 38 9.5 38H19V47.5C19 52.7467 14.7467 57 9.5 57C4.25329 57 0 52.7467 0 47.5Z" fill="currentColor"/>
-                  <path d="M19 0V19H28.5C33.7467 19 38 14.7467 38 9.5C38 4.25329 33.7467 0 28.5 0H19Z" fill="currentColor"/>
-                  <path d="M0 9.5C0 14.7467 4.25329 19 9.5 19H19V0H9.5C4.25329 0 0 4.25329 0 9.5Z" fill="currentColor"/>
-                  <path d="M0 28.5C0 33.7467 4.25329 38 9.5 38H19V19H9.5C4.25329 19 0 23.2533 0 28.5Z" fill="currentColor"/>
+                <svg width="14" height="14" viewBox="0 0 38 57" fill="currentColor" className="opacity-60">
+                  <path d="M19 28.5C19 23.2533 23.2533 19 28.5 19C33.7467 19 38 23.2533 38 28.5C38 33.7467 33.7467 38 28.5 38C23.2533 38 19 33.7467 19 28.5Z"/>
+                  <path d="M0 47.5C0 42.2533 4.25329 38 9.5 38H19V47.5C19 52.7467 14.7467 57 9.5 57C4.25329 57 0 52.7467 0 47.5Z"/>
+                  <path d="M19 0V19H28.5C33.7467 19 38 14.7467 38 9.5C38 4.25329 33.7467 0 28.5 0H19Z"/>
+                  <path d="M0 9.5C0 14.7467 4.25329 19 9.5 19H19V0H9.5C4.25329 0 0 4.25329 0 9.5Z"/>
+                  <path d="M0 28.5C0 33.7467 4.25329 38 9.5 38H19V19H9.5C4.25329 19 0 23.2533 0 28.5Z"/>
                 </svg>
                 <span className="text-sm">Figma</span>
+              </button>
+
+              {/* Embed Button */}
+              <button
+                onClick={() => setIsAddingEmbed(true)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-600 rounded-lg transition-colors text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white mb-2"
+              >
+                <Code2 size={14} className="opacity-60" />
+                <span className="text-sm">Embed</span>
+              </button>
+
+              {/* Website Button */}
+              <button
+                onClick={() => setIsAddingWebsite(true)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-600 rounded-lg transition-colors text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white mb-2"
+              >
+                <Globe size={14} className="opacity-60" />
+                <span className="text-sm">Website</span>
               </button>
             </div>
           </div>
@@ -1433,75 +1480,113 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
       {/* Website Modal */}
       {isAddingWebsite && (
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => {
-            setIsAddingWebsite(false);
-            setWebsiteUrl('');
-          }}
+          className="fixed inset-0 bg-black/30 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => { setIsAddingWebsite(false); setWebsiteUrl(''); }}
         >
           <div
-            className="bg-[#0f0f0f] w-full max-w-md rounded-2xl shadow-2xl border border-neutral-800 overflow-hidden"
+            className="bg-white dark:bg-[#161616] w-full max-w-md rounded-2xl shadow-lg dark:shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden animate-scale-up"
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                  <Globe size={20} className="text-white" />
+                <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                  <Globe size={18} className="text-neutral-500 dark:text-neutral-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Add Website</h2>
-                  <p className="text-sm text-neutral-500">Create a version from a URL</p>
+                  <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Add Website</h2>
+                  <p className="text-xs text-neutral-500">Display any website in the canvas</p>
                 </div>
               </div>
               <button
-                onClick={() => {
-                  setIsAddingWebsite(false);
-                  setWebsiteUrl('');
-                }}
-                className="p-2 text-neutral-500 hover:text-white transition-colors rounded-lg hover:bg-neutral-800"
+                onClick={() => { setIsAddingWebsite(false); setWebsiteUrl(''); }}
+                className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
-
-            {/* Content */}
-            <div className="p-6 space-y-4">
-              <div className="p-4 bg-neutral-900/50 rounded-lg border border-neutral-800">
-                <div className="flex items-start gap-3">
-                  <Globe size={20} className="text-neutral-400 mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="text-sm font-medium text-white mb-1">Website URL</h3>
-                    <p className="text-xs text-neutral-500 mb-3">
-                      Enter the URL of the website you want to add as a version
-                    </p>
-                    <input
-                      type="url"
-                      value={websiteUrl}
-                      onChange={(e) => setWebsiteUrl(e.target.value)}
-                      placeholder="https://example.com"
-                      className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-500"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && websiteUrl.trim()) {
-                          handleAddWebsite();
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1.5 block">Website URL</label>
+                <input
+                  type="url"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && websiteUrl.trim()) handleAddWebsite();
+                  }}
+                />
               </div>
-
               <button
                 onClick={handleAddWebsite}
-                disabled={!websiteUrl.trim()}
-                className={`w-full py-2.5 font-medium rounded-lg transition-colors ${
-                  !websiteUrl.trim()
-                    ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
-                    : 'bg-white text-black hover:bg-neutral-200'
+                disabled={!websiteUrl.trim() || isCreatingVersion}
+                className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  !websiteUrl.trim() || isCreatingVersion
+                    ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'
+                    : 'bg-neutral-900 dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200'
                 }`}
               >
-                Add Website
+                {isCreatingVersion ? <><Loader2 size={14} className="animate-spin" /> Adding...</> : 'Add Website'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Embed Modal */}
+      {isAddingEmbed && (
+        <div
+          className="fixed inset-0 bg-black/30 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => { setIsAddingEmbed(false); setEmbedUrl(''); }}
+        >
+          <div
+            className="bg-white dark:bg-[#161616] w-full max-w-md rounded-2xl shadow-lg dark:shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden animate-scale-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                  <Code2 size={18} className="text-neutral-500 dark:text-neutral-400" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Add Embed</h2>
+                  <p className="text-xs text-neutral-500">YouTube, Loom, Vimeo, Miro, and more</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setIsAddingEmbed(false); setEmbedUrl(''); }}
+                className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1.5 block">Embed URL</label>
+                <input
+                  type="url"
+                  value={embedUrl}
+                  onChange={(e) => setEmbedUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2.5 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && embedUrl.trim()) handleAddEmbed();
+                  }}
+                />
+              </div>
+              <button
+                onClick={handleAddEmbed}
+                disabled={!embedUrl.trim() || isCreatingVersion}
+                className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  !embedUrl.trim() || isCreatingVersion
+                    ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'
+                    : 'bg-neutral-900 dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200'
+                }`}
+              >
+                {isCreatingVersion ? <><Loader2 size={14} className="animate-spin" /> Adding...</> : 'Add Embed'}
               </button>
             </div>
           </div>

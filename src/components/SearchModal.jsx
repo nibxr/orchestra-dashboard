@@ -52,12 +52,12 @@ export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask }) => {
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-24 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
       <div
-        className="w-full max-w-2xl bg-[#0f0f0f] border border-neutral-800 rounded-2xl shadow-2xl animate-scale-in"
+        className="w-full max-w-2xl bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl animate-scale-in"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Search Input */}
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-neutral-800">
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
           <Search size={20} className="text-neutral-500" />
           <input
             ref={inputRef}
@@ -65,11 +65,11 @@ export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask }) => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search tasks by title, client, assignee, or ID..."
-            className="flex-1 bg-transparent text-white text-base placeholder-neutral-600 focus:outline-none"
+            className="flex-1 bg-transparent text-neutral-900 dark:text-white text-base placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
           />
           <button
             onClick={onClose}
-            className="text-neutral-500 hover:text-white transition-colors p-1 hover:bg-neutral-800 rounded"
+            className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded"
           >
             <X size={18} />
           </button>
@@ -100,12 +100,12 @@ export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask }) => {
                 <button
                   key={task.id}
                   onClick={() => handleSelectTask(task)}
-                  className="w-full px-6 py-3 hover:bg-neutral-900 transition-colors text-left group"
+                  className="w-full px-6 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors text-left group"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-white font-medium text-sm group-hover:text-lime-400 transition-colors truncate">
+                        <h3 className="text-neutral-900 dark:text-white font-medium text-sm group-hover:text-lime-400 transition-colors truncate">
                           {task.title}
                         </h3>
                         {task.orchestra_task_id && (
@@ -145,7 +145,7 @@ export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask }) => {
                     </div>
 
                     <div className="shrink-0">
-                      <span className="inline-flex px-2 py-1 rounded text-xs bg-neutral-800 text-neutral-400 border border-neutral-700">
+                      <span className="inline-flex px-2 py-1 rounded text-xs bg-neutral-200 dark:bg-neutral-800 text-neutral-400 border border-neutral-300 dark:border-neutral-700">
                         {task.status}
                       </span>
                     </div>
@@ -157,14 +157,14 @@ export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-neutral-800 bg-[#141414] flex items-center justify-between">
+        <div className="px-6 py-3 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#141414] flex items-center justify-between">
           <div className="flex items-center gap-4 text-xs text-neutral-600">
             <div className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-neutral-800 rounded text-[10px] border border-neutral-700">ESC</kbd>
+              <kbd className="px-1.5 py-0.5 bg-neutral-200 dark:bg-neutral-800 rounded text-[10px] border border-neutral-300 dark:border-neutral-700">ESC</kbd>
               <span>to close</span>
             </div>
             <div className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-neutral-800 rounded text-[10px] border border-neutral-700">↵</kbd>
+              <kbd className="px-1.5 py-0.5 bg-neutral-200 dark:bg-neutral-800 rounded text-[10px] border border-neutral-300 dark:border-neutral-700">↵</kbd>
               <span>to open</span>
             </div>
           </div>

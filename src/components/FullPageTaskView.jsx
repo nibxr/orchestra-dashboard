@@ -144,20 +144,36 @@ export const FullPageTaskView = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-neutral-400">Loading task...</div>
+      <div className="min-h-screen bg-white dark:bg-[#0f0f0f] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <div className="w-12 h-12 border-2 border-neutral-200 dark:border-neutral-800 rounded-full"></div>
+            <div className="w-12 h-12 border-2 border-neutral-900 dark:border-neutral-500 border-t-transparent dark:border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+          </div>
+          <div className="text-center space-y-2">
+            <p
+              className="text-neutral-400 dark:text-neutral-600 tracking-[0.2em] uppercase"
+              style={{ fontWeight: 200, fontSize: '14px', letterSpacing: '0.2em' }}
+            >
+              Loading
+            </p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-500 font-medium">
+              {task?.title || 'Opening task...'}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!task) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-[#0f0f0f] flex items-center justify-center">
         <div className="text-center">
           <div className="text-neutral-400 mb-4">Task not found</div>
           <button
             onClick={() => navigate('/')}
-            className="text-white hover:text-neutral-300 flex items-center gap-2 mx-auto"
+            className="text-neutral-900 dark:text-white hover:text-neutral-600 dark:hover:text-neutral-300 flex items-center gap-2 mx-auto"
           >
             <ArrowLeft size={16} />
             Back to Dashboard

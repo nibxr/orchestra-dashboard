@@ -72,13 +72,13 @@ export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-[#1a1a1a] rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-800">
-          <h2 className="text-xl font-semibold text-white">Invite New Client</h2>
+        <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-neutral-800">
+          <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">Invite New Client</h2>
           <button
             onClick={onClose}
-            className="text-neutral-400 hover:text-white"
+            className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
           >
             <X size={20} />
           </button>
@@ -88,7 +88,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
           {/* Client Details */}
           <div className="p-6 space-y-6">
             <div>
-              <h3 className="text-sm font-medium text-white mb-4">Client Information</h3>
+              <h3 className="text-sm font-medium text-neutral-900 dark:text-white mb-4">Client Information</h3>
 
               <div className="space-y-4">
                 <div>
@@ -102,7 +102,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
                       required
                       value={formData.companyName}
                       onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-10 pr-4 py-2.5 text-neutral-300 text-sm placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
+                      className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg pl-10 pr-4 py-2.5 text-neutral-600 dark:text-neutral-300 text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600"
                       placeholder="Acme Inc."
                     />
                   </div>
@@ -119,7 +119,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
                       required
                       value={formData.clientName}
                       onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-10 pr-4 py-2.5 text-neutral-300 text-sm placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
+                      className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg pl-10 pr-4 py-2.5 text-neutral-600 dark:text-neutral-300 text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600"
                       placeholder="John Smith"
                     />
                   </div>
@@ -136,7 +136,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
                       required
                       value={formData.clientEmail}
                       onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-10 pr-4 py-2.5 text-neutral-300 text-sm placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
+                      className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg pl-10 pr-4 py-2.5 text-neutral-600 dark:text-neutral-300 text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600"
                       placeholder="john@acme.com"
                     />
                   </div>
@@ -146,7 +146,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
 
             {/* Plan Selection */}
             <div>
-              <h3 className="text-sm font-medium text-white mb-4">Select Plan</h3>
+              <h3 className="text-sm font-medium text-neutral-900 dark:text-white mb-4">Select Plan</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {plans.map((plan) => (
@@ -156,20 +156,20 @@ export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
                     className={`relative border rounded-lg p-4 cursor-pointer transition-all ${
                       formData.planId === plan.id
                         ? 'border-blue-500 bg-blue-500/10'
-                        : 'border-neutral-800 bg-neutral-900 hover:border-neutral-700'
+                        : 'border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-300 dark:border-neutral-700'
                     }`}
                   >
                     {plan.popular && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <span className="bg-blue-600 text-white text-xs px-3 py-1 rounded-full">
+                        <span className="bg-blue-600 text-neutral-900 dark:text-white text-xs px-3 py-1 rounded-full">
                           Most Popular
                         </span>
                       </div>
                     )}
 
                     <div className="text-center mb-4">
-                      <h4 className="text-white font-semibold mb-1">{plan.name}</h4>
-                      <div className="text-2xl font-bold text-white mb-1">
+                      <h4 className="text-neutral-900 dark:text-white font-semibold mb-1">{plan.name}</h4>
+                      <div className="text-2xl font-bold text-neutral-900 dark:text-white mb-1">
                         {plan.price}
                         <span className="text-sm text-neutral-500 font-normal">/month</span>
                       </div>
@@ -188,7 +188,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
                     {formData.planId === plan.id && (
                       <div className="absolute top-3 right-3">
                         <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-3 h-3 text-neutral-900 dark:text-white" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         </div>
@@ -201,17 +201,17 @@ export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between p-6 border-t border-neutral-800">
+          <div className="flex items-center justify-between p-6 border-t border-neutral-200 dark:border-neutral-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-neutral-400 hover:text-white"
+              className="px-4 py-2 text-sm text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              className="px-6 py-2 text-sm bg-blue-600 text-neutral-900 dark:text-white rounded-lg hover:bg-blue-700 font-medium"
             >
               Send Invitation
             </button>
