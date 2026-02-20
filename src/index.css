@@ -3,6 +3,17 @@
 @tailwind utilities;
 
 /* ========================================
+   CUSTOM FONTS
+   ======================================== */
+@font-face {
+  font-family: 'Lastik';
+  src: url('./assets/fonts/Lastik-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ========================================
    GLOBAL FONT
    ======================================== */
 * {
