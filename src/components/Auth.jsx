@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import logoSmall from '../assets/Logo Small.png';
@@ -17,6 +17,7 @@ export const AuthPage = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [viewKey, setViewKey] = useState(0);
 
   const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
 
@@ -85,6 +86,7 @@ export const AuthPage = () => {
     setConfirmPassword('');
     setFullName('');
     setShowForgotPassword(false);
+    setViewKey(k => k + 1);
   };
 
   // Forgot Password view
@@ -93,16 +95,16 @@ export const AuthPage = () => {
       <div className="h-screen w-full flex overflow-hidden">
         {/* Left side */}
         <div className="w-full lg:w-2/5 h-full bg-black flex flex-col px-8 sm:px-12 lg:px-10 xl:px-16 pt-8 pb-0 overflow-y-auto">
-          <div className="flex-1 flex flex-col justify-center max-w-sm w-full mx-auto py-8">
-            <img src={logoSmall} alt="Dafolle" className="h-5 w-fit mb-8" />
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight" style={{ fontFamily: "'Lastik', serif" }}>
+          <div className="flex-1 flex flex-col justify-center max-w-sm w-full mx-auto py-8 auth-view-enter">
+            <img src={logoSmall} alt="Dafolle" className="h-5 w-fit mb-8 auth-stagger auth-stagger-1" />
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight auth-stagger auth-stagger-2" style={{ fontFamily: "'Lastik', serif" }}>
               Reset password
             </h1>
-            <p className="text-neutral-500 text-sm mb-8">
+            <p className="text-neutral-500 text-sm mb-8 auth-stagger auth-stagger-3">
               We'll send you a link to reset your password.
             </p>
 
-            <form onSubmit={handleForgotPassword} className="space-y-5">
+            <form onSubmit={handleForgotPassword} className="space-y-5 auth-stagger auth-stagger-4">
               {error && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-3">
                   <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
@@ -124,25 +126,25 @@ export const AuthPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                  className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none transition-all auth-input-glow"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#D08B00] hover:bg-[#E09B10] text-white py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#D08B00] hover:bg-[#E09B10] text-white py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed auth-btn-press"
               >
                 {loading ? 'Sending...' : 'Send Reset Link'}
               </button>
             </form>
 
-            <div className="mt-5 text-center">
+            <div className="mt-5 text-center auth-stagger auth-stagger-5">
               <button
-                onClick={() => { setShowForgotPassword(false); setError(''); setMessage(''); }}
+                onClick={() => { setShowForgotPassword(false); setError(''); setMessage(''); setViewKey(k => k + 1); }}
                 className="text-sm text-neutral-400 hover:text-[#D08B00] transition-colors"
               >
-                Back to <span className="text-[#D08B00] font-medium">Sign In</span>
+                Back to <span className="text-[#D08B00]">Sign In</span>
               </button>
             </div>
           </div>
@@ -163,7 +165,7 @@ export const AuthPage = () => {
           <img
             src={loginBg}
             alt=""
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover auth-image-reveal"
           />
         </div>
       </div>
@@ -175,18 +177,18 @@ export const AuthPage = () => {
       {/* Left side - Form */}
       <div className="w-full lg:w-2/5 h-full bg-black flex flex-col px-8 sm:px-12 lg:px-10 xl:px-16 pb-0 overflow-y-auto">
         {/* Form content */}
-        <div className="flex-1 flex flex-col justify-center max-w-sm w-full mx-auto py-6">
-          <img src={logoSmall} alt="Dafolle" className="h-5 w-fit mb-20" />
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight" style={{ fontFamily: "'Lastik', serif" }}>
+        <div key={viewKey} className="flex-1 flex flex-col justify-center max-w-sm w-full mx-auto py-6 auth-view-enter">
+          <img src={logoSmall} alt="Dafolle" className="h-5 w-fit mb-20 auth-stagger auth-stagger-1" />
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight auth-stagger auth-stagger-2" style={{ fontFamily: "'Lastik', serif" }}>
             {isLogin ? 'Enter the matrix' : 'Join the matrix'}
           </h1>
-          <p className="text-neutral-400 text-sm mb-8">
+          <p className="text-[#BFBBB5] text-sm mb-8 auth-stagger auth-stagger-3">
             {isLogin
               ? 'Your creative team awaits you on the other side.'
               : 'Create your account and join the team.'}
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 auth-stagger auth-stagger-4">
             {/* Error Message */}
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-3">
@@ -213,7 +215,7 @@ export const AuthPage = () => {
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="John Doe"
                   required={!isLogin}
-                  className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                  className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none transition-all auth-input-glow"
                 />
               </div>
             )}
@@ -227,7 +229,7 @@ export const AuthPage = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="stevejobs@dafolle.io"
                 required
-                className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none transition-all auth-input-glow"
               />
             </div>
 
@@ -241,7 +243,7 @@ export const AuthPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 pr-12 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                  className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 pr-12 py-3 text-white placeholder-neutral-600 focus:outline-none transition-all auth-input-glow"
                 />
                 <button
                   type="button"
@@ -264,7 +266,7 @@ export const AuthPage = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
                     required={!isLogin}
-                    className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 pr-12 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                    className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 pr-12 py-3 text-white placeholder-neutral-600 focus:outline-none transition-all auth-input-glow"
                   />
                 </div>
               </div>
@@ -292,7 +294,7 @@ export const AuthPage = () => {
                 </label>
                 <button
                   type="button"
-                  onClick={() => { setShowForgotPassword(true); setError(''); setMessage(''); }}
+                  onClick={() => { setShowForgotPassword(true); setError(''); setMessage(''); setViewKey(k => k + 1); }}
                   className="text-sm text-[#D08B00] hover:text-[#E09B10] transition-colors"
                 >
                   Forgot password?
@@ -304,7 +306,7 @@ export const AuthPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#D08B00] hover:bg-[#E09B10] text-white py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#D08B00] hover:bg-[#E09B10] text-white py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed auth-btn-press"
             >
               {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
             </button>
@@ -314,7 +316,7 @@ export const AuthPage = () => {
           <button
             onClick={handleGoogleSignIn}
             disabled={googleLoading}
-            className="w-full mt-3 bg-white hover:bg-neutral-100 border border-white/80 text-black py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+            className="w-full mt-3 bg-white hover:bg-neutral-100 border border-white/80 text-black py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 auth-stagger auth-stagger-5 auth-btn-press"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
               <path
@@ -338,13 +340,13 @@ export const AuthPage = () => {
           </button>
 
           {/* Toggle Mode */}
-          <div className="mt-5 text-center">
+          <div className="mt-5 text-center auth-stagger auth-stagger-6">
             <button
               onClick={toggleMode}
               className="text-sm text-neutral-400 hover:text-white transition-colors"
             >
               {isLogin ? (
-                <>Not in the loop yet?{' '}<span className="text-[#D08B00]">Create an account</span></>
+                <>Not in the loop yet?{'\u00A0\u00A0\u00A0'}<span className="text-[#D08B00]">Create an account</span></>
               ) : (
                 <>Already have an account?{' '}<span className="text-[#D08B00]">Sign In</span></>
               )}
@@ -368,7 +370,7 @@ export const AuthPage = () => {
         <img
           src={loginBg}
           alt=""
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover auth-image-reveal"
         />
       </div>
     </div>
@@ -405,15 +407,15 @@ export const ForgotPasswordPage = () => {
       {/* Left side */}
       <div className="w-full lg:w-2/5 h-full bg-black flex flex-col px-8 sm:px-12 lg:px-10 xl:px-16 pt-8 pb-0 overflow-y-auto">
         <div className="flex-1 flex flex-col justify-center max-w-sm w-full mx-auto py-8">
-          <img src={logoSmall} alt="Dafolle" className="h-5 w-fit mb-8" />
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight" style={{ fontFamily: "'Lastik', serif" }}>
+          <img src={logoSmall} alt="Dafolle" className="h-5 w-fit mb-8 auth-stagger auth-stagger-1" />
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight auth-stagger auth-stagger-2" style={{ fontFamily: "'Lastik', serif" }}>
             Reset password
           </h1>
-          <p className="text-neutral-400 text-sm mb-8">
+          <p className="text-neutral-400 text-sm mb-8 auth-stagger auth-stagger-3">
             We'll send you a link to reset your password.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5 auth-stagger auth-stagger-4">
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-3">
                 <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
@@ -435,22 +437,22 @@ export const ForgotPasswordPage = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
+                className="w-full bg-[#2E2D2C40] border border-neutral-800 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none transition-all auth-input-glow"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#D08B00] hover:bg-[#E09B10] text-white py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#D08B00] hover:bg-[#E09B10] text-white py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed auth-btn-press"
             >
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>
           </form>
 
-          <div className="mt-5 text-center">
+          <div className="mt-5 text-center auth-stagger auth-stagger-5">
             <a href="/" className="text-sm text-neutral-400 hover:text-white transition-colors">
-              Back to <span className="text-[#D08B00] font-medium">Sign In</span>
+              Back to <span className="text-[#D08B00]">Sign In</span>
             </a>
           </div>
         </div>
@@ -471,7 +473,7 @@ export const ForgotPasswordPage = () => {
         <img
           src={loginBg}
           alt=""
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover auth-image-reveal"
         />
       </div>
     </div>

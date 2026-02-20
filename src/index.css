@@ -95,6 +95,61 @@ body {
     from { opacity: 0; }
     to { opacity: 1; }
   }
+
+  /* ========================================
+     AUTH PAGE ANIMATIONS
+     ======================================== */
+
+  /* Staggered fade-in-up for form elements */
+  .auth-stagger {
+    opacity: 0;
+    transform: translateY(12px);
+    animation: authFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .auth-stagger-1 { animation-delay: 0.05s; }
+  .auth-stagger-2 { animation-delay: 0.12s; }
+  .auth-stagger-3 { animation-delay: 0.19s; }
+  .auth-stagger-4 { animation-delay: 0.26s; }
+  .auth-stagger-5 { animation-delay: 0.33s; }
+  .auth-stagger-6 { animation-delay: 0.40s; }
+
+  /* Image reveal */
+  .auth-image-reveal {
+    opacity: 0;
+    transform: scale(1.03);
+    animation: authImageIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
+  }
+
+  /* View transition for switching between login/signup/forgot */
+  .auth-view-enter {
+    animation: authViewSwitch 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Input focus glow */
+  .auth-input-glow:focus {
+    border-color: rgba(208, 139, 0, 0.4);
+    box-shadow: 0 0 0 3px rgba(208, 139, 0, 0.08);
+  }
+
+  /* Button press */
+  .auth-btn-press:active {
+    transform: scale(0.98);
+  }
+
+  @keyframes authFadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes authImageIn {
+    from { opacity: 0; transform: scale(1.03); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes authViewSwitch {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 }
 
 /* ========================================

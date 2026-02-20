@@ -129,6 +129,20 @@ export const AuthProvider = ({ children }) => {
     // Get initial session
     const initializeAuth = async () => {
       console.log('[AuthContext] Starting initializeAuth...');
+
+      // Quick check: if no Supabase session in localStorage, skip the network call
+      // Supabase stores session under a key like sb-<project-ref>-auth-token
+      const hasStoredSession = Object.keys(localStorage).some(key =>
+        key.startsWith('sb-') && key.endsWith('-auth-token')
+      );
+
+      if (!hasStoredSession) {
+        console.log('[AuthContext] No stored session found, skipping network call');
+        setLoading(false);
+        isInitializedRef.current = true;
+        return;
+      }
+
       try {
         console.log('[AuthContext] Fetching session from Supabase...');
         const { data: { session } } = await supabase.auth.getSession();

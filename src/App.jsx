@@ -386,7 +386,7 @@ export default function App() {
       toast.success(`Invitation sent to ${invitationData.clientEmail}`);
   };
 
-  if (loading) return (
+  if (loading && user) return (
     <div className="h-screen w-screen bg-white dark:bg-[#0f0f0f] flex items-center justify-center">
       <div className="flex flex-col items-center gap-6">
         {/* Minimalist spinner */}
