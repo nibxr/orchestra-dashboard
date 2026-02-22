@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileText, ExternalLink, Package, Check, ChevronUp, ChevronDown, Calendar, ArrowUpRight, Plus, X, Loader2, Link as LinkIcon, Trash2 } from 'lucide-react';
+import { FileText, ExternalLink, Package, Check, ChevronUp, ChevronDown, Calendar, ArrowUpRight, Plus, X, Loader2, Link as LinkIcon, Trash2, Video, Clock, ArrowRight } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -435,8 +435,38 @@ export const ClientDocumentsView = ({ membershipId }) => {
 // ============================================================
 // CLIENT DELIVERABLES VIEW
 // ============================================================
+
+// Delivery timing labels from the Deliverables table (was_it_delivered_on_time field)
+const DELIVERY_TIMING_LABELS = {
+  'On time': { label: 'On time', className: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' },
+  'on_time': { label: 'On time', className: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' },
+  'Early': { label: 'Early', className: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
+  'early': { label: 'Early', className: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
+  'Late': { label: 'Late', className: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
+  'late': { label: 'Late', className: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
+};
+
+const TASK_TYPE_COLORS = {
+  Design: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+  Motion: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
+  Development: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400',
+  Dev: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400',
+  Strategy: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+  Branding: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+  Other: 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400',
+};
+
+const formatDateShort = (dateString) => {
+  if (!dateString) return null;
+  return new Date(dateString).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
   const [filter, setFilter] = useState('all');
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [deliverableData, setDeliverableData] = useState(null);
+  const [loadingDeliverable, setLoadingDeliverable] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
 
   const deliverableTasks = useMemo(() => {
     const filtered = tasks.filter(t => t.status === 'Done' || t.status === 'To Review');
@@ -446,6 +476,59 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
 
   const doneCount = tasks.filter(t => t.status === 'Done').length;
   const reviewCount = tasks.filter(t => t.status === 'To Review').length;
+
+  const handleTaskClick = async (task) => {
+    setSelectedTask(task);
+    setLoadingDeliverable(true);
+
+    let deliverable = null;
+
+    // Try matching by airtable_record_id in the orchestra_task_link field
+    if (task.airtable_record_id) {
+      const { data } = await supabase
+        .from('Deliverables')
+        .select('*')
+        .ilike('orchestra_task_link', `%${task.airtable_record_id}%`)
+        .maybeSingle();
+      deliverable = data;
+    }
+
+    // Fallback: try matching by task title against orchestra_task_name
+    if (!deliverable && task.title) {
+      const { data } = await supabase
+        .from('Deliverables')
+        .select('*')
+        .eq('orchestra_task_name', task.title)
+        .maybeSingle();
+      deliverable = data;
+    }
+
+    setLoadingDeliverable(false);
+
+    if (deliverable) {
+      setDeliverableData(deliverable);
+      setShowPopup(true);
+    } else {
+      // No deliverable record — open task directly
+      onSelectTask(task);
+    }
+  };
+
+  const closePopup = () => {
+    setShowPopup(false);
+    setSelectedTask(null);
+    setDeliverableData(null);
+  };
+
+  // Helper to get the task type from deliverable
+  const getTaskType = (d) => d?.type_design_motion_dev_etc || null;
+  const getDeliveryTiming = (d) => d?.was_it_delivered_on_time || null;
+  const getDeliverableLink = (d) => d?.link_to_deliverable_figma_ou_frame_io || null;
+  const getVideoLink = (d) => d?.link_to_claap_video || null;
+  const getNextSteps = (d) => d?.next_steps_required_if_any || null;
+  const getClientMessage = (d) => d?.message_au_client || null;
+  const getDateOfTask = (d) => d?.date_of_task || null;
+  const getDeliveryDate = (d) => d?.delivery_date || null;
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -481,7 +564,7 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
             {deliverableTasks.map(task => (
               <button
                 key={task.id}
-                onClick={() => onSelectTask(task)}
+                onClick={() => handleTaskClick(task)}
                 className="w-full text-left p-4 border border-neutral-200 dark:border-neutral-800 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors group"
               >
                 <div className="flex items-center justify-between">
@@ -502,6 +585,175 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
           </div>
         )}
       </div>
+
+      {/* Loading overlay while fetching deliverable */}
+      {loadingDeliverable && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#161616] rounded-xl p-6 flex items-center gap-3 border border-neutral-200 dark:border-neutral-800 shadow-xl">
+            <Loader2 size={20} className="animate-spin text-neutral-500" />
+            <span className="text-sm text-neutral-600 dark:text-neutral-400">Loading deliverable...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Deliverable Details Popup */}
+      {showPopup && selectedTask && deliverableData && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4"
+          onClick={closePopup}
+        >
+          <div
+            className="w-full max-w-lg max-h-[85vh] bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl flex flex-col animate-scale-in overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-base font-semibold text-neutral-900 dark:text-white truncate">{selectedTask.title}</h2>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {/* Status badge */}
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${selectedTask.status === 'Done' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'}`}>
+                      {selectedTask.status}
+                    </span>
+                    {/* Task type badge */}
+                    {getTaskType(deliverableData) && (
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${TASK_TYPE_COLORS[getTaskType(deliverableData)] || TASK_TYPE_COLORS.Other}`}>
+                        {getTaskType(deliverableData)}
+                      </span>
+                    )}
+                    {/* Delivery timing badge */}
+                    {getDeliveryTiming(deliverableData) && DELIVERY_TIMING_LABELS[getDeliveryTiming(deliverableData)] && (
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${DELIVERY_TIMING_LABELS[getDeliveryTiming(deliverableData)].className}`}>
+                        {DELIVERY_TIMING_LABELS[getDeliveryTiming(deliverableData)].label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={closePopup}
+                  className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 shrink-0"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 custom-scrollbar">
+
+              {/* Client Message */}
+              {getClientMessage(deliverableData) && (
+                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-200 whitespace-pre-wrap">{getClientMessage(deliverableData)}</p>
+                </div>
+              )}
+
+              {/* Dates Grid */}
+              {(getDateOfTask(deliverableData) || getDeliveryDate(deliverableData) || selectedTask.assigneeName) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {getDateOfTask(deliverableData) && (
+                    <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-100 dark:border-neutral-800">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Calendar size={12} className="text-neutral-400" />
+                        <span className="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Start date</span>
+                      </div>
+                      <p className="text-sm text-neutral-900 dark:text-white">{formatDateShort(getDateOfTask(deliverableData))}</p>
+                    </div>
+                  )}
+                  {getDeliveryDate(deliverableData) && (
+                    <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-100 dark:border-neutral-800">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Check size={12} className="text-neutral-400" />
+                        <span className="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Delivery date</span>
+                      </div>
+                      <p className="text-sm text-neutral-900 dark:text-white">{formatDateShort(getDeliveryDate(deliverableData))}</p>
+                    </div>
+                  )}
+                  {selectedTask.assigneeName && (
+                    <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-100 dark:border-neutral-800">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Assigned to</span>
+                      </div>
+                      <p className="text-sm text-neutral-900 dark:text-white">{selectedTask.assigneeName}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Links Section */}
+              {(getDeliverableLink(deliverableData) || getVideoLink(deliverableData)) && (
+                <div className="space-y-2">
+                  <h3 className="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Resources</h3>
+                  <div className="space-y-2">
+                    {getDeliverableLink(deliverableData) && (
+                      <a
+                        href={getDeliverableLink(deliverableData)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors group"
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                          <LinkIcon size={16} className="text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-neutral-900 dark:text-white">Deliverable</p>
+                          <p className="text-xs text-neutral-400 truncate">{getDeliverableLink(deliverableData)}</p>
+                        </div>
+                        <ExternalLink size={14} className="text-neutral-400 group-hover:text-neutral-600 dark:group-hover:text-neutral-300 shrink-0" />
+                      </a>
+                    )}
+                    {getVideoLink(deliverableData) && (
+                      <a
+                        href={getVideoLink(deliverableData)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors group"
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                          <Video size={16} className="text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-neutral-900 dark:text-white">Video Recording</p>
+                          <p className="text-xs text-neutral-400 truncate">{getVideoLink(deliverableData)}</p>
+                        </div>
+                        <ExternalLink size={14} className="text-neutral-400 group-hover:text-neutral-600 dark:group-hover:text-neutral-300 shrink-0" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Next Steps */}
+              {getNextSteps(deliverableData) && (
+                <div className="space-y-2">
+                  <h3 className="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Next Steps</h3>
+                  <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-100 dark:border-neutral-800">
+                    <p className="text-sm text-neutral-600 dark:text-neutral-300 whitespace-pre-wrap">{getNextSteps(deliverableData)}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+              <button
+                onClick={closePopup}
+                className="px-4 py-2 text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => { closePopup(); onSelectTask(selectedTask); }}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-neutral-900 dark:bg-white dark:text-neutral-900 rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors"
+              >
+                Open task
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
