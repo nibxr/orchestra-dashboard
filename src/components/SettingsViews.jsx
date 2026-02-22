@@ -1308,26 +1308,35 @@ export const TemplatesView = () => (
 
 // --- CLIENT TEAM SETTINGS VIEW (Shows client's own contacts) ---
 export const ClientTeamSettingsView = () => {
-    const { userMembership } = useAuth();
+    const { user, userMembership } = useAuth();
     const [contacts, setContacts] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchContacts = async () => {
-            if (!userMembership) {
+            if (!user?.email) {
                 setLoading(false);
                 return;
             }
+
+            // Extract domain from the current user's email
+            const emailDomain = user.email.split('@')[1];
+            if (!emailDomain) {
+                setLoading(false);
+                return;
+            }
+
+            // Fetch all contacts that share the same email domain
             const { data } = await supabase
                 .from('client_contacts')
-                .select('id, full_name, email, domain')
-                .eq('membership_id', userMembership)
+                .select('id, full_name, email, domain, membership_id')
+                .ilike('email', `%@${emailDomain}`)
                 .order('full_name', { ascending: true });
             setContacts(data || []);
             setLoading(false);
         };
         fetchContacts();
-    }, [userMembership]);
+    }, [user?.email]);
 
     if (loading) {
         return (
