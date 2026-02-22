@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import logoSmall from '../assets/Logo Small.png';
 import loginBg from '../assets/Login page right side image.png';
+import { canSendReset, getRecentAttempts, MAX_ATTEMPTS, COOLDOWN_MS } from '../utils/resetRateLimiter';
 
 export const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -18,8 +19,22 @@ export const AuthPage = () => {
   const [message, setMessage] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [viewKey, setViewKey] = useState(0);
+  const [resetStatus, setResetStatus] = useState(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
   const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownSeconds((s) => {
+        if (s <= 1) { clearInterval(timer); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,6 +85,10 @@ export const AuthPage = () => {
       const { error } = await resetPassword(email);
       if (error) throw error;
       setMessage('Check your email for password reset instructions');
+      // Refresh status and start cooldown after successful send
+      const check = canSendReset(email);
+      setResetStatus({ remaining: check.remaining, attempts: getRecentAttempts(email) });
+      setCooldownSeconds(Math.ceil(COOLDOWN_MS / 1000));
     } catch (err) {
       setError(err.message || 'An error occurred');
     } finally {
@@ -130,12 +149,18 @@ export const AuthPage = () => {
                 />
               </div>
 
+              {resetStatus && resetStatus.attempts.length > 0 && (
+                <p className="text-xs text-neutral-500">
+                  Reset link sent ({resetStatus.attempts.length} of {MAX_ATTEMPTS})
+                </p>
+              )}
+
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || cooldownSeconds > 0 || (resetStatus && resetStatus.remaining === 0)}
                 className="w-full bg-[#D08B00] hover:bg-[#E09B10] text-white py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed auth-btn-press"
               >
-                {loading ? 'Sending...' : 'Send Reset Link'}
+                {loading ? 'Sending...' : cooldownSeconds > 0 ? `Wait ${cooldownSeconds}s` : resetStatus && resetStatus.remaining === 0 ? 'Limit Reached' : 'Send Reset Link'}
               </button>
             </form>
 
@@ -382,8 +407,22 @@ export const ForgotPasswordPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [resetStatus, setResetStatus] = useState(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
   const { resetPassword } = useAuth();
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownSeconds((s) => {
+        if (s <= 1) { clearInterval(timer); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -395,6 +434,10 @@ export const ForgotPasswordPage = () => {
       const { error } = await resetPassword(email);
       if (error) throw error;
       setMessage('Check your email for password reset instructions');
+      // Refresh status and start cooldown after successful send
+      const check = canSendReset(email);
+      setResetStatus({ remaining: check.remaining, attempts: getRecentAttempts(email) });
+      setCooldownSeconds(Math.ceil(COOLDOWN_MS / 1000));
     } catch (err) {
       setError(err.message || 'An error occurred');
     } finally {
@@ -441,12 +484,18 @@ export const ForgotPasswordPage = () => {
               />
             </div>
 
+            {resetStatus && resetStatus.attempts.length > 0 && (
+              <p className="text-xs text-neutral-500">
+                Reset link sent ({resetStatus.attempts.length} of {MAX_ATTEMPTS})
+              </p>
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || cooldownSeconds > 0 || (resetStatus && resetStatus.remaining === 0)}
               className="w-full bg-[#D08B00] hover:bg-[#E09B10] text-white py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed auth-btn-press"
             >
-              {loading ? 'Sending...' : 'Send Reset Link'}
+              {loading ? 'Sending...' : cooldownSeconds > 0 ? `Wait ${cooldownSeconds}s` : resetStatus && resetStatus.remaining === 0 ? 'Limit Reached' : 'Send Reset Link'}
             </button>
           </form>
 

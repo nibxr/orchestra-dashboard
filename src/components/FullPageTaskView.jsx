@@ -50,6 +50,8 @@ export const FullPageTaskView = () => {
       const creator = teamData?.find(m =>
           m.id === taskData.created_by_team_id || m.id === taskData.created_by_id
       );
+      const helper = teamData?.find(m => m.id === taskData.helper_id);
+      const coCreator = teamData?.find(m => m.id === taskData.co_creator_team_id);
 
       // Debug logging
       console.log('[FullPageTaskView] taskData.membership_id:', taskData.membership_id);
@@ -87,6 +89,10 @@ export const FullPageTaskView = () => {
         clientStatus: client?.status || 'Active',
         creatorName: creator?.full_name,
         creatorAvatar: creator?.avatar_url,
+        helperName: helper?.full_name || null,
+        helperAvatar: helper?.avatar_url || null,
+        coCreatorName: coCreator?.full_name || null,
+        coCreatorAvatar: coCreator?.avatar_url || null,
         comments: enrichedComments
       };
 

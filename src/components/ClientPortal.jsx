@@ -51,6 +51,7 @@ export const ClientPortal = ({ client, onExit }) => {
             .from('comments')
             .select('*')
             .eq('task_id', taskId)
+            .eq('is_note', false)
             .order('created_at', { ascending: true });
         setComments(data || []);
     };

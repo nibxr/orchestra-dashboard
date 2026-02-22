@@ -4,6 +4,8 @@ import { Avatar } from './Shared';
 import CommentReactions from './CommentReactions';
 import { AttachmentList } from './AttachmentUploader';
 import { formatDistanceToNow } from 'date-fns';
+import { useConfirm } from './ConfirmModal';
+import { useToast } from './Toast';
 
 /**
  * CommentThread - Recursive component for displaying threaded comments
@@ -23,6 +25,8 @@ const CommentThread = ({
   onRemoveReaction,
   onClick
 }) => {
+  const { confirm } = useConfirm();
+  const toast = useToast();
   const [showActions, setShowActions] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
 
@@ -40,8 +44,14 @@ const CommentThread = ({
     onEdit && onEdit(comment.id);
   };
 
-  const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this comment?')) {
+  const handleDelete = async () => {
+    const confirmed = await confirm({
+      title: 'Delete comment',
+      message: 'Are you sure you want to delete this comment?',
+      confirmText: 'Delete',
+      variant: 'danger'
+    });
+    if (confirmed) {
       onDelete && onDelete(comment.id);
     }
   };
@@ -226,7 +236,7 @@ const CommentThread = ({
             </>
           ) : (
             <button
-              onClick={() => alert('View full thread to see all replies')}
+              onClick={() => toast.info('View full thread to see all replies')}
               className="text-xs text-blue-600 dark:text-blue-400 hover:underline ml-9"
             >
               View {replies.length} more {replies.length === 1 ? 'reply' : 'replies'}

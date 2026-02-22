@@ -15,7 +15,7 @@ import { useConfirm } from './ConfirmModal';
 
 // --- PROFILE SETTINGS ---
 export const ProfileSettingsView = () => {
-    const { user, updateProfile, updatePassword, signOut } = useAuth();
+    const { user, updateProfile, updatePassword, signOut, userRole } = useAuth();
     const toast = useToast();
     const { confirm } = useConfirm();
     const [loading, setLoading] = useState(false);
@@ -31,30 +31,51 @@ export const ProfileSettingsView = () => {
         confirmPassword: ''
     });
 
-    // Fetch team member data on mount
+    // Fetch user data on mount - from client_contacts for customers, team for designers
     useEffect(() => {
-        const fetchTeamMember = async () => {
+        const fetchUserData = async () => {
             if (!user?.email) return;
-            const { data } = await supabase
-                .from('team')
-                .select('id, full_name, avatar_url, profil_pic, email, status')
-                .eq('email', user.email)
-                .maybeSingle();
-            if (data) {
-                setTeamMember(data);
-                setProfileData({
-                    full_name: data.full_name || user?.user_metadata?.full_name || '',
-                    avatar_url: data.avatar_url || data.profil_pic || user?.user_metadata?.avatar_url || ''
-                });
+
+            if (userRole === 'customer') {
+                const { data } = await supabase
+                    .from('client_contacts')
+                    .select('id, full_name, email')
+                    .eq('email', user.email)
+                    .maybeSingle();
+                if (data) {
+                    setTeamMember({ id: data.id, full_name: data.full_name, email: data.email, status: 'Active' });
+                    setProfileData({
+                        full_name: data.full_name || user?.user_metadata?.full_name || '',
+                        avatar_url: user?.user_metadata?.avatar_url || ''
+                    });
+                } else {
+                    setProfileData({
+                        full_name: user?.user_metadata?.full_name || '',
+                        avatar_url: user?.user_metadata?.avatar_url || ''
+                    });
+                }
             } else {
-                setProfileData({
-                    full_name: user?.user_metadata?.full_name || '',
-                    avatar_url: user?.user_metadata?.avatar_url || ''
-                });
+                const { data } = await supabase
+                    .from('team')
+                    .select('id, full_name, avatar_url, profil_pic, email, status')
+                    .eq('email', user.email)
+                    .maybeSingle();
+                if (data) {
+                    setTeamMember(data);
+                    setProfileData({
+                        full_name: data.full_name || user?.user_metadata?.full_name || '',
+                        avatar_url: data.avatar_url || data.profil_pic || user?.user_metadata?.avatar_url || ''
+                    });
+                } else {
+                    setProfileData({
+                        full_name: user?.user_metadata?.full_name || '',
+                        avatar_url: user?.user_metadata?.avatar_url || ''
+                    });
+                }
             }
         };
-        fetchTeamMember();
-    }, [user?.email]);
+        fetchUserData();
+    }, [user?.email, userRole]);
 
     const displayName = profileData.full_name || user?.email || 'User';
     const displayAvatar = profileData.avatar_url;
@@ -110,16 +131,24 @@ export const ProfileSettingsView = () => {
             });
             if (error) throw error;
 
-            // Also update team table if we have a team member record
+            // Also update the appropriate table record
             if (teamMember?.id) {
-                const { error: teamError } = await supabase
-                    .from('team')
-                    .update({
-                        full_name: profileData.full_name,
-                        avatar_url: profileData.avatar_url
-                    })
-                    .eq('id', teamMember.id);
-                if (teamError) console.warn('Team table update failed:', teamError.message);
+                if (userRole === 'customer') {
+                    const { error: contactError } = await supabase
+                        .from('client_contacts')
+                        .update({ full_name: profileData.full_name })
+                        .eq('id', teamMember.id);
+                    if (contactError) console.warn('Contact table update failed:', contactError.message);
+                } else {
+                    const { error: teamError } = await supabase
+                        .from('team')
+                        .update({
+                            full_name: profileData.full_name,
+                            avatar_url: profileData.avatar_url
+                        })
+                        .eq('id', teamMember.id);
+                    if (teamError) console.warn('Team table update failed:', teamError.message);
+                }
             }
 
             toast.success('Profile updated');
@@ -1276,3 +1305,73 @@ export const TemplatesView = () => (
       <p className="max-w-md text-center text-neutral-500">Create reusable task templates to speed up your workflow.</p>
     </div>
 );
+
+// --- CLIENT TEAM SETTINGS VIEW (Shows client's own contacts) ---
+export const ClientTeamSettingsView = () => {
+    const { userMembership } = useAuth();
+    const [contacts, setContacts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchContacts = async () => {
+            if (!userMembership) {
+                setLoading(false);
+                return;
+            }
+            const { data } = await supabase
+                .from('client_contacts')
+                .select('id, full_name, email, domain')
+                .eq('membership_id', userMembership)
+                .order('full_name', { ascending: true });
+            setContacts(data || []);
+            setLoading(false);
+        };
+        fetchContacts();
+    }, [userMembership]);
+
+    if (loading) {
+        return (
+            <div className="max-w-3xl mx-auto p-8 animate-fade-in">
+                <div className="flex items-center justify-center py-20">
+                    <div className="text-neutral-500 dark:text-neutral-500">Loading team...</div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-3xl mx-auto p-8 animate-fade-in pb-24">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Your Team</h1>
+                <p className="text-neutral-500 text-sm">Team members with access to your workspace</p>
+            </div>
+
+            {contacts.length === 0 ? (
+                <div className="text-center py-16">
+                    <User size={48} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-700" />
+                    <p className="text-neutral-500 text-sm">No team members found</p>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {contacts.map(contact => (
+                        <div key={contact.id} className="flex items-center gap-4 p-4 border border-neutral-200 dark:border-neutral-800 rounded-xl">
+                            <Avatar
+                                name={contact.full_name}
+                                size="md"
+                            />
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-sm font-medium text-neutral-900 dark:text-white">{contact.full_name || 'No name'}</h3>
+                                <p className="text-xs text-neutral-500">{contact.email}</p>
+                            </div>
+                            {contact.domain && (
+                                <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2.5 py-1 rounded-full">
+                                    {contact.domain}
+                                </span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};

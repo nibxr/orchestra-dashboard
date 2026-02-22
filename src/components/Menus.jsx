@@ -9,7 +9,7 @@ const RadioCircle = ({ active, className = '' }) => (
 );
 
 // --- DISPLAY MENU ---
-export const DisplayMenu = ({ settings, onUpdate, onClose }) => {
+export const DisplayMenu = ({ settings, onUpdate, onClose, isCustomer = false }) => {
 
   const toggleProperty = (prop) => {
     const current = settings.visibleProperties || [];
@@ -62,11 +62,11 @@ export const DisplayMenu = ({ settings, onUpdate, onClose }) => {
         {/* Properties Section */}
         <div className="px-3 py-2 text-xs font-medium text-neutral-500 uppercase tracking-wider">Properties</div>
         {[
-          { id: 'client', label: 'Client' },
-          { id: 'assignee', label: 'Assignee' },
-          { id: 'dueDate', label: 'Due date' },
-          { id: 'id', label: 'ID' }
-        ].map((prop) => {
+          { id: 'client', label: 'Client', teamOnly: true },
+          { id: 'assignee', label: 'Assignee', teamOnly: true },
+          { id: 'dueDate', label: 'Due date', teamOnly: false },
+          { id: 'id', label: 'ID', teamOnly: false }
+        ].filter(prop => !isCustomer || !prop.teamOnly).map((prop) => {
           const isActive = settings.visibleProperties?.includes(prop.id);
           return (
             <button
@@ -102,25 +102,29 @@ export const DisplayMenu = ({ settings, onUpdate, onClose }) => {
         <div className="h-px bg-neutral-200 dark:bg-neutral-800 my-1 mx-2"></div>
 
         {/* View Options */}
-        <div className="px-3 py-2 text-xs font-medium text-neutral-500 uppercase tracking-wider">Options</div>
-        <button
-          onClick={() => toggleSetting('showArchived')}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
-        >
-          <span>Show archived</span>
-          <div className={`w-8 h-[18px] rounded-full relative transition-colors ${settings.showArchived ? 'bg-neutral-900 dark:bg-white' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
-            <div className={`absolute top-[3px] w-3 h-3 rounded-full shadow-sm transition-all duration-200 ${settings.showArchived ? 'left-[17px] bg-white dark:bg-neutral-900' : 'left-[3px] bg-white dark:bg-neutral-400'}`}></div>
-          </div>
-        </button>
-        <button
-          onClick={() => toggleSetting('showInactive')}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
-        >
-          <span>Show inactive</span>
-          <div className={`w-8 h-[18px] rounded-full relative transition-colors ${settings.showInactive ? 'bg-neutral-900 dark:bg-white' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
-            <div className={`absolute top-[3px] w-3 h-3 rounded-full shadow-sm transition-all duration-200 ${settings.showInactive ? 'left-[17px] bg-white dark:bg-neutral-900' : 'left-[3px] bg-white dark:bg-neutral-400'}`}></div>
-          </div>
-        </button>
+        {!isCustomer && (
+          <>
+            <div className="px-3 py-2 text-xs font-medium text-neutral-500 uppercase tracking-wider">Options</div>
+            <button
+              onClick={() => toggleSetting('showArchived')}
+              className="w-full flex items-center justify-between px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+            >
+              <span>Show archived</span>
+              <div className={`w-8 h-[18px] rounded-full relative transition-colors ${settings.showArchived ? 'bg-neutral-900 dark:bg-white' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
+                <div className={`absolute top-[3px] w-3 h-3 rounded-full shadow-sm transition-all duration-200 ${settings.showArchived ? 'left-[17px] bg-white dark:bg-neutral-900' : 'left-[3px] bg-white dark:bg-neutral-400'}`}></div>
+              </div>
+            </button>
+            <button
+              onClick={() => toggleSetting('showInactive')}
+              className="w-full flex items-center justify-between px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+            >
+              <span>Show inactive</span>
+              <div className={`w-8 h-[18px] rounded-full relative transition-colors ${settings.showInactive ? 'bg-neutral-900 dark:bg-white' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
+                <div className={`absolute top-[3px] w-3 h-3 rounded-full shadow-sm transition-all duration-200 ${settings.showInactive ? 'left-[17px] bg-white dark:bg-neutral-900' : 'left-[3px] bg-white dark:bg-neutral-400'}`}></div>
+              </div>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Hash, User, Calendar, Briefcase } from 'lucide-react';
 import { Avatar } from './Shared';
 
-export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask }) => {
+export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask, userRole }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const inputRef = useRef(null);
@@ -64,7 +64,7 @@ export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask }) => {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search tasks by title, client, assignee, or ID..."
+            placeholder={userRole === 'customer' ? "Search your requests by title, status, or ID..." : "Search tasks by title, client, assignee, or ID..."}
             className="flex-1 bg-transparent text-neutral-900 dark:text-white text-base placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
           />
           <button

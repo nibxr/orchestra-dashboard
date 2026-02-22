@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, Lock, ExternalLink } from 'lucide-react';
+import { useToast } from '../components/Toast';
 
 /**
  * ClientActivation - Client activation and Stripe checkout flow
@@ -9,6 +10,7 @@ import { Check, Lock, ExternalLink } from 'lucide-react';
 export const ClientActivation = () => {
   const { token } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [invitationData, setInvitationData] = useState(null);
   const [accountCreated, setAccountCreated] = useState(false);
@@ -50,7 +52,7 @@ export const ClientActivation = () => {
   const handleSetupAccount = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!');
+      toast.error('Passwords do not match!');
       return;
     }
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Globe, Tag, User, Calendar, Building2, Check, X,
@@ -6,7 +6,7 @@ import {
   CheckSquare, Paperclip, Type, Smile, MoreHorizontal, Copy,
   Trash2, ChevronRight, Code2, Loader2
 } from 'lucide-react';
-import { CustomSelect } from './CustomUI';
+import { CustomSelect, MultiSelectUsers } from './CustomUI';
 import { createVersion } from '../utils/versionService';
 import FigmaImportModal from './FigmaImportModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +21,8 @@ import {
 } from './ImprovedDesignReview';
 
 export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated }) => {
-  const { user } = useAuth();
+  const { user, userRole, clientContactId } = useAuth();
+  const isCustomer = userRole === 'customer';
   const toast = useToast();
   const goBack = useNavigate();
 
@@ -55,6 +56,51 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
   // Comments state
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
+  const [activeTab, setActiveTab] = useState('comments'); // 'comments' or 'notes'
+
+  // --- Draggable sidebar resize ---
+  const TASK_SIDEBAR_MIN = 280;
+  const TASK_SIDEBAR_MAX = 520;
+  const TASK_SIDEBAR_DEFAULT = 350;
+  const [taskSidebarWidth, setTaskSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('task-sidebar-width');
+    return saved ? Math.min(TASK_SIDEBAR_MAX, Math.max(TASK_SIDEBAR_MIN, Number(saved))) : TASK_SIDEBAR_DEFAULT;
+  });
+  const isDraggingSidebarRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartWidthRef = useRef(TASK_SIDEBAR_DEFAULT);
+  const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
+
+  const handleSidebarResizeStart = useCallback((e) => {
+    e.preventDefault();
+    isDraggingSidebarRef.current = true;
+    setIsDraggingSidebar(true);
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = taskSidebarWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [taskSidebarWidth]);
+
+  useEffect(() => {
+    const onMouseMove = (e) => {
+      if (!isDraggingSidebarRef.current) return;
+      const delta = e.clientX - dragStartXRef.current;
+      const newW = Math.min(TASK_SIDEBAR_MAX, Math.max(TASK_SIDEBAR_MIN, dragStartWidthRef.current + delta));
+      setTaskSidebarWidth(newW);
+    };
+    const onMouseUp = () => {
+      if (!isDraggingSidebarRef.current) return;
+      isDraggingSidebarRef.current = false;
+      setIsDraggingSidebar(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setTaskSidebarWidth(w => { localStorage.setItem('task-sidebar-width', w); return w; });
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => { window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp); };
+  }, []);
+
   const [showFormattingToolbar, setShowFormattingToolbar] = useState(false);
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [showNewCommentEmojiPicker, setShowNewCommentEmojiPicker] = useState(false);
@@ -100,6 +146,9 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
   const descEmojiButtonRef = useRef(null);
   const newCommentEmojiButtonRef = useRef(null);
   const editEmojiButtonRef = useRef(null);
+
+  // Current team member (for permissions)
+  const currentTeamMember = team.find(t => t.email === user?.email);
 
   // Status options - Use STATUS_CONFIG from constants for consistency
   const statusOptions = Object.keys(STATUS_CONFIG).map(status => ({
@@ -168,6 +217,13 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
     creatorName = team.find(t => t.id === task.properties.createdById)?.full_name || 'Unknown';
   }
 
+  // Co-creator lookup
+  const coCreatorId = task.co_creator_team_id;
+  const coCreatorName = coCreatorId ? (team.find(t => t.id === coCreatorId)?.full_name || null) : null;
+
+  // Helper lookup
+  const helperName = task.helper_id ? (team.find(t => t.id === task.helper_id)?.full_name || null) : null;
+
   console.log('Creator lookup:', {
     created_by_team_id: task.created_by_team_id,
     created_by_id: task.created_by_id,
@@ -235,6 +291,29 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
       toast.success('Creator updated');
     } else {
       toast.error('Failed to update creator');
+      console.error('Creator update error:', result.error);
+    }
+  };
+
+  const handleHelperChange = async (newHelperId) => {
+    const result = await onUpdateTask(task.id, { helper_id: newHelperId });
+    if (!result?.error) {
+      toast.success('Helper updated');
+    } else {
+      toast.error('Failed to update helper');
+      console.error('Helper update error:', result.error);
+    }
+  };
+
+  const handleCreatorMultiChange = async (newValues) => {
+    const result = await onUpdateTask(task.id, {
+      created_by_team_id: newValues[0] || null,
+      co_creator_team_id: newValues[1] || null
+    });
+    if (!result?.error) {
+      toast.success('Creators updated');
+    } else {
+      toast.error('Failed to update creators');
       console.error('Creator update error:', result.error);
     }
   };
@@ -461,13 +540,17 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
 
     const currentTeamMember = team.find(t => t.email === user?.email);
 
+    const isNote = activeTab === 'notes';
+
     const { data, error } = await supabase
       .from('comments')
       .insert([{
         task_id: task.id,
-        author_designer_id: currentTeamMember?.id,
+        author_designer_id: isCustomer ? null : currentTeamMember?.id,
+        author_contact_id: isCustomer ? clientContactId : null,
         content: newComment,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        is_note: isNote
       }])
       .select();
 
@@ -477,7 +560,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
         newCommentEditorRef.current.innerHTML = '';
       }
       setNewComment('');
-      toast.success('Comment added');
+      toast.success(isNote ? 'Note added' : 'Comment added');
     } else {
       toast.error('Failed to add comment');
     }
@@ -721,8 +804,13 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
     });
   };
 
-  // Group comments by date
-  const groupedComments = comments.reduce((groups, comment) => {
+  // Filter comments based on active tab
+  const filteredComments = comments.filter(c =>
+    activeTab === 'notes' ? c.is_note === true : c.is_note !== true
+  );
+
+  // Group filtered comments by date
+  const groupedComments = filteredComments.reduce((groups, comment) => {
     const date = new Date(comment.created_at).toDateString();
     if (!groups[date]) {
       groups[date] = [];
@@ -747,7 +835,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
       {/* Main Layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-[350px] border-r border-neutral-800 overflow-y-auto custom-scrollbar bg-[#0f0f0f] theme-bg-primary">
+        <div className="overflow-y-auto custom-scrollbar bg-[#0f0f0f] theme-bg-primary shrink-0" style={{ width: taskSidebarWidth }}>
           <div className="p-4 space-y-1">
             {/* Status */}
             <CustomSelect
@@ -760,28 +848,55 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             />
 
             {/* Assignee */}
-            <CustomSelect
-              label="Assignee"
-              icon={User}
-              value={task.assigned_to_id}
-              options={teamOptions}
-              onChange={handleAssigneeChange}
-              type="user"
-              placeholder="Unassigned"
-              displayName={assigneeName !== 'Unassigned' ? assigneeName : null}
-            />
+            {isCustomer ? (
+              <div className="flex items-center py-1.5 px-2">
+                <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
+                  <User size={14} /> Assignee
+                </div>
+                <div className="flex-1 text-neutral-300 text-sm text-right">
+                  {assigneeName !== 'Unassigned' ? assigneeName : <span className="text-neutral-600">Unassigned</span>}
+                </div>
+              </div>
+            ) : (
+              <CustomSelect
+                label="Assignee"
+                icon={User}
+                value={task.assigned_to_id}
+                options={teamOptions}
+                onChange={handleAssigneeChange}
+                type="user"
+                placeholder="Unassigned"
+                displayName={assigneeName !== 'Unassigned' ? assigneeName : null}
+              />
+            )}
 
-            {/* Created By */}
-            <CustomSelect
-              label="Created By"
-              icon={User}
-              value={createdById}
-              options={teamOptions}
-              onChange={handleCreatorChange}
-              type="user"
-              placeholder="Unknown"
-              displayName={creatorName !== 'Unknown' ? creatorName : null}
-            />
+            {/* Helper */}
+            {!isCustomer && (
+              <CustomSelect
+                label="Helper"
+                icon={User}
+                value={task.helper_id}
+                options={teamOptions}
+                onChange={handleHelperChange}
+                type="user"
+                placeholder="No helper"
+                displayName={helperName}
+              />
+            )}
+
+            {/* Created By - Multi-select */}
+            {!isCustomer && (
+              <MultiSelectUsers
+                label="Created By"
+                icon={User}
+                values={[createdById, coCreatorId].filter(Boolean)}
+                options={teamOptions}
+                onChange={handleCreatorMultiChange}
+                placeholder="Unknown"
+                maxSelections={2}
+                searchable
+              />
+            )}
 
             {/* Due Date */}
             <div className="flex items-center py-1.5 px-2 hover:bg-neutral-800/50 rounded cursor-pointer group">
@@ -833,6 +948,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             </div>
 
             {/* Add Asset Section */}
+            {!isCustomer && (
             <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 mt-4">
               <h3 className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-3 px-2">Add asset</h3>
 
@@ -869,7 +985,17 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                 <span className="text-sm">Website</span>
               </button>
             </div>
+            )}
           </div>
+        </div>
+
+        {/* Draggable resize handle */}
+        <div
+          onMouseDown={handleSidebarResizeStart}
+          className="w-1 cursor-col-resize shrink-0 group relative z-10 flex items-center justify-center"
+        >
+          <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
+          <div className={`w-px h-full transition-colors ${isDraggingSidebar ? 'bg-neutral-500' : 'bg-neutral-800 group-hover:bg-neutral-600'}`} />
         </div>
 
         {/* Main Content - Comments Section */}
@@ -1019,12 +1145,47 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             )}
           </div>
 
+          {/* Comments/Notes tabs */}
+          <div className="flex items-center gap-6 px-4 pt-4 border-b border-neutral-800">
+            <button
+              onClick={() => setActiveTab('comments')}
+              className={`text-sm font-bold pb-3 border-b-2 transition-colors ${
+                activeTab === 'comments'
+                  ? 'text-white border-white'
+                  : 'text-neutral-500 border-transparent hover:text-neutral-300'
+              }`}
+            >
+              Comments
+            </button>
+            {currentTeamMember && !isCustomer && (
+              <button
+                onClick={() => setActiveTab('notes')}
+                className={`text-sm font-bold pb-3 border-b-2 transition-colors ${
+                  activeTab === 'notes'
+                    ? 'text-white border-white'
+                    : 'text-neutral-500 border-transparent hover:text-neutral-300'
+                }`}
+              >
+                Notes
+              </button>
+            )}
+          </div>
+
           {/* Comments list */}
           <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
-            {comments.length === 0 ? (
+            {filteredComments.length === 0 ? (
               <div className="text-center text-neutral-500 py-12">
-                <p>No comments yet</p>
-                <p className="text-sm mt-1">Add a comment to get started</p>
+                {activeTab === 'notes' ? (
+                  <>
+                    <p>No notes yet</p>
+                    <p className="text-sm mt-1">Add internal notes visible only to team members</p>
+                  </>
+                ) : (
+                  <>
+                    <p>No comments yet</p>
+                    <p className="text-sm mt-1">Add a comment to get started</p>
+                  </>
+                )}
               </div>
             ) : (
               Object.keys(groupedComments).map((dateKey) => {
@@ -1043,11 +1204,15 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                     {/* Comments for this date */}
                     <div className="space-y-0">
                       {dateComments.map((comment) => {
-                        const author = team.find(t => t.id === comment.author_designer_id);
-                        const authorName = author?.full_name || 'Unknown';
-                        const authorAvatar = author?.avatar_url;
+                        const author = comment.author_designer_id ? team.find(t => t.id === comment.author_designer_id) : null;
+                        const clientContact = comment.author_contact_id
+                          ? clientContacts.find(c => c.id === comment.author_contact_id || c.whalesync_postgres_id === comment.author_contact_id)
+                          : null;
+                        const authorName = comment.authorName || author?.full_name || clientContact?.full_name || clientContact?.email || 'Unknown';
+                        const authorAvatar = comment.authorAvatar || author?.avatar_url || null;
                         const currentTeamMember = team.find(t => t.email === user?.email);
-                        const isOwnComment = comment.author_designer_id === currentTeamMember?.id;
+                        const isOwnComment = (currentTeamMember && comment.author_designer_id === currentTeamMember?.id) ||
+                                            (clientContactId && comment.author_contact_id === clientContactId);
                         const isHovered = hoveredCommentId === comment.id;
                         const isEditing = editingCommentId === comment.id;
 
@@ -1407,11 +1572,16 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                 </div>
               )}
 
+              {/* Notes label */}
+              {activeTab === 'notes' && (
+                <div className="text-xs text-neutral-500 mb-1">🔒 Only visible to team members</div>
+              )}
+
               {/* Message editor */}
               <div
                 ref={newCommentEditorRef}
                 contentEditable
-                data-placeholder="Leave a message..."
+                data-placeholder={activeTab === 'notes' ? "Add a private note..." : "Leave a message..."}
                 className="w-full bg-transparent text-neutral-300 text-sm focus:outline-none min-h-[20px] max-h-[120px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-600"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {

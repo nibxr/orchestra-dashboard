@@ -12,7 +12,14 @@
       "Bash(git push:*)",
       "Bash(node fix-theme.cjs:*)",
       "Bash(node:*)",
-      "Bash(npx vite build)"
+      "Bash(npx vite build)",
+      "Bash(xargs:*)",
+      "Bash(find:*)",
+      "Bash(npx vite build:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(npx --no-install vite build:*)"
     ]
   }
 }

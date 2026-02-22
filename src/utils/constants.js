@@ -13,7 +13,10 @@ export const DASHBOARD_VIEWS = {
     CUSTOMERS: 'customers',
     CYCLES: 'cycles',
     ANALYTICS: 'analytics',
-    PAYMENTS: 'payments'
+    PAYMENTS: 'payments',
+    PLANS: 'plans',
+    DOCUMENTS: 'documents',
+    DELIVERABLES: 'deliverables'
 };
 
 export const SETTINGS_VIEWS = {
@@ -23,7 +26,8 @@ export const SETTINGS_VIEWS = {
     WORKFLOW: 'workflow',
     PLANS: 'plans',
     PORTAL: 'portal',
-    TEMPLATES: 'templates'
+    TEMPLATES: 'templates',
+    CLIENT_TEAM: 'client_team'
 };
 
 // STRICT 4 STATUSES AS REQUESTED

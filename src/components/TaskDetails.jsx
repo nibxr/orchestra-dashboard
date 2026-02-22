@@ -59,7 +59,7 @@ const emojiCategories = {
   }
 };
 import { Avatar } from './Shared';
-import { CustomSelect } from './CustomUI';
+import { CustomSelect, MultiSelectUsers } from './CustomUI';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from './Toast';
@@ -75,10 +75,12 @@ import { extractFigmaFileKey } from '../utils/figmaService';
 export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false, isModal = false }) => {
     const taskNavigate = useNavigate();
     const { user, teamMemberId, clientContactId } = useAuth();
+    const isCustomer = !teamMemberId && !!clientContactId;
     const toast = useToast();
     const { confirm } = useConfirm();
     const [comment, setComment] = useState('');
     const [commentType, setCommentType] = useState('comment'); // 'comment' or 'note'
+    const [activeTab, setActiveTab] = useState('comments'); // 'comments' or 'notes'
     const [moreMenuOpen, setMoreMenuOpen] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editedTitle, setEditedTitle] = useState(task.title);
@@ -182,6 +184,14 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
     const creatorName = task.creatorName || creator?.full_name || 'Unknown';
     const creatorAvatar = task.creatorAvatar || creator?.avatar_url;
 
+    // Co-creator lookup
+    const coCreatorId = task.co_creator_team_id;
+    const coCreator = team?.find(t => t.id === coCreatorId);
+
+    // Helper lookup
+    const helperMember = team?.find(t => t.id === task.helper_id);
+    const helperName = helperMember?.full_name || null;
+
     // Prepare team options for created_by and assigned_to selectors
     const teamOptions = team?.map(member => ({
         value: member.id,
@@ -238,6 +248,57 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
         } catch (e) {
             console.error("Error updating assignee:", e);
             toast.error(`Failed to update assignee: ${e.message}`);
+        }
+    };
+
+    const handleUpdateHelper = async (newHelperId) => {
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .update({ helper_id: newHelperId })
+                .eq('id', task.id);
+
+            if (error) throw error;
+
+            const newHelper = team?.find(t => t.id === newHelperId);
+            onUpdate(task.id, {
+                helper_id: newHelperId,
+                helperName: newHelper?.full_name,
+                helperAvatar: newHelper?.avatar_url
+            });
+        } catch (e) {
+            console.error("Error updating helper:", e);
+            toast.error(`Failed to update helper: ${e.message}`);
+        }
+    };
+
+    const handleUpdateCreatedByMulti = async (newValues) => {
+        try {
+            const primaryId = newValues[0] || null;
+            const coId = newValues[1] || null;
+            const { error } = await supabase
+                .from('tasks')
+                .update({
+                    created_by_team_id: primaryId,
+                    co_creator_team_id: coId
+                })
+                .eq('id', task.id);
+
+            if (error) throw error;
+
+            const primary = team?.find(t => t.id === primaryId);
+            const co = team?.find(t => t.id === coId);
+            onUpdate(task.id, {
+                created_by_team_id: primaryId,
+                co_creator_team_id: coId,
+                creatorName: primary?.full_name,
+                creatorAvatar: primary?.avatar_url,
+                coCreatorName: co?.full_name || null,
+                coCreatorAvatar: co?.avatar_url || null
+            });
+        } catch (e) {
+            console.error("Error updating creators:", e);
+            toast.error(`Failed to update creators: ${e.message}`);
         }
     };
 
@@ -411,8 +472,11 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                 content: task.content,
                 status: 'Backlog',
                 assigned_to_id: task.assigned_to_id,
+                helper_id: task.helper_id,
                 membership_id: task.membership_id,
                 created_by_id: user?.id,
+                created_by_team_id: task.created_by_team_id,
+                co_creator_team_id: task.co_creator_team_id,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
                 orchestra_task_id: `TASK-${Date.now()}`,
@@ -584,6 +648,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
+                        {!isCustomer && (
                         <div className="relative">
                             <button
                                 onClick={() => setMoreMenuOpen(!moreMenuOpen)}
@@ -624,6 +689,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                 </>
                             )}
                         </div>
+                        )}
                         <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors"><X size={18}/></button>
                     </div>
                 </div>
@@ -702,19 +768,27 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                 </div>
                             </div>
 
-                            {/* Created By - Interactive */}
-                            <CustomSelect
+                            {/* Created By - Multi-select */}
+                            {!isCustomer && (
+                            <MultiSelectUsers
                                 label="Created By"
                                 icon={User}
-                                value={createdById}
+                                values={[createdById, coCreatorId].filter(Boolean)}
                                 options={teamOptions}
-                                onChange={handleUpdateCreatedBy}
-                                type="user"
+                                onChange={handleUpdateCreatedByMulti}
                                 placeholder="Unknown"
-                                displayName={creatorName !== 'Unknown' ? creatorName : null}
+                                maxSelections={2}
+                                searchable
                             />
+                            )}
 
                             {/* Assigned To / Lead Designer - Interactive */}
+                            {isCustomer ? (
+                                <div className="flex items-center py-1.5 px-2 group">
+                                    <div className="flex items-center gap-2 text-neutral-500 w-32"><Star size={14} /><span className="text-sm">Designer</span></div>
+                                    <span className="text-sm text-neutral-600 dark:text-neutral-300">{task.assigneeName || 'Unassigned'}</span>
+                                </div>
+                            ) : (
                             <CustomSelect
                                 label="Designer"
                                 icon={Star}
@@ -725,6 +799,21 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                 placeholder="Unassigned"
                                 displayName={task.assigneeName}
                             />
+                            )}
+
+                            {/* Helper - Interactive */}
+                            {!isCustomer && (
+                            <CustomSelect
+                                label="Helper"
+                                icon={User}
+                                value={task.helper_id}
+                                options={teamOptions}
+                                onChange={handleUpdateHelper}
+                                type="user"
+                                placeholder="No helper"
+                                displayName={helperName}
+                            />
+                            )}
 
                             {/* Due Date - shows manual due date or auto-calculated */}
                             <div className="flex items-center py-1.5 group">
@@ -759,8 +848,8 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                 </div>
                             </div>
 
-                            {/* Add Design Link - only show if task has no versions */}
-                            {!hasVersions && (
+                            {/* Add Design Link - only show if task has no versions and user is not a customer */}
+                            {!isCustomer && !hasVersions && (
                                 <div className="flex items-center py-1.5 group">
                                     <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
                                         <LinkIcon size={14} /> Design Link
@@ -873,23 +962,64 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
 
                         {/* Feed / Activity */}
                         <div className="mt-16 pt-8 border-t border-neutral-800">
-                            <div className="flex items-center justify-between mb-8">
-                                <span className="text-white font-bold">Feed</span>
-                                <div className="flex bg-neutral-900 rounded p-1 gap-1">
-                                    {/* Show assignee avatar */}
-                                    <Avatar name={task.assigneeName || "S"} url={task.assigneeAvatar} size="xs" />
-                                </div>
+                            <div className="flex items-center gap-6 mb-8">
+                                <button
+                                    onClick={() => { setActiveTab('comments'); setCommentType('comment'); }}
+                                    className={`text-sm font-bold pb-1 border-b-2 transition-colors ${
+                                        activeTab === 'comments'
+                                            ? 'text-white border-white'
+                                            : 'text-neutral-500 border-transparent hover:text-neutral-300'
+                                    }`}
+                                >
+                                    Comments
+                                </button>
+                                {teamMemberId && (
+                                    <button
+                                        onClick={() => { setActiveTab('notes'); setCommentType('note'); }}
+                                        className={`text-sm font-bold pb-1 border-b-2 transition-colors ${
+                                            activeTab === 'notes'
+                                                ? 'text-white border-white'
+                                                : 'text-neutral-500 border-transparent hover:text-neutral-300'
+                                        }`}
+                                    >
+                                        Notes
+                                    </button>
+                                )}
                             </div>
 
                             <div className="space-y-6 relative before:absolute before:left-3 before:top-2 before:bottom-0 before:w-px before:bg-neutral-800">
-                                <div className="flex gap-4 relative">
-                                    <div className="absolute left-0 z-10"><Avatar name={task.assigneeName || "System"} url={task.assigneeAvatar} size="sm" /></div>
-                                    <div className="pl-10 pt-1">
-                                        <div className="text-sm text-neutral-400"><span className="text-white font-medium">{task.assigneeName || "System"}</span> created the task <span className="text-neutral-600">• {task.created_at ? new Date(task.created_at).toLocaleDateString() : 'Just now'}</span></div>
+                                {activeTab === 'comments' && (
+                                    <div className="flex gap-4 relative">
+                                        <div className="absolute left-0 z-10"><Avatar name={task.assigneeName || "System"} url={task.assigneeAvatar} size="sm" /></div>
+                                        <div className="pl-10 pt-1">
+                                            <div className="text-sm text-neutral-400"><span className="text-white font-medium">{task.assigneeName || "System"}</span> created the task <span className="text-neutral-600">• {task.created_at ? new Date(task.created_at).toLocaleDateString() : 'Just now'}</span></div>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
-                                {task.comments && task.comments.map((c) => {
+                                {(() => {
+                                    const filteredComments = (task.comments || []).filter(c =>
+                                        activeTab === 'notes' ? c.is_note === true : c.is_note !== true
+                                    );
+                                    if (filteredComments.length === 0 && activeTab === 'notes') {
+                                        return (
+                                            <div className="text-center py-12">
+                                                <div className="text-neutral-600 text-sm">No notes yet</div>
+                                                <div className="text-neutral-700 text-xs mt-1">Add internal notes visible only to team members</div>
+                                            </div>
+                                        );
+                                    }
+                                    if (filteredComments.length === 0 && activeTab === 'comments') {
+                                        return (
+                                            <div className="text-center py-8">
+                                                <div className="text-neutral-600 text-sm">No comments yet</div>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
+
+                                {(task.comments || []).filter(c => activeTab === 'notes' ? c.is_note === true : c.is_note !== true).map((c) => {
                                     const isOwnComment = (teamMemberId && c.author_designer_id === teamMemberId) ||
                                                         (clientContactId && c.author_contact_id === clientContactId);
                                     const isEditingThisComment = editingCommentId === c.id;
@@ -903,7 +1033,6 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                             <div className="pl-10 w-full">
                                                 <div className="flex items-baseline gap-2 mb-1">
                                                     <span className="text-sm font-bold text-white">{c.authorName || "User"}</span>
-                                                    {isNote && <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded">🔒 Note</span>}
                                                     <span className="text-xs text-neutral-600">{new Date(c.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                                 </div>
                                                 {isEditingThisComment ? (
@@ -1012,20 +1141,11 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                 {/* Footer Input */}
                 <div className="border-t border-neutral-800 bg-[#0f0f0f] p-6 pb-8 shrink-0">
                     <div className="max-w-3xl mx-auto bg-[#1a1a1a] border border-neutral-700 rounded-xl focus-within:border-neutral-500 transition-colors shadow-lg overflow-hidden">
-                         <div className="flex items-center gap-4 px-4 py-2 border-b border-neutral-800/50">
-                             <button
-                                onClick={() => setCommentType('comment')}
-                                className={`text-xs font-medium pb-2 -mb-2.5 transition-colors ${commentType === 'comment' ? 'text-white border-b-2 border-white' : 'text-neutral-500 hover:text-neutral-300'}`}
-                             >
-                                Comment
-                             </button>
-                             <button
-                                onClick={() => setCommentType('note')}
-                                className={`text-xs font-medium pb-2 -mb-2.5 transition-colors ${commentType === 'note' ? 'text-white border-b-2 border-white' : 'text-neutral-500 hover:text-neutral-300'}`}
-                             >
-                                Note
-                             </button>
-                        </div>
+                         {activeTab === 'notes' && (
+                             <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-800/50">
+                                 <span className="text-xs text-neutral-500">🔒 Only visible to team members</span>
+                             </div>
+                         )}
                         <textarea
                             ref={commentTextareaRef}
                             value={comment}
@@ -1036,9 +1156,6 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                         />
                         <div className="flex items-center justify-between px-4 py-2 bg-[#141414]">
                             <div className="flex items-center gap-3">
-                                {commentType === 'note' && (
-                                    <span className="text-xs text-neutral-500">🔒 Only visible to team members</span>
-                                )}
                             </div>
                             <div className="flex items-center gap-3">
                                 <TextFormattingToolbar onFormat={handleFormatText} />

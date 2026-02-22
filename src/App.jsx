@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import { Filter, Settings, Plus, X, Bell } from 'lucide-react';
@@ -10,7 +10,8 @@ import { ListView } from './components/ListView';
 import { ClientPortal } from './components/ClientPortal'; // IMPORT PORTAL
 import { AnalyticsView, PaymentsView, CustomersView } from './components/DashboardViews';
 import { CyclesView } from './components/CyclesView';
-import { ProfileSettingsView, AgencySettingsView, TeamSettingsView, WorkflowSettingsView, TemplatesView, ClientPortalSettingsView, PlansSettingsView } from './components/SettingsViews';
+import { ProfileSettingsView, AgencySettingsView, TeamSettingsView, WorkflowSettingsView, TemplatesView, ClientPortalSettingsView, PlansSettingsView, ClientTeamSettingsView } from './components/SettingsViews';
+import { ClientPlansView, ClientDocumentsView, ClientDeliverablesView } from './components/ClientViews';
 import { NewTaskModal } from './components/NewTaskModal';
 import { NewClientModal } from './components/NewClientModal';
 import { DisplayMenu, FilterMenu } from './components/Menus';
@@ -23,19 +24,20 @@ import { useToast } from './components/Toast';
 import { createVersion } from './utils/versionService';
 
 export default function App() {
-  const { user, userRole, userMembership } = useAuth();
+  const { user, userRole, userMembership, clientContactId, planLimits } = useAuth();
   const { confirm } = useConfirm();
   const toast = useToast();
   const navigate = useNavigate();
   const [mode, setMode] = useState(APP_MODES.DASHBOARD);
   const [dashboardView, setDashboardView] = useState(DASHBOARD_VIEWS.BOARD);
-  const [settingsView, setSettingsView] = useState(SETTINGS_VIEWS.AGENCY);
+  const [settingsView, setSettingsView] = useState(userRole === 'customer' ? SETTINGS_VIEWS.PROFILE : SETTINGS_VIEWS.AGENCY);
   
   const [tasks, setTasks] = useState([]);
   const [clients, setClients] = useState([]);
   const [agreements, setAgreements] = useState([]);
   const [team, setTeam] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [availablePlans, setAvailablePlans] = useState([]);
 
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
@@ -53,6 +55,53 @@ export default function App() {
   const [displaySettings, setDisplaySettings] = useState({ view: 'kanban', orderBy: 'last_updated', showArchived: false, showInactive: false, visibleProperties: ['client', 'assignee', 'dueDate', 'id'] });
   const [taskFilter, setTaskFilter] = useState('all');
   const [advancedFilters, setAdvancedFilters] = useState({ assignee: [], client: [] });
+
+  // --- Draggable sidebar resize ---
+  const SIDEBAR_MIN = 200;
+  const SIDEBAR_MAX = 620;
+  const SIDEBAR_DEFAULT = 256;
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('sidebar-width');
+    return saved ? Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Number(saved))) : SIDEBAR_DEFAULT;
+  });
+  const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(SIDEBAR_DEFAULT);
+
+  const handleResizeStart = useCallback((e) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    setIsDraggingSidebar(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = sidebarWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDraggingRef.current) return;
+      const delta = e.clientX - startXRef.current;
+      const newWidth = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, startWidthRef.current + delta));
+      setSidebarWidth(newWidth);
+    };
+    const handleMouseUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      setIsDraggingSidebar(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      // Persist to localStorage
+      setSidebarWidth(w => { localStorage.setItem('sidebar-width', w); return w; });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -78,6 +127,10 @@ export default function App() {
         };
       });
       setAgreements(enrichedAgreements);
+      // Fetch full plans data for client views
+      const { data: allPlansData } = await supabase.from('Plans').select('*');
+      setAvailablePlans(allPlansData || []);
+
       const { data: contactsData } = await supabase.from('client_contacts').select('*');
       setContacts(contactsData || []);
       const { data: tasksData } = await supabase.from('tasks').select('*');
@@ -103,7 +156,8 @@ export default function App() {
                           authorAvatar = designer.avatar_url;
                       }
                   } else if (comment.author_contact_id) {
-                      const contact = contactsData?.find(c => c.id === comment.author_contact_id);
+                      const contact = contactsData?.find(c => c.id === comment.author_contact_id)
+                          || contactsData?.find(c => c.whalesync_postgres_id === comment.author_contact_id);
                       if (contact) {
                           authorName = contact.full_name || contact.email;
                       }
@@ -125,7 +179,8 @@ export default function App() {
                   }
               } else if (t.created_by_id) {
                   // Client contact created the task
-                  const contactCreator = contactsData?.find(c => c.id === t.created_by_id);
+                  const contactCreator = contactsData?.find(c => c.id === t.created_by_id)
+                      || contactsData?.find(c => c.whalesync_postgres_id === t.created_by_id);
                   if (contactCreator) {
                       creatorName = contactCreator.full_name;
                   }
@@ -137,6 +192,12 @@ export default function App() {
                       creatorAvatar = legacyCreator.avatar_url;
                   }
               }
+
+              // Get helper
+              const helper = teamData?.find(m => m.id === t.helper_id);
+
+              // Get co-creator
+              const coCreator = teamData?.find(m => m.id === t.co_creator_team_id);
 
               // Normalize status: Remove emojis and extra spaces
               let normalizedStatus = t.status || 'Backlog';
@@ -151,6 +212,10 @@ export default function App() {
                   creatorAvatar,
                   assigneeName: assignee ? assignee.full_name : null,
                   assigneeAvatar: assignee ? assignee.avatar_url : null,
+                  helperName: helper ? helper.full_name : null,
+                  helperAvatar: helper ? helper.avatar_url : null,
+                  coCreatorName: coCreator ? coCreator.full_name : null,
+                  coCreatorAvatar: coCreator ? coCreator.avatar_url : null,
                   clientName: client ? client.client_name : 'Internal',
                   clientStatus: client ? client.status : 'Active',
                   status: normalizedStatus,
@@ -293,15 +358,19 @@ export default function App() {
       const currentTeamMember = team.find(t => t.email === user?.email);
       const teamMemberId = currentTeamMember?.id;
 
+      const isClientCreating = userRole === 'customer';
       const newTaskPayload = {
           title: formData.title,
           description: formData.description,
           content: formData.description,
           status: formData.status,
-          assigned_to_id: formData.assigneeId || teamMemberId,
-          created_by_team_id: formData.createdById || teamMemberId, // New field for team creators
-          membership_id: formData.clientId,
-          private: formData.isPrivate || false,
+          assigned_to_id: isClientCreating ? null : (formData.assigneeId || teamMemberId),
+          created_by_team_id: isClientCreating ? null : (formData.createdById || teamMemberId),
+          created_by_id: isClientCreating ? clientContactId : null,
+          co_creator_team_id: isClientCreating ? null : (formData.coCreatorId || null),
+          helper_id: isClientCreating ? null : (formData.helperId || null),
+          membership_id: isClientCreating ? userMembership : formData.clientId,
+          private: isClientCreating ? false : (formData.isPrivate || false),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           orchestra_task_id: `TASK-${Date.now()}`,
@@ -461,10 +530,21 @@ export default function App() {
           onClearFilters={() => {
             setAdvancedFilters({ assignee: [], client: [] });
           }}
+          width={sidebarWidth}
         />
       ) : (
-        <SettingsSidebar currentView={settingsView} setView={setSettingsView} setMode={setMode} />
+        <SettingsSidebar currentView={settingsView} setView={setSettingsView} setMode={setMode} width={sidebarWidth} />
       )}
+
+      {/* Draggable resize handle */}
+      <div
+        onMouseDown={handleResizeStart}
+        className="w-1 cursor-col-resize shrink-0 group relative z-10 flex items-center justify-center"
+      >
+        <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
+        <div className={`w-px h-full transition-colors ${isDraggingSidebar ? 'bg-neutral-400 dark:bg-neutral-500' : 'bg-neutral-200 dark:bg-neutral-800 group-hover:bg-neutral-400 dark:group-hover:bg-neutral-600'}`} />
+      </div>
+
       <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#0f0f0f] theme-bg-secondary relative">
         {mode === APP_MODES.DASHBOARD && (
             <div className="h-14 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between px-6 bg-white dark:bg-[#0f0f0f] theme-bg-primary shrink-0">
@@ -482,7 +562,7 @@ export default function App() {
                           <h1 className="text-lg font-medium text-neutral-900 dark:text-white">Your Tasks</h1>
                         )}
                       </>
-                  ) : <h1 className="text-lg font-medium text-neutral-900 dark:text-white capitalize">{dashboardView}</h1>}
+                  ) : <h1 className="text-lg font-medium text-neutral-900 dark:text-white capitalize">{dashboardView === 'ai_brief' ? 'AI Brief' : dashboardView}</h1>}
               </div>
               <div className="flex items-center gap-4">
                   {userRole === 'team' && dashboardView === DASHBOARD_VIEWS.CUSTOMERS && (
@@ -494,17 +574,19 @@ export default function App() {
                     </button>
                   )}
                   <div className="flex bg-neutral-100 dark:bg-neutral-900 rounded-lg p-1 text-xs font-medium">
-                    <div className="relative" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => { setFilterMenuOpen(!filterMenuOpen); setDisplayMenuOpen(false); }} className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all ${filterMenuOpen ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>
-                        <Filter size={12} /> Filters {activeFilterCount > 0 && <span className="bg-neutral-900 dark:bg-white/20 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px]">{activeFilterCount}</span>}
-                      </button>
-                      {filterMenuOpen && <FilterMenu filters={advancedFilters} onUpdate={setAdvancedFilters} team={team} clients={clients} onClose={() => setFilterMenuOpen(false)} />}
-                    </div>
+                    {userRole === 'team' && (
+                      <div className="relative" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => { setFilterMenuOpen(!filterMenuOpen); setDisplayMenuOpen(false); }} className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all ${filterMenuOpen ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>
+                          <Filter size={12} /> Filters {activeFilterCount > 0 && <span className="bg-neutral-900 dark:bg-white/20 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px]">{activeFilterCount}</span>}
+                        </button>
+                        {filterMenuOpen && <FilterMenu filters={advancedFilters} onUpdate={setAdvancedFilters} team={team} clients={clients} onClose={() => setFilterMenuOpen(false)} />}
+                      </div>
+                    )}
                     <div className="relative" onClick={e => e.stopPropagation()}>
                       <button onClick={() => { setDisplayMenuOpen(!displayMenuOpen); setFilterMenuOpen(false); }} className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all ${displayMenuOpen ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>
                         <Settings size={12} /> Display
                       </button>
-                      {displayMenuOpen && <DisplayMenu settings={displaySettings} onUpdate={setDisplaySettings} onClose={() => setDisplayMenuOpen(false)} />}
+                      {displayMenuOpen && <DisplayMenu settings={displaySettings} onUpdate={setDisplaySettings} onClose={() => setDisplayMenuOpen(false)} isCustomer={userRole === 'customer'} />}
                     </div>
                   </div>
                   <div className="w-px h-6 bg-neutral-200 dark:bg-neutral-800 mx-2"></div>
@@ -534,6 +616,19 @@ export default function App() {
                 {dashboardView === DASHBOARD_VIEWS.CYCLES && <CyclesView />}
                 {dashboardView === DASHBOARD_VIEWS.ANALYTICS && <AnalyticsView tasks={processedTasks} clients={clients} team={team} />}
                 {dashboardView === DASHBOARD_VIEWS.PAYMENTS && <PaymentsView />}
+                {dashboardView === DASHBOARD_VIEWS.PLANS && userRole === 'customer' && (
+                  <ClientPlansView
+                    availablePlans={availablePlans}
+                    planLimits={planLimits}
+                    clientMembership={clients.find(c => c.id === userMembership)}
+                  />
+                )}
+                {dashboardView === DASHBOARD_VIEWS.DOCUMENTS && userRole === 'customer' && (
+                  <ClientDocumentsView membershipId={userMembership} />
+                )}
+                {dashboardView === DASHBOARD_VIEWS.DELIVERABLES && userRole === 'customer' && (
+                  <ClientDeliverablesView tasks={processedTasks} onSelectTask={openTaskDetails} />
+                )}
               </div>
           )}
           {mode === APP_MODES.SETTINGS && (
@@ -545,15 +640,16 @@ export default function App() {
                   {settingsView === SETTINGS_VIEWS.PLANS && <PlansSettingsView />}
                   {settingsView === SETTINGS_VIEWS.PORTAL && <ClientPortalSettingsView />}
                   {settingsView === SETTINGS_VIEWS.TEMPLATES && <TemplatesView />}
+                  {settingsView === SETTINGS_VIEWS.CLIENT_TEAM && <ClientTeamSettingsView />}
               </div>
           )}
         </div>
       </div>
 
       {/* Modals */}
-      <NewTaskModal isOpen={isNewTaskModalOpen} onClose={() => setIsNewTaskModalOpen(false)} onAddTask={handleAddTask} clients={clients} team={team} initialStatus={newTaskStatus} currentUser={user} />
+      <NewTaskModal isOpen={isNewTaskModalOpen} onClose={() => setIsNewTaskModalOpen(false)} onAddTask={handleAddTask} clients={clients} team={team} initialStatus={newTaskStatus} currentUser={user} userRole={userRole} userMembership={userMembership} clientContactId={clientContactId} />
       <NewClientModal isOpen={isNewClientModalOpen} onClose={() => setIsNewClientModalOpen(false)} onInvite={handleInviteClient} />
-      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} tasks={tasks} onSelectTask={openTaskDetails} />
+      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} tasks={processedTasks} onSelectTask={openTaskDetails} userRole={userRole} />
 
       {/* Notifications Dropdown */}
       {isNotificationsOpen && (

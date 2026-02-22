@@ -59,9 +59,32 @@ const DesignReviewSidebar = ({
     }
   };
 
+  const handleSubmitNote = async () => {
+    if (!newComment.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      await onAddComment({
+        content: newComment,
+        task_id: task.id,
+        version_id: currentVersion?.id || null,
+        is_note: true
+      });
+      setNewComment('');
+    } catch (error) {
+      console.error('Error adding note:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Filter comments for current version and get top-level comments
-  const versionComments = comments.filter(c => c.version_id === currentVersion?.id);
+  const versionComments = comments.filter(c => c.version_id === currentVersion?.id && c.is_note !== true);
   const topLevelComments = versionComments.filter(c => !c.parent_comment_id);
+
+  // Filter notes (task-level + version-level notes)
+  const noteComments = comments.filter(c => c.is_note === true);
+  const topLevelNotes = noteComments.filter(c => !c.parent_comment_id);
 
   return (
     <div className="w-96 flex flex-col bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800">
@@ -74,8 +97,8 @@ const DesignReviewSidebar = ({
             className={`
               flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2
               ${activeTab === 'details'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                ? 'border-white text-white'
+                : 'border-transparent text-neutral-500 hover:text-neutral-300'
               }
             `}
           >
@@ -86,13 +109,27 @@ const DesignReviewSidebar = ({
             className={`
               flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2
               ${activeTab === 'comments'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                ? 'border-white text-white'
+                : 'border-transparent text-neutral-500 hover:text-neutral-300'
               }
             `}
           >
             Comments {versionComments.length > 0 && `(${versionComments.length})`}
           </button>
+          {currentUserId && (
+            <button
+              onClick={() => setActiveTab('notes')}
+              className={`
+                flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2
+                ${activeTab === 'notes'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-300'
+                }
+              `}
+            >
+              Notes
+            </button>
+          )}
         </div>
 
         {/* Version Selector */}
@@ -208,6 +245,26 @@ const DesignReviewSidebar = ({
                 </div>
               </div>
 
+              {/* Helper */}
+              <div className="flex items-center gap-3">
+                <div className="w-24 text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Helper
+                </div>
+                <div className="flex-1">
+                  {task.helperName ? (
+                    <div className="flex items-center gap-2">
+                      <Avatar name={task.helperName} url={task.helperAvatar} size="sm" />
+                      <span className="text-sm text-neutral-900 dark:text-white">
+                        {task.helperName}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-neutral-500 dark:text-neutral-400">No helper</span>
+                  )}
+                </div>
+              </div>
+
               {/* Created By */}
               <div className="flex items-center gap-3">
                 <div className="w-24 text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
@@ -253,6 +310,76 @@ const DesignReviewSidebar = ({
                 </p>
               </div>
             )}
+          </div>
+        ) : activeTab === 'notes' ? (
+          /* Notes Tab */
+          <div className="flex flex-col h-full">
+            {/* Notes List */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {topLevelNotes.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-neutral-500 dark:text-neutral-400 text-sm">
+                    No notes yet
+                  </p>
+                  <p className="text-neutral-400 dark:text-neutral-500 text-xs mt-1">
+                    Add internal notes visible only to team members
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {topLevelNotes.map(comment => (
+                    <div key={comment.id}>
+                      <CommentThread
+                        comment={comment}
+                        allComments={noteComments}
+                        depth={0}
+                        currentUserId={currentUserId}
+                        isActive={false}
+                        onReply={(parentId) => console.log('Reply to:', parentId)}
+                        onEdit={(commentId) => console.log('Edit:', commentId)}
+                        onDelete={onDeleteComment}
+                        onResolve={onResolveComment}
+                        onAddReaction={onAddReaction}
+                        onRemoveReaction={onRemoveReaction}
+                        onClick={onCommentClick}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Note Input */}
+            <div className="border-t border-neutral-200 dark:border-neutral-800 p-4 bg-neutral-50 dark:bg-neutral-900">
+              <div className="space-y-2">
+                <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">🔒 Only visible to team members</div>
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      handleSubmitNote();
+                    }
+                  }}
+                  placeholder="Add a private note..."
+                  className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-500 resize-none text-sm"
+                  rows={3}
+                />
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                    Press Cmd+Enter to send
+                  </p>
+                  <button
+                    onClick={handleSubmitNote}
+                    disabled={!newComment.trim() || isSubmitting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-black text-sm font-medium hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Send className="w-4 h-4" />
+                    {isSubmitting ? 'Sending...' : 'Send'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           /* Comments Tab */

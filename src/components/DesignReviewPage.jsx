@@ -17,7 +17,7 @@ import { VersionlessTaskView } from './VersionlessTaskView';
  */
 const DesignReviewPage = () => {
   const { taskId } = useParams();
-  const { user } = useAuth();
+  const { user, userRole, userMembership } = useAuth();
 
   // Core data state
   const [task, setTask] = useState(null);
@@ -25,6 +25,7 @@ const DesignReviewPage = () => {
   const [currentVersion, setCurrentVersion] = useState(null);
   const [comments, setComments] = useState([]);
   const [team, setTeam] = useState([]);
+  const [clientContacts, setClientContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -49,19 +50,27 @@ const DesignReviewPage = () => {
     unresolveComment
   } = useCanvasComments(currentVersion?.id);
 
+  // Fetch client contacts for comment author resolution
+  const fetchClientContacts = async () => {
+    const { data, error } = await supabase
+      .from('client_contacts')
+      .select('id, whalesync_postgres_id, full_name, email');
+    if (!error) setClientContacts(data || []);
+  };
+
   // Fetch initial data
   useEffect(() => {
     if (taskId) {
       fetchTaskData();
       fetchTeam();
+      fetchClientContacts();
     }
   }, [taskId]);
 
-  // Re-enrich comments when team data loads (to get proper author names/avatars)
+  // Re-enrich comments when team or client contacts data loads
   useEffect(() => {
-    if (team.length > 0 && comments.length > 0) {
+    if ((team.length > 0 || clientContacts.length > 0) && comments.length > 0) {
       setComments(prevComments => prevComments.map(comment => {
-        // Look up author from team data
         let authorName = 'Unknown User';
         let authorAvatar = null;
 
@@ -72,7 +81,13 @@ const DesignReviewPage = () => {
             authorAvatar = author.avatar_url;
           }
         } else if (comment.author_contact_id) {
-          authorName = 'Client';
+          const contact = clientContacts.find(c => c.id === comment.author_contact_id)
+            || clientContacts.find(c => c.whalesync_postgres_id === comment.author_contact_id);
+          if (contact) {
+            authorName = contact.full_name || contact.email || 'Client';
+          } else {
+            authorName = 'Client';
+          }
         }
 
         return {
@@ -82,7 +97,7 @@ const DesignReviewPage = () => {
         };
       }));
     }
-  }, [team]);
+  }, [team, clientContacts]);
 
   // Set up real-time subscriptions
   useEffect(() => {
@@ -196,6 +211,13 @@ const DesignReviewPage = () => {
       if (taskError) throw taskError;
       if (versionsError) throw versionsError;
 
+      // Security: prevent clients from accessing other clients' tasks via URL
+      if (userRole === 'customer' && userMembership && taskData.membership_id !== userMembership) {
+        setError('You do not have access to this task');
+        setLoading(false);
+        return;
+      }
+
       console.log('Fetched task data:', taskData); // Debug log
 
       // Fetch client name if needed (parallel with comments)
@@ -252,8 +274,9 @@ const DesignReviewPage = () => {
   };
 
   const fetchComments = async () => {
-    // Fetch only version-specific comments (comments that have a version_id)
-    // Task-level comments (version_id is null) are shown only in the normal task view
+    // Fetch ALL comments for this task (version-specific + task-level + notes)
+    // Task-level comments (version_id null) are included so they're not lost when transitioning from versionless view
+    // Notes (is_note = true) need to be available for the Notes tab regardless of version_id
     const { data, error } = await supabase
       .from('comments')
       .select(`
@@ -262,7 +285,6 @@ const DesignReviewPage = () => {
         attachments:comment_attachments(*)
       `)
       .eq('task_id', taskId)
-      .not('version_id', 'is', null) // Only version comments, not task-level comments
       .order('created_at', { ascending: true });
 
     if (!error) {
@@ -282,7 +304,6 @@ const DesignReviewPage = () => {
   };
 
   const enrichComment = (comment) => {
-    // Look up author from team data
     let authorName = 'Unknown User';
     let authorAvatar = null;
 
@@ -293,8 +314,13 @@ const DesignReviewPage = () => {
         authorAvatar = author.avatar_url;
       }
     } else if (comment.author_contact_id) {
-      // Client contact - would need to look up from client_contacts if available
-      authorName = 'Client';
+      const contact = clientContacts?.find(c => c.id === comment.author_contact_id)
+        || clientContacts?.find(c => c.whalesync_postgres_id === comment.author_contact_id);
+      if (contact) {
+        authorName = contact.full_name || contact.email || 'Client';
+      } else {
+        authorName = 'Client'; // Fallback if contacts not loaded yet
+      }
     }
 
     return {

@@ -3,7 +3,7 @@ import {
   LayoutDashboard, BarChart3, CreditCard, Users, Briefcase,
   Globe, Workflow, LayoutTemplate, Terminal, User, Bell,
   Search, ArrowUpRight, ChevronLeft, RefreshCw, LogOut, Settings as SettingsIcon,
-  Sun, Moon
+  Sun, Moon, FileText, Package
 } from 'lucide-react';
 import { DASHBOARD_VIEWS, SETTINGS_VIEWS, APP_MODES } from '../utils/constants';
 import { Avatar } from './Shared';
@@ -19,7 +19,7 @@ const NavItem = ({ icon: Icon, label, active, onClick }) => (
   </button>
 );
 
-export const DashboardSidebar = ({ currentView, setView, setMode, clients, activeClientId, onOpenSearch, onOpenNotifications, onClientClick, onClearFilters }) => {
+export const DashboardSidebar = ({ currentView, setView, setMode, clients, activeClientId, onOpenSearch, onOpenNotifications, onClientClick, onClearFilters, width }) => {
   const { userRole } = useAuth();
   const isCustomer = userRole === 'customer';
 
@@ -44,21 +44,26 @@ export const DashboardSidebar = ({ currentView, setView, setMode, clients, activ
   };
 
   return (
-  <div className="w-64 bg-white dark:bg-[#0f0f0f] border-r border-neutral-200 dark:border-neutral-800 flex flex-col h-full text-sm shrink-0">
+  <div className="bg-white dark:bg-[#0f0f0f] flex flex-col h-full text-sm shrink-0" style={{ width: width || 256 }}>
     <div className="p-4 mb-1 flex items-center justify-between">
       <div className="text-neutral-900 dark:text-white uppercase" style={{ fontWeight: 200, fontSize: '18px', letterSpacing: '0.2em' }}>Dafolle</div>
       <div className="flex gap-2">
           <button onClick={onOpenSearch} className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"><Search size={16}/></button>
           <button onClick={onOpenNotifications} className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"><Bell size={16}/></button>
-          {!isCustomer && (
-            <button onClick={() => setMode(APP_MODES.SETTINGS)} className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"><ArrowUpRight size={16}/></button>
-          )}
+          <button onClick={() => setMode(APP_MODES.SETTINGS)} className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"><ArrowUpRight size={16}/></button>
       </div>
     </div>
 
     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6">
       <nav className="space-y-0.5">
         <NavItem icon={LayoutDashboard} label="Tasks" active={currentView === DASHBOARD_VIEWS.BOARD && !activeClientId} onClick={() => { setView(DASHBOARD_VIEWS.BOARD); onClearFilters && onClearFilters(); }} />
+        {isCustomer && (
+          <>
+            <NavItem icon={CreditCard} label="Plans" active={currentView === DASHBOARD_VIEWS.PLANS} onClick={() => setView(DASHBOARD_VIEWS.PLANS)} />
+            <NavItem icon={FileText} label="Documents" active={currentView === DASHBOARD_VIEWS.DOCUMENTS} onClick={() => setView(DASHBOARD_VIEWS.DOCUMENTS)} />
+            <NavItem icon={Package} label="Deliverables" active={currentView === DASHBOARD_VIEWS.DELIVERABLES} onClick={() => setView(DASHBOARD_VIEWS.DELIVERABLES)} />
+          </>
+        )}
         {!isCustomer && (
           <>
             <NavItem icon={BarChart3} label="Analytics" active={currentView === DASHBOARD_VIEWS.ANALYTICS} onClick={() => setView(DASHBOARD_VIEWS.ANALYTICS)} />
@@ -113,12 +118,12 @@ export const DashboardSidebar = ({ currentView, setView, setMode, clients, activ
   );
 };
 
-export const SettingsSidebar = ({ currentView, setView, setMode }) => {
+export const SettingsSidebar = ({ currentView, setView, setMode, width }) => {
   const { userRole } = useAuth();
   const isCustomer = userRole === 'customer';
 
   return (
-  <div className="w-64 bg-white dark:bg-[#0f0f0f] border-r border-neutral-200 dark:border-neutral-800 flex flex-col h-full text-sm shrink-0">
+  <div className="bg-white dark:bg-[#0f0f0f] flex flex-col h-full text-sm shrink-0" style={{ width: width || 256 }}>
     <div className="p-4 mb-6">
       <button onClick={() => setMode(APP_MODES.DASHBOARD)} className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white flex items-center gap-2 text-xs font-medium transition-colors">
           <ChevronLeft size={14} /> Back to dashboard <span className="bg-neutral-200 dark:bg-neutral-800 px-1 rounded text-[10px]">ESC</span>
@@ -146,6 +151,15 @@ export const SettingsSidebar = ({ currentView, setView, setMode }) => {
             </nav>
         </div>
       )}
+
+      {isCustomer && (
+        <div>
+            <div className="px-5 mb-2 text-neutral-500 text-[10px] font-bold uppercase tracking-wider">Manage</div>
+            <nav className="space-y-0.5">
+                <NavItem icon={Users} label="Team" active={currentView === SETTINGS_VIEWS.CLIENT_TEAM} onClick={() => setView(SETTINGS_VIEWS.CLIENT_TEAM)} />
+            </nav>
+        </div>
+      )}
     </div>
     <UserFooter setMode={setMode} />
   </div>
@@ -153,24 +167,36 @@ export const SettingsSidebar = ({ currentView, setView, setMode }) => {
 };
 
 const UserFooter = ({ setMode }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, userRole } = useAuth();
   const { toggleTheme, isDark } = useTheme();
   const { confirm } = useConfirm();
   const [menuOpen, setMenuOpen] = useState(false);
   const [teamMember, setTeamMember] = useState(null);
 
   useEffect(() => {
-    const fetchTeamMember = async () => {
+    const fetchUserInfo = async () => {
       if (!user?.email) return;
-      const { data } = await supabase
-        .from('team')
-        .select('full_name, avatar_url, profil_pic')
-        .eq('email', user.email)
-        .maybeSingle();
-      if (data) setTeamMember(data);
+
+      if (userRole === 'customer') {
+        // Fetch from client_contacts for customers
+        const { data } = await supabase
+          .from('client_contacts')
+          .select('full_name, email')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (data) setTeamMember({ full_name: data.full_name, avatar_url: null, profil_pic: null });
+      } else {
+        // Fetch from team table for team members
+        const { data } = await supabase
+          .from('team')
+          .select('full_name, avatar_url, profil_pic')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (data) setTeamMember(data);
+      }
     };
-    fetchTeamMember();
-  }, [user?.email]);
+    fetchUserInfo();
+  }, [user?.email, userRole]);
 
   const displayName = teamMember?.full_name || user?.user_metadata?.full_name || 'User';
   const displayAvatar = teamMember?.avatar_url || teamMember?.profil_pic || user?.user_metadata?.avatar_url;

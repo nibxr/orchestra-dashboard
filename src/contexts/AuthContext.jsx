@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
+import { canSendReset, recordAttempt } from '../utils/resetRateLimiter';
 
 const AuthContext = createContext({});
 
@@ -280,10 +281,25 @@ export const AuthProvider = ({ children }) => {
 
   const resetPassword = async (email) => {
     try {
+      // Client-side rate limit check
+      const check = canSendReset(email);
+      if (!check.allowed) {
+        if (check.reason === 'cooldown') {
+          throw new Error(`Please wait ${check.waitSeconds} seconds before requesting another reset link.`);
+        }
+        if (check.reason === 'limit') {
+          throw new Error('You\'ve reached the maximum of 3 reset links per hour. Please check your email or try again later.');
+        }
+      }
+
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
+
+      // Record successful attempt
+      recordAttempt(email);
+
       return { data, error: null };
     } catch (error) {
       return { data: null, error };

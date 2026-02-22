@@ -5,10 +5,12 @@ import {
 } from 'lucide-react';
 import { Avatar } from './Shared';
 import { STATUS_CONFIG } from '../utils/constants';
-import { CustomSelect } from './CustomUI';
+import { CustomSelect, MultiSelectUsers } from './CustomUI';
 
-export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = [], initialStatus = 'Backlog', currentUser = null }) => {
+export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = [], initialStatus = 'Backlog', currentUser = null, userRole = 'team', userMembership = null, clientContactId = null }) => {
    if (!isOpen) return null;
+
+   const isCustomer = userRole === 'customer';
 
    // Find current user's team member ID
    const currentTeamMember = team.find(t => t.email === currentUser?.email);
@@ -21,11 +23,13 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
    const [isSubmitting, setIsSubmitting] = useState(false);
 
    const [properties, setProperties] = useState({
-     status: initialStatus,
-     createdById: currentTeamMemberId,
-     assigneeId: currentTeamMemberId,
+     status: isCustomer ? 'Backlog' : initialStatus,
+     createdById: isCustomer ? null : currentTeamMemberId,
+     coCreatorId: null,
+     assigneeId: isCustomer ? null : currentTeamMemberId,
+     helperId: null,
      dueDate: '',
-     clientId: null,
+     clientId: isCustomer ? userMembership : null,
      type: null,
    });
 
@@ -33,12 +37,13 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
        if (isOpen) {
            setProperties(prev => ({
                ...prev,
-               status: initialStatus,
-               createdById: currentTeamMemberId,
-               assigneeId: currentTeamMemberId
+               status: isCustomer ? 'Backlog' : initialStatus,
+               createdById: isCustomer ? null : currentTeamMemberId,
+               assigneeId: isCustomer ? null : currentTeamMemberId,
+               clientId: isCustomer ? userMembership : prev.clientId
            }));
        }
-   }, [initialStatus, isOpen, currentTeamMemberId]);
+   }, [initialStatus, isOpen, currentTeamMemberId, isCustomer, userMembership]);
 
    const handleSubmit = async () => {
      if (!title || isSubmitting) return;
@@ -58,7 +63,9 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
        setProperties({
            status: 'Backlog',
            createdById: currentTeamMemberId,
+           coCreatorId: null,
            assigneeId: currentTeamMemberId,
+           helperId: null,
            dueDate: '',
            clientId: null,
            type: null
@@ -70,7 +77,9 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
      }
    };
 
-   const statusOptions = Object.keys(STATUS_CONFIG).map(s => ({ value: s, label: s }));
+   const statusOptions = isCustomer
+     ? [{ value: 'Backlog', label: 'Backlog' }]
+     : Object.keys(STATUS_CONFIG).map(s => ({ value: s, label: s }));
    
    // Group clients by status: Active first, then Paused, then Cancelled/Other
    const getClientGroup = (status) => {
@@ -136,28 +145,32 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                           onChange={e => setDescription(e.target.value)}
                        />
 
-                       <div className="mt-6">
-                          <label className="text-xs text-neutral-500 font-medium mb-2 block">Design URL (optional)</label>
-                          <input
-                             type="url"
-                             className="w-full bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-neutral-600 dark:text-neutral-300 text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600"
-                             placeholder="https://figma.com/... or any design link"
-                             value={designUrl}
-                             onChange={e => setDesignUrl(e.target.value)}
-                          />
-                          <p className="text-xs text-neutral-600 mt-1">Add a Figma, Loom, YouTube, or website link to create version 1</p>
-                       </div>
+                       {!isCustomer && (
+                         <div className="mt-6">
+                            <label className="text-xs text-neutral-500 font-medium mb-2 block">Design URL (optional)</label>
+                            <input
+                               type="url"
+                               className="w-full bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-neutral-600 dark:text-neutral-300 text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600"
+                               placeholder="https://figma.com/... or any design link"
+                               value={designUrl}
+                               onChange={e => setDesignUrl(e.target.value)}
+                            />
+                            <p className="text-xs text-neutral-600 mt-1">Add a Figma, Loom, YouTube, or website link to create version 1</p>
+                         </div>
+                       )}
 
-                       <div className="mt-8">
-                          <div className="mb-4 flex items-center gap-2 text-neutral-500 text-xs font-bold uppercase tracking-wider">
-                            <LayoutTemplate size={12}/> Start with a template
-                          </div>
-                          <div className="grid grid-cols-4 gap-2">
-                             {['Branding', 'Ads payantes', 'Print', 'E-book', 'Illustrations', 'Web design'].map(t => (
-                                 <button key={t} onClick={() => setTitle(t)} className="px-3 py-2 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-600 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all text-left truncate">{t}</button>
-                             ))}
-                          </div>
-                       </div>
+                       {!isCustomer && (
+                         <div className="mt-8">
+                            <div className="mb-4 flex items-center gap-2 text-neutral-500 text-xs font-bold uppercase tracking-wider">
+                              <LayoutTemplate size={12}/> Start with a template
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                               {['Branding', 'Ads payantes', 'Print', 'E-book', 'Illustrations', 'Web design'].map(t => (
+                                   <button key={t} onClick={() => setTitle(t)} className="px-3 py-2 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-600 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all text-left truncate">{t}</button>
+                               ))}
+                            </div>
+                         </div>
+                       )}
                    </div>
                    
                    <div className="mt-auto pt-4 flex items-center gap-4 text-neutral-500 border-t border-neutral-200 dark:border-neutral-800/50">
@@ -173,18 +186,20 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                    </div>
 
                    <div className="space-y-1 mb-8">
-                       <CustomSelect
-                           label="Customer"
-                           icon={User}
-                           value={properties.clientId}
-                           options={clientOptions}
-                           onChange={v => {
-                               console.log('[NewTaskModal] Customer selected:', v);
-                               setProperties({...properties, clientId: v});
-                           }}
-                           placeholder="Add customer"
-                           searchable
-                       />
+                       {!isCustomer && (
+                         <CustomSelect
+                             label="Customer"
+                             icon={User}
+                             value={properties.clientId}
+                             options={clientOptions}
+                             onChange={v => {
+                                 console.log('[NewTaskModal] Customer selected:', v);
+                                 setProperties({...properties, clientId: v});
+                             }}
+                             placeholder="Add customer"
+                             searchable
+                         />
+                       )}
 
                        <CustomSelect
                            label="Status"
@@ -194,25 +209,44 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                            onChange={v => setProperties({...properties, status: v})}
                        />
 
-                       <CustomSelect
-                           label="Created By"
-                           icon={User}
-                           value={properties.createdById}
-                           options={assigneeOptions}
-                           onChange={v => setProperties({...properties, createdById: v})}
-                           type="user"
-                           placeholder="Select creator"
-                       />
+                       {!isCustomer && (
+                         <>
+                           <MultiSelectUsers
+                               label="Created By"
+                               icon={User}
+                               values={[properties.createdById, properties.coCreatorId].filter(Boolean)}
+                               options={assigneeOptions}
+                               onChange={(vals) => setProperties({
+                                   ...properties,
+                                   createdById: vals[0] || null,
+                                   coCreatorId: vals[1] || null
+                               })}
+                               placeholder="Select creator"
+                               maxSelections={2}
+                               searchable
+                           />
 
-                       <CustomSelect
-                           label="Assignee"
-                           icon={User}
-                           value={properties.assigneeId}
-                           options={assigneeOptions}
-                           onChange={v => setProperties({...properties, assigneeId: v})}
-                           type="user"
-                           placeholder="Unassigned"
-                       />
+                           <CustomSelect
+                               label="Assignee"
+                               icon={User}
+                               value={properties.assigneeId}
+                               options={assigneeOptions}
+                               onChange={v => setProperties({...properties, assigneeId: v})}
+                               type="user"
+                               placeholder="Unassigned"
+                           />
+
+                           <CustomSelect
+                               label="Helper"
+                               icon={User}
+                               value={properties.helperId}
+                               options={assigneeOptions}
+                               onChange={v => setProperties({...properties, helperId: v})}
+                               type="user"
+                               placeholder="No helper"
+                           />
+                         </>
+                       )}
                        
                        <div className="flex items-center justify-between group py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800/50 px-2 rounded transition-colors">
                            <div className="flex items-center gap-2 text-neutral-500 w-32">
@@ -237,13 +271,15 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                    </div>
 
                    <div className="mt-auto flex justify-between items-center pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                       <div 
-                           className="flex items-center gap-2 text-neutral-500 cursor-pointer hover:text-neutral-600 dark:hover:text-neutral-600 dark:text-neutral-300 transition-colors select-none"
-                           onClick={() => setIsPrivate(!isPrivate)}
-                       >
-                           {isPrivate ? <ToggleRight size={20} className="text-neutral-900 dark:text-white" /> : <ToggleLeft size={20} />}
-                           <span className="text-xs">Make private</span>
-                       </div>
+                       {!isCustomer ? (
+                         <div
+                             className="flex items-center gap-2 text-neutral-500 cursor-pointer hover:text-neutral-600 dark:hover:text-neutral-600 dark:text-neutral-300 transition-colors select-none"
+                             onClick={() => setIsPrivate(!isPrivate)}
+                         >
+                             {isPrivate ? <ToggleRight size={20} className="text-neutral-900 dark:text-white" /> : <ToggleLeft size={20} />}
+                             <span className="text-xs">Make private</span>
+                         </div>
+                       ) : <div />}
                        <button
                           onClick={handleSubmit}
                           disabled={!title || isSubmitting}

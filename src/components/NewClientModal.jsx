@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { X, Building2, Mail, User } from 'lucide-react';
+import { useToast } from './Toast';
 
 /**
  * NewClientModal - Team creates client invitations
  * Demo version with mock Stripe plans
  */
 export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
+  const toast = useToast();
   const [formData, setFormData] = useState({
     companyName: '',
     clientName: '',
@@ -46,8 +48,9 @@ export const NewClientModal = ({ isOpen, onClose, onInvite }) => {
     const invitationToken = `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const invitationLink = `${window.location.origin}/activate/${invitationToken}`;
 
-    // Demo: Show the invitation link
-    alert(`Invitation created!\n\nInvitation link:\n${invitationLink}\n\n(In production, this would be emailed to ${formData.clientEmail})`);
+    // Copy invitation link to clipboard and show toast
+    navigator.clipboard?.writeText(invitationLink);
+    toast.success(`Invitation created! Link copied to clipboard.`);
 
     // Call parent callback
     if (onInvite) {

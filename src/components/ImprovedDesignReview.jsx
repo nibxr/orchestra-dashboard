@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, Hand, ZoomIn, ZoomOut, Maximize2, User, Calendar, Tag, Building2, Filter, ChevronRight, ChevronLeft, ChevronDown, ExternalLink, Trash2, Smile, Link2, Type, MoreHorizontal, Bold, Italic, Strikethrough, Underline, List, ListOrdered, CheckSquare, Paperclip, X, Search, Clock, Cat, UtensilsCrossed, Car, Ban, PartyPopper, Music, Flag, Copy, Plus, Share2, Upload, ArrowLeft, Globe, Code2, Loader2 } from 'lucide-react';
 import { CustomSelect } from './CustomUI';
@@ -6,6 +6,7 @@ import { STATUS_CONFIG } from '../utils/constants';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from './Toast';
+import { useConfirm } from './ConfirmModal';
 import CommentPinsOverlay from './CommentPinsOverlay';
 import CommentPin from './CommentPin';
 import FigmaImportModal from './FigmaImportModal';
@@ -337,16 +338,63 @@ export const ImprovedDesignReview = ({
   onRemoveReaction,
   currentUserId
 }) => {
-  const { user } = useAuth();
+  const { user, userRole, clientContactId } = useAuth();
+  const isCustomer = userRole === 'customer';
   const navigate = useNavigate();
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // --- Draggable sidebar resize ---
+  const REVIEW_SIDEBAR_MIN = 300;
+  const REVIEW_SIDEBAR_MAX = 960;
+  const REVIEW_SIDEBAR_DEFAULT = 375;
+  const [reviewSidebarWidth, setReviewSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('review-sidebar-width');
+    return saved ? Math.min(REVIEW_SIDEBAR_MAX, Math.max(REVIEW_SIDEBAR_MIN, Number(saved))) : REVIEW_SIDEBAR_DEFAULT;
+  });
+  const isDraggingSidebarRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartWidthRef = useRef(REVIEW_SIDEBAR_DEFAULT);
+  const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
+
+  const handleSidebarResizeStart = useCallback((e) => {
+    e.preventDefault();
+    isDraggingSidebarRef.current = true;
+    setIsDraggingSidebar(true);
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = reviewSidebarWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [reviewSidebarWidth]);
+
+  useEffect(() => {
+    const onMouseMove = (e) => {
+      if (!isDraggingSidebarRef.current) return;
+      const delta = e.clientX - dragStartXRef.current;
+      const newW = Math.min(REVIEW_SIDEBAR_MAX, Math.max(REVIEW_SIDEBAR_MIN, dragStartWidthRef.current + delta));
+      setReviewSidebarWidth(newW);
+    };
+    const onMouseUp = () => {
+      if (!isDraggingSidebarRef.current) return;
+      isDraggingSidebarRef.current = false;
+      setIsDraggingSidebar(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setReviewSidebarWidth(w => { localStorage.setItem('review-sidebar-width', w); return w; });
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => { window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp); };
+  }, []);
+
   const [activeTab, setActiveTab] = useState('details');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(task.description || '');
   const [newComment, setNewComment] = useState('');
+  const [newNote, setNewNote] = useState('');
   const [canvasMode, setCanvasMode] = useState('view');
   const [zoomLevel, setZoomLevel] = useState(1);
   const [versionMenuOpen, setVersionMenuOpen] = useState(false);
@@ -426,6 +474,10 @@ export const ImprovedDesignReview = ({
   const creatorName = task.creatorName || creator?.full_name || 'Unknown';
   const creatorAvatar = task.creatorAvatar || creator?.avatar_url;
 
+  const helper = team?.find(t => t.id === task.helper_id);
+  const helperName = task.helperName || helper?.full_name || null;
+  const helperAvatar = task.helperAvatar || helper?.avatar_url;
+
   const handleUpdateTitle = async () => {
     if (editedTitle.trim() && editedTitle !== task.title) {
       await onUpdateTask(task.id, { title: editedTitle });
@@ -461,10 +513,28 @@ export const ImprovedDesignReview = ({
       content: newComment,
       task_id: task.id,
       version_id: currentVersion?.id,
-      author_designer_id: currentTeamMember?.id || user?.id
+      author_designer_id: isCustomer ? null : (currentTeamMember?.id || null),
+      author_contact_id: isCustomer ? clientContactId : null
     });
 
     setNewComment('');
+  };
+
+  const handleSendNote = async () => {
+    if (!newNote.trim()) return;
+
+    const currentTeamMember = team?.find(t => t.email === user?.email);
+
+    await onAddComment({
+      content: newNote,
+      task_id: task.id,
+      version_id: currentVersion?.id || null,
+      author_designer_id: isCustomer ? null : (currentTeamMember?.id || null),
+      author_contact_id: isCustomer ? clientContactId : null,
+      is_note: true
+    });
+
+    setNewNote('');
   };
 
   const handleSendPositionedComment = async () => {
@@ -504,7 +574,8 @@ export const ImprovedDesignReview = ({
       content: positionedCommentText,
       task_id: task.id,
       version_id: currentVersion?.id,
-      author_designer_id: currentTeamMember?.id || user?.id,
+      author_designer_id: isCustomer ? null : (currentTeamMember?.id || null),
+      author_contact_id: isCustomer ? clientContactId : null,
       position_x: relativeX,
       position_y: relativeY
     });
@@ -571,7 +642,13 @@ export const ImprovedDesignReview = ({
   };
 
   const handleDeleteTask = async () => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
+    const confirmed = await confirm({
+      title: 'Delete task',
+      message: 'Are you sure you want to delete this task? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger'
+    });
+    if (confirmed) {
       const { error } = await supabase.from('tasks').delete().eq('id', task.id);
       if (!error) {
         window.close();
@@ -738,6 +815,7 @@ export const ImprovedDesignReview = ({
                               <span className="ml-auto text-[10px] text-neutral-400 dark:text-neutral-500">Current</span>
                             )}
                           </button>
+                          {!isCustomer && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -750,10 +828,12 @@ export const ImprovedDesignReview = ({
                           >
                             <Trash2 size={12} />
                           </button>
+                          )}
                         </div>
                       ))}
                     </div>
                     {/* Add new version options */}
+                    {!isCustomer && (
                     <div className="border-t border-neutral-100 dark:border-neutral-800 p-1.5">
                       <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider px-2.5 py-1.5">Add new</p>
                       <button
@@ -793,6 +873,7 @@ export const ImprovedDesignReview = ({
                         Website
                       </button>
                     </div>
+                    )}
                   </div>
                 </>
               )}
@@ -800,7 +881,8 @@ export const ImprovedDesignReview = ({
           )}
         </div>
 
-        {/* Task Menu - Far right */}
+        {/* Task Menu - Far right (hidden for clients) */}
+        {!isCustomer && (
         <div className="relative">
           <button
             onClick={() => setTaskMenuOpen(!taskMenuOpen)}
@@ -851,6 +933,7 @@ export const ImprovedDesignReview = ({
             </>
           )}
         </div>
+        )}
 
         {/* Canvas Controls - Centered relative to canvas area (offset by sidebar width) */}
         <div
@@ -919,11 +1002,11 @@ export const ImprovedDesignReview = ({
       <div className="flex-1 flex overflow-hidden relative">
         {/* Sidebar - slides in/out with animation */}
         <div
-          className="flex-shrink-0 border-r border-neutral-800 flex flex-col bg-[#0f0f0f] transition-all duration-300 ease-in-out overflow-hidden"
-          style={{ width: sidebarOpen ? '375px' : '0px' }}
+          className={`flex-shrink-0 flex flex-col bg-[#0f0f0f] overflow-hidden ${isDraggingSidebar ? '' : 'transition-all duration-300 ease-in-out'}`}
+          style={{ width: sidebarOpen ? reviewSidebarWidth : 0 }}
         >
           {/* Sidebar inner content - fixed width to prevent content reflow during animation */}
-          <div className="w-[375px] h-full flex flex-col">
+          <div className="h-full flex flex-col" style={{ minWidth: reviewSidebarWidth }}>
             {/* Tabs with filter button */}
             <div className="flex items-center border-b border-neutral-800">
               <div className="flex gap-6 px-4">
@@ -947,6 +1030,18 @@ export const ImprovedDesignReview = ({
                 >
                   Comments
                 </button>
+                {currentUserId && !isCustomer && (
+                  <button
+                    onClick={() => setActiveTab('notes')}
+                    className={`py-3 text-sm font-medium transition-colors ${
+                      activeTab === 'notes'
+                        ? 'text-white'
+                        : 'text-neutral-500 hover:text-neutral-300'
+                    }`}
+                  >
+                    Notes
+                  </button>
+                )}
               </div>
               <div className="flex-1"></div>
 
@@ -1014,16 +1109,39 @@ export const ImprovedDesignReview = ({
                   assigneeName={assigneeName}
                   creatorName={creatorName}
                   createdById={createdById}
+                  helperName={helperName}
                   onUpdateTask={onUpdateTask}
                   onStatusChange={handleStatusChange}
                   onAssigneeChange={handleAssigneeChange}
                   onCreatorChange={handleCreatorChange}
+                  onHelperChange={async (helperId) => {
+                    await onUpdateTask(task.id, { helper_id: helperId });
+                  }}
                   isEditingDescription={isEditingDescription}
                   setIsEditingDescription={setIsEditingDescription}
                   editedDescription={editedDescription}
                   setEditedDescription={setEditedDescription}
                   handleUpdateDescription={handleUpdateDescription}
                   onOpenDeliverables={() => setShowDeliverablesForm(true)}
+                  isCustomer={isCustomer}
+                />
+              ) : activeTab === 'notes' ? (
+                <CommentsTab
+                  comments={comments}
+                  currentUserId={currentUserId}
+                  team={team}
+                  newComment={newNote}
+                  setNewComment={setNewNote}
+                  handleSendComment={handleSendNote}
+                  onUpdateComment={onUpdateComment}
+                  onDeleteComment={onDeleteComment}
+                  onAddReaction={onAddReaction}
+                  onRemoveReaction={onRemoveReaction}
+                  user={user}
+                  hideOtherVersions={false}
+                  currentVersionId={currentVersion?.id}
+                  activeCommentId={null}
+                  isNotesMode={true}
                 />
               ) : (
                 <CommentsTab
@@ -1046,6 +1164,17 @@ export const ImprovedDesignReview = ({
             </div>
           </div>
         </div>
+
+        {/* Draggable resize handle - only when sidebar is open */}
+        {sidebarOpen && (
+          <div
+            onMouseDown={handleSidebarResizeStart}
+            className="w-1 cursor-col-resize shrink-0 group relative z-10 flex items-center justify-center"
+          >
+            <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
+            <div className={`w-px h-full transition-colors ${isDraggingSidebar ? 'bg-neutral-500' : 'bg-neutral-800 group-hover:bg-neutral-600'}`} />
+          </div>
+        )}
 
         {/* Sidebar toggle button - only visible when sidebar is closed */}
         {!sidebarOpen && (
@@ -1136,11 +1265,11 @@ export const ImprovedDesignReview = ({
                           .filter(comment => comment.version_id === currentVersion?.id && comment.position_x != null && comment.position_y != null)
                           .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
                           .map((comment, index) => {
-                            const author = team?.find(t => t.id === comment.author_designer_id);
+                            const author = comment.author_designer_id ? team?.find(t => t.id === comment.author_designer_id) : null;
                             const enrichedComment = {
                               ...comment,
-                              authorName: author?.full_name || null,
-                              authorAvatar: author?.avatar_url || null
+                              authorName: comment.authorName || author?.full_name || null,
+                              authorAvatar: comment.authorAvatar || author?.avatar_url || null
                             };
                             return (
                               <div
@@ -1225,11 +1354,11 @@ export const ImprovedDesignReview = ({
                 comments={comments
                   .filter(comment => comment.version_id === currentVersion?.id)
                   .map(comment => {
-                    const author = team?.find(t => t.id === comment.author_designer_id);
+                    const author = comment.author_designer_id ? team?.find(t => t.id === comment.author_designer_id) : null;
                     return {
                       ...comment,
-                      authorName: author?.full_name || null,
-                      authorAvatar: author?.avatar_url || null
+                      authorName: comment.authorName || author?.full_name || null,
+                      authorAvatar: comment.authorAvatar || author?.avatar_url || null
                     };
                   })}
                 activeCommentId={activeCommentId}
@@ -1522,16 +1651,19 @@ const DetailsTab = ({
   assigneeName,
   creatorName,
   createdById,
+  helperName,
   onUpdateTask,
   onStatusChange,
   onAssigneeChange,
   onCreatorChange,
+  onHelperChange,
   isEditingDescription,
   setIsEditingDescription,
   editedDescription,
   setEditedDescription,
   handleUpdateDescription,
-  onOpenDeliverables
+  onOpenDeliverables,
+  isCustomer
 }) => {
   const [isEditingDueDate, setIsEditingDueDate] = useState(false);
   const [editedDueDate, setEditedDueDate] = useState(task.dueDate || '');
@@ -1666,7 +1798,7 @@ const DetailsTab = ({
         placeholder="No status"
       />
 
-      {/* Assignee */}
+      {/* Assignee (read-only for clients) */}
       <CustomSelect
         label="Assignee"
         icon={User}
@@ -1676,9 +1808,25 @@ const DetailsTab = ({
         type="user"
         placeholder="Unassigned"
         displayName={assigneeName !== 'Unassigned' ? assigneeName : null}
+        disabled={isCustomer}
       />
 
-      {/* Created By */}
+      {/* Helper (hidden for clients) */}
+      {!isCustomer && (
+      <CustomSelect
+        label="Helper"
+        icon={User}
+        value={task.helper_id}
+        options={teamOptions}
+        onChange={onHelperChange}
+        type="user"
+        placeholder="No helper"
+        displayName={helperName}
+      />
+      )}
+
+      {/* Created By (hidden for clients) */}
+      {!isCustomer && (
       <CustomSelect
         label="Created By"
         icon={User}
@@ -1689,6 +1837,7 @@ const DetailsTab = ({
         placeholder="Unknown"
         displayName={creatorName !== 'Unknown' ? creatorName : null}
       />
+      )}
 
       {/* Due Date - Editable */}
       <div className="flex items-center py-1.5 px-2 hover:bg-neutral-800/50 rounded cursor-pointer group">
@@ -1919,7 +2068,8 @@ const CommentsTab = ({
   user,
   hideOtherVersions,
   currentVersionId,
-  activeCommentId
+  activeCommentId,
+  isNotesMode = false
 }) => {
   const [highlightedCommentId, setHighlightedCommentId] = useState(null);
   const [editingCommentId, setEditingCommentId] = useState(null);
@@ -2009,10 +2159,13 @@ const CommentsTab = ({
     return () => document.removeEventListener('selectionchange', handleSelectionChange);
   }, []);
 
-  // Filter comments based on version if needed
-  const filteredComments = hideOtherVersions
-    ? comments.filter(c => c.version_id === currentVersionId)
-    : comments;
+  // Filter comments based on mode
+  const modeFilteredComments = isNotesMode
+    ? comments.filter(c => c.is_note === true)
+    : comments.filter(c => c.is_note !== true);
+  const filteredComments = hideOtherVersions && !isNotesMode
+    ? modeFilteredComments.filter(c => c.version_id === currentVersionId)
+    : modeFilteredComments;
 
   // Initialize edit comment editor content when editing starts
   useEffect(() => {
@@ -2305,8 +2458,8 @@ const CommentsTab = ({
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {filteredComments.length === 0 ? (
           <div className="text-center text-neutral-500 py-12">
-            <p>No comments yet</p>
-            <p className="text-sm mt-1">Add a comment to get started</p>
+            <p>{isNotesMode ? 'No notes yet' : 'No comments yet'}</p>
+            <p className="text-sm mt-1">{isNotesMode ? 'Add internal notes visible only to team members' : 'Add a comment to get started'}</p>
           </div>
         ) : (
           Object.keys(groupedComments).map((dateKey) => {
@@ -2325,12 +2478,13 @@ const CommentsTab = ({
                 {/* Comments */}
                 <div className="space-y-0">
                   {dateComments.map((comment) => {
-                    const author = team?.find(t => t.id === comment.author_designer_id);
-                    const authorName = author?.full_name || 'Unknown';
-                    const authorAvatar = author?.avatar_url;
+                    const author = comment.author_designer_id ? team?.find(t => t.id === comment.author_designer_id) : null;
+                    const authorName = comment.authorName || author?.full_name || 'Unknown';
+                    const authorAvatar = comment.authorAvatar || author?.avatar_url || null;
 
                     const currentTeamMember = team?.find(t => t.email === user?.email);
-                    const isOwnComment = comment.author_designer_id === currentTeamMember?.id;
+                    const isOwnComment = (currentTeamMember && comment.author_designer_id === currentTeamMember?.id) ||
+                                        (clientContactId && comment.author_contact_id === clientContactId);
                     const isEditing = editingCommentId === comment.id;
                     const isHovered = hoveredCommentId === comment.id;
 
@@ -2729,11 +2883,16 @@ const CommentsTab = ({
             </div>
           )}
 
+          {/* Notes mode label */}
+          {isNotesMode && (
+            <div className="text-xs text-neutral-500 mb-1">Only visible to team members</div>
+          )}
+
           {/* Message editor */}
           <div
             ref={newCommentEditorRef}
             contentEditable
-            data-placeholder="Leave a message..."
+            data-placeholder={isNotesMode ? "Add a private note..." : "Leave a message..."}
             className="w-full bg-transparent text-neutral-300 text-sm focus:outline-none min-h-[20px] max-h-[120px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-600"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {

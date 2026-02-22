@@ -208,8 +208,8 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
   };
 
   return (
-    <div className="flex-1 overflow-x-auto h-full p-6">
-      <div className="flex gap-5 h-full min-w-max">
+    <div className="flex-1 overflow-x-auto h-full py-6 pr-6 pl-6">
+      <div className="flex gap-3 h-full min-w-max">
         {Object.keys(STATUS_CONFIG).map(status => (
           <div
             key={status}
