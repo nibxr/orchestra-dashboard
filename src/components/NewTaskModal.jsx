@@ -5,50 +5,105 @@ import {
 } from 'lucide-react';
 import { Avatar } from './Shared';
 import { STATUS_CONFIG } from '../utils/constants';
-import { CustomSelect } from './CustomUI';
+import { CustomSelect, MultiSelectUsers } from './CustomUI';
 
-export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = [], initialStatus = 'Backlog' }) => {
+export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = [], initialStatus = 'Backlog', currentUser = null, userRole = 'team', userMembership = null, clientContactId = null }) => {
    if (!isOpen) return null;
-   
+
+   const isCustomer = userRole === 'customer';
+
+   // Find current user's team member ID
+   const currentTeamMember = team.find(t => t.email === currentUser?.email);
+   const currentTeamMemberId = currentTeamMember?.id;
+
    const [title, setTitle] = useState('');
    const [description, setDescription] = useState('');
+   const [designUrl, setDesignUrl] = useState('');
    const [isPrivate, setIsPrivate] = useState(false);
-   
+   const [isSubmitting, setIsSubmitting] = useState(false);
+
    const [properties, setProperties] = useState({
-     status: initialStatus,
-     assigneeId: null,
+     status: isCustomer ? 'Backlog' : initialStatus,
+     createdById: isCustomer ? null : currentTeamMemberId,
+     coCreatorId: null,
+     assigneeId: isCustomer ? null : currentTeamMemberId,
+     helperId: null,
      dueDate: '',
-     clientId: null,
+     clientId: isCustomer ? userMembership : null,
      type: null,
    });
 
    useEffect(() => {
        if (isOpen) {
-           setProperties(prev => ({ ...prev, status: initialStatus }));
+           setProperties(prev => ({
+               ...prev,
+               status: isCustomer ? 'Backlog' : initialStatus,
+               createdById: isCustomer ? null : currentTeamMemberId,
+               assigneeId: isCustomer ? null : currentTeamMemberId,
+               clientId: isCustomer ? userMembership : prev.clientId
+           }));
        }
-   }, [initialStatus, isOpen]);
+   }, [initialStatus, isOpen, currentTeamMemberId, isCustomer, userMembership]);
 
-   const handleSubmit = () => {
-     if (!title) return;
-     onAddTask({
-       title,
-       description,
-       isPrivate,
-       ...properties
-     });
-     setTitle('');
-     setDescription('');
-     setIsPrivate(false);
-     setProperties({ status: 'Backlog', assigneeId: null, dueDate: '', clientId: null, type: null });
+   const handleSubmit = async () => {
+     if (!title || isSubmitting) return;
+     setIsSubmitting(true);
+     try {
+       await onAddTask({
+         title,
+         description,
+         designUrl,
+         isPrivate,
+         ...properties
+       });
+       setTitle('');
+       setDescription('');
+       setDesignUrl('');
+       setIsPrivate(false);
+       setProperties({
+           status: 'Backlog',
+           createdById: currentTeamMemberId,
+           coCreatorId: null,
+           assigneeId: currentTeamMemberId,
+           helperId: null,
+           dueDate: '',
+           clientId: null,
+           type: null
+       });
+     } catch (error) {
+       console.error('Error creating task:', error);
+     } finally {
+       setIsSubmitting(false);
+     }
    };
 
-   const statusOptions = Object.keys(STATUS_CONFIG).map(s => ({ value: s, label: s }));
+   const statusOptions = isCustomer
+     ? [{ value: 'Backlog', label: 'Backlog' }]
+     : Object.keys(STATUS_CONFIG).map(s => ({ value: s, label: s }));
    
-   // Correctly map client_name and id based on your CSV structure
-   const clientOptions = clients.map(c => ({ 
-       value: c.id, 
-       label: c.client_name || "Unknown Client" 
-   }));
+   // Group clients by status: Active first, then Paused, then Cancelled/Other
+   const getClientGroup = (status) => {
+       const s = (status || '').toLowerCase();
+       if (s.includes('en cours') || s.includes('start') || s.includes('active') || s.includes('grow') || s.includes('boost') || s.includes('lite') || s.includes('support')) return 'Active';
+       if (s.includes('pause')) return 'Paused';
+       if (s.includes('cancel') || s.includes('annul')) return 'Cancelled';
+       return 'Other';
+   };
+
+   const groupOrder = { 'Active': 0, 'Paused': 1, 'Cancelled': 2, 'Other': 3 };
+
+   const clientOptions = [...clients]
+       .sort((a, b) => {
+           const groupA = groupOrder[getClientGroup(a.status)] ?? 3;
+           const groupB = groupOrder[getClientGroup(b.status)] ?? 3;
+           if (groupA !== groupB) return groupA - groupB;
+           return (a.client_name || '').localeCompare(b.client_name || '');
+       })
+       .map(c => ({
+           value: c.id,
+           label: c.client_name || "Unknown Client",
+           group: getClientGroup(c.status)
+       }));
 
    // Correctly map full_name and id based on your CSV structure
    const assigneeOptions = team.map(t => ({ 
@@ -65,16 +120,16 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
    return (
        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
            <div 
-             className="bg-[#0f0f0f] w-full max-w-6xl h-[85vh] rounded-2xl shadow-2xl border border-neutral-800 flex overflow-hidden animate-scale-in"
+             className="bg-white dark:bg-[#0f0f0f] w-full max-w-6xl h-[85vh] rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 flex overflow-hidden animate-scale-in"
              onClick={e => e.stopPropagation()}
            >
                {/* LEFT SIDE */}
-               <div className="flex-1 p-8 flex flex-col border-r border-neutral-800 relative">
+               <div className="flex-1 p-8 flex flex-col border-r border-neutral-200 dark:border-neutral-800 relative">
                    <div className="mb-6">
                        <div className="text-xs text-neutral-500 mb-2 font-medium">New task</div>
                        <input 
                           placeholder="Enter a title for this task..." 
-                          className="w-full bg-transparent text-4xl font-bold text-white placeholder-neutral-700 focus:outline-none"
+                          className="w-full bg-transparent text-4xl font-bold text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-700 focus:outline-none"
                           autoFocus
                           value={title}
                           onChange={e => setTitle(e.target.value)}
@@ -83,72 +138,124 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                    </div>
                    
                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                       <textarea 
-                          className="w-full bg-transparent text-neutral-300 text-sm resize-none focus:outline-none h-24 placeholder-neutral-600"
+                       <textarea
+                          className="w-full bg-transparent text-neutral-600 dark:text-neutral-300 text-sm resize-none focus:outline-none h-24 placeholder-neutral-400 dark:placeholder-neutral-600"
                           placeholder="Type '/' for commands or just start typing a description"
                           value={description}
                           onChange={e => setDescription(e.target.value)}
                        />
-                       <div className="mt-8">
-                          <div className="mb-4 flex items-center gap-2 text-neutral-500 text-xs font-bold uppercase tracking-wider">
-                            <LayoutTemplate size={12}/> Start with a template
-                          </div>
-                          <div className="grid grid-cols-4 gap-2">
-                             {['Branding', 'Ads payantes', 'Print', 'E-book', 'Illustrations', 'Web design'].map(t => (
-                                 <button key={t} onClick={() => setTitle(t)} className="px-3 py-2 bg-[#1a1a1a] border border-neutral-800 rounded-lg text-neutral-300 text-xs hover:bg-neutral-800 transition-all text-left truncate">{t}</button>
-                             ))}
-                          </div>
-                       </div>
+
+                       {!isCustomer && (
+                         <div className="mt-6">
+                            <label className="text-xs text-neutral-500 font-medium mb-2 block">Design URL (optional)</label>
+                            <input
+                               type="url"
+                               className="w-full bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-neutral-600 dark:text-neutral-300 text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600"
+                               placeholder="https://figma.com/... or any design link"
+                               value={designUrl}
+                               onChange={e => setDesignUrl(e.target.value)}
+                            />
+                            <p className="text-xs text-neutral-600 mt-1">Add a Figma, Loom, YouTube, or website link to create version 1</p>
+                         </div>
+                       )}
+
+                       {!isCustomer && (
+                         <div className="mt-8">
+                            <div className="mb-4 flex items-center gap-2 text-neutral-500 text-xs font-bold uppercase tracking-wider">
+                              <LayoutTemplate size={12}/> Start with a template
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                               {['Branding', 'Ads payantes', 'Print', 'E-book', 'Illustrations', 'Web design'].map(t => (
+                                   <button key={t} onClick={() => setTitle(t)} className="px-3 py-2 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-600 dark:text-neutral-300 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all text-left truncate">{t}</button>
+                               ))}
+                            </div>
+                         </div>
+                       )}
                    </div>
                    
-                   <div className="mt-auto pt-4 flex items-center gap-4 text-neutral-500 border-t border-neutral-800/50">
-                       <button className="flex items-center gap-2 hover:text-white text-xs transition-colors"><ImageIcon size={14}/> Add cover</button>
+                   <div className="mt-auto pt-4 flex items-center gap-4 text-neutral-500 border-t border-neutral-200 dark:border-neutral-800/50">
+                       <button className="flex items-center gap-2 hover:text-neutral-900 dark:hover:text-white text-xs transition-colors"><ImageIcon size={14}/> Add cover</button>
                    </div>
                </div>
 
                {/* RIGHT SIDE */}
-               <div className="w-80 bg-[#141414] p-6 flex flex-col">
+               <div className="w-80 bg-neutral-50 dark:bg-[#141414] p-6 flex flex-col">
                    <div className="flex justify-between items-center mb-6">
                        <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Properties</div>
-                       <button onClick={onClose} className="text-neutral-500 hover:text-white transition-colors"><X size={20} /></button>
+                       <button onClick={onClose} className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"><X size={20} /></button>
                    </div>
 
                    <div className="space-y-1 mb-8">
-                       <CustomSelect 
-                           label="Customer" 
-                           icon={User} 
-                           value={properties.clientId} 
-                           options={clientOptions} 
-                           onChange={v => setProperties({...properties, clientId: v})} 
-                           placeholder="Add customer"
+                       {!isCustomer && (
+                         <CustomSelect
+                             label="Customer"
+                             icon={User}
+                             value={properties.clientId}
+                             options={clientOptions}
+                             onChange={v => {
+                                 console.log('[NewTaskModal] Customer selected:', v);
+                                 setProperties({...properties, clientId: v});
+                             }}
+                             placeholder="Add customer"
+                             searchable
+                         />
+                       )}
+
+                       <CustomSelect
+                           label="Status"
+                           icon={Circle}
+                           value={properties.status}
+                           options={statusOptions}
+                           onChange={v => setProperties({...properties, status: v})}
                        />
 
-                       <CustomSelect 
-                           label="Status" 
-                           icon={Circle} 
-                           value={properties.status} 
-                           options={statusOptions} 
-                           onChange={v => setProperties({...properties, status: v})} 
-                       />
+                       {!isCustomer && (
+                         <>
+                           <MultiSelectUsers
+                               label="Created By"
+                               icon={User}
+                               values={[properties.createdById, properties.coCreatorId].filter(Boolean)}
+                               options={assigneeOptions}
+                               onChange={(vals) => setProperties({
+                                   ...properties,
+                                   createdById: vals[0] || null,
+                                   coCreatorId: vals[1] || null
+                               })}
+                               placeholder="Select creator"
+                               maxSelections={2}
+                               searchable
+                           />
 
-                       <CustomSelect 
-                           label="Assignee" 
-                           icon={User} 
-                           value={properties.assigneeId} 
-                           options={assigneeOptions} 
-                           onChange={v => setProperties({...properties, assigneeId: v})} 
-                           type="user"
-                           placeholder="Unassigned"
-                       />
+                           <CustomSelect
+                               label="Assignee"
+                               icon={User}
+                               value={properties.assigneeId}
+                               options={assigneeOptions}
+                               onChange={v => setProperties({...properties, assigneeId: v})}
+                               type="user"
+                               placeholder="Unassigned"
+                           />
+
+                           <CustomSelect
+                               label="Helper"
+                               icon={User}
+                               value={properties.helperId}
+                               options={assigneeOptions}
+                               onChange={v => setProperties({...properties, helperId: v})}
+                               type="user"
+                               placeholder="No helper"
+                           />
+                         </>
+                       )}
                        
-                       <div className="flex items-center justify-between group py-1.5 hover:bg-neutral-800/50 px-2 rounded transition-colors">
+                       <div className="flex items-center justify-between group py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800/50 px-2 rounded transition-colors">
                            <div className="flex items-center gap-2 text-neutral-500 w-32">
                                <Calendar size={14} />
                                <span className="text-sm">Due Date</span>
                            </div>
                            <input 
                                type="date" 
-                               className="bg-transparent text-sm text-neutral-300 focus:outline-none text-right w-full appearance-none [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                               className="bg-transparent text-sm text-neutral-600 dark:text-neutral-300 focus:outline-none text-right w-full appearance-none [&::-webkit-calendar-picker-indicator]:filter dark:[&::-webkit-calendar-picker-indicator]:invert"
                                value={properties.dueDate}
                                onChange={e => setProperties({...properties, dueDate: e.target.value})}
                            />
@@ -163,20 +270,22 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                        />
                    </div>
 
-                   <div className="mt-auto flex justify-between items-center pt-4 border-t border-neutral-800">
-                       <div 
-                           className="flex items-center gap-2 text-neutral-500 cursor-pointer hover:text-neutral-300 transition-colors select-none"
-                           onClick={() => setIsPrivate(!isPrivate)}
-                       >
-                           {isPrivate ? <ToggleRight size={20} className="text-white" /> : <ToggleLeft size={20} />}
-                           <span className="text-xs">Make private</span>
-                       </div>
-                       <button 
+                   <div className="mt-auto flex justify-between items-center pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                       {!isCustomer ? (
+                         <div
+                             className="flex items-center gap-2 text-neutral-500 cursor-pointer hover:text-neutral-600 dark:hover:text-neutral-600 dark:text-neutral-300 transition-colors select-none"
+                             onClick={() => setIsPrivate(!isPrivate)}
+                         >
+                             {isPrivate ? <ToggleRight size={20} className="text-neutral-900 dark:text-white" /> : <ToggleLeft size={20} />}
+                             <span className="text-xs">Make private</span>
+                         </div>
+                       ) : <div />}
+                       <button
                           onClick={handleSubmit}
-                          disabled={!title}
-                          className={`px-4 py-2 rounded-md text-sm font-bold transition-all duration-200 ${title ? 'bg-white text-black hover:bg-neutral-200 scale-100 opacity-100' : 'bg-neutral-800 text-neutral-500 cursor-not-allowed scale-95 opacity-70'}`}
+                          disabled={!title || isSubmitting}
+                          className={`px-4 py-2 rounded-md text-sm font-bold transition-all duration-200 ${title && !isSubmitting ? 'bg-white text-black hover:bg-neutral-200 dark:hover:bg-neutral-200 scale-100 opacity-100' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500 cursor-not-allowed scale-95 opacity-70'}`}
                        >
-                           Create task
+                           {isSubmitting ? 'Creating...' : 'Create task'}
                        </button>
                    </div>
                </div>

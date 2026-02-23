@@ -2,7 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom scrollbar for that sleek dark feel */
+/* ========================================
+   CUSTOM FONTS
+   ======================================== */
+@font-face {
+  font-family: 'Lastik';
+  src: url('./assets/fonts/Lastik-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ========================================
+   GLOBAL FONT
+   ======================================== */
+* {
+  font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  scroll-behavior: smooth;
+}
+
+/* ========================================
+   BASE STYLES
+   ======================================== */
+body {
+  @apply bg-white dark:bg-[#0f0f0f] text-neutral-800 dark:text-neutral-200;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ========================================
+   CUSTOM SCROLLBAR
+   ======================================== */
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
@@ -12,24 +41,34 @@
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #262626;
+    @apply bg-neutral-300 dark:bg-neutral-700;
     border-radius: 3px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #404040;
+    @apply bg-neutral-400 dark:bg-neutral-600;
   }
 
-  /* Animations */
+  /* ========================================
+     ANIMATIONS
+     ======================================== */
   .animate-fade-in {
     animation: fadeIn 0.2s ease-out forwards;
   }
-  
+
   .animate-scale-in {
     animation: scaleIn 0.2s ease-out forwards;
   }
 
   .animate-slide-in-right {
     animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-scale-up {
+    animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-view-enter {
+    animation: viewEnter 0.15s ease-out forwards;
   }
 
   @keyframes fadeIn {
@@ -46,9 +85,98 @@
     from { transform: translateX(100%); }
     to { transform: translateX(0); }
   }
+
+  @keyframes scaleUp {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes viewEnter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* ========================================
+     AUTH PAGE ANIMATIONS
+     ======================================== */
+
+  /* Staggered fade-in-up for form elements */
+  .auth-stagger {
+    opacity: 0;
+    transform: translateY(12px);
+    animation: authFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .auth-stagger-1 { animation-delay: 0.05s; }
+  .auth-stagger-2 { animation-delay: 0.12s; }
+  .auth-stagger-3 { animation-delay: 0.19s; }
+  .auth-stagger-4 { animation-delay: 0.26s; }
+  .auth-stagger-5 { animation-delay: 0.33s; }
+  .auth-stagger-6 { animation-delay: 0.40s; }
+
+  /* Image reveal */
+  .auth-image-reveal {
+    opacity: 0;
+    transform: scale(1.03);
+    animation: authImageIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
+  }
+
+  /* View transition for switching between login/signup/forgot */
+  .auth-view-enter {
+    animation: authViewSwitch 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Input focus glow */
+  .auth-input-glow:focus {
+    border-color: rgba(208, 139, 0, 0.4);
+    box-shadow: 0 0 0 3px rgba(208, 139, 0, 0.08);
+  }
+
+  /* Button press */
+  .auth-btn-press:active {
+    transform: scale(0.98);
+  }
+
+  @keyframes authFadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes authImageIn {
+    from { opacity: 0; transform: scale(1.03); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes authViewSwitch {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 }
 
-body {
-  background-color: #0f0f0f;
-  color: #e5e5e5;
+/* ========================================
+   LIGHT MODE: Input styling
+   ======================================== */
+.light input,
+.light textarea,
+.light select {
+  background-color: #ffffff;
+  border-color: #e5e7eb;
+  color: #111827;
+}
+
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #9ca3af;
+}
+
+.light input:focus,
+.light textarea:focus {
+  border-color: #9ca3af;
+  outline: none;
+}
+
+/* ========================================
+   LIGHT MODE: Modal overlay
+   ======================================== */
+.light .bg-black\/80 {
+  background-color: rgba(0, 0, 0, 0.3);
 }

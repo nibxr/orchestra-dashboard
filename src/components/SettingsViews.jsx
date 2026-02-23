@@ -10,201 +10,380 @@ import { supabase } from '../supabaseClient';
 import { STATUS_CONFIG } from '../utils/constants';
 import { useAuth } from '../contexts/AuthContext';
 import { Avatar } from './Shared';
+import { useToast } from './Toast';
+import { useConfirm } from './ConfirmModal';
 
 // --- PROFILE SETTINGS ---
 export const ProfileSettingsView = () => {
-    const { user, updateProfile, updatePassword, signOut } = useAuth();
+    const { user, updateProfile, updatePassword, signOut, userRole } = useAuth();
+    const toast = useToast();
+    const { confirm } = useConfirm();
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState({ type: '', text: '' });
+    const [passwordLoading, setPasswordLoading] = useState(false);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const [teamMember, setTeamMember] = useState(null);
     const [profileData, setProfileData] = useState({
-        full_name: user?.user_metadata?.full_name || '',
-        avatar_url: user?.user_metadata?.avatar_url || ''
+        full_name: '',
+        avatar_url: ''
     });
     const [passwordData, setPasswordData] = useState({
         newPassword: '',
         confirmPassword: ''
     });
 
+    // Fetch user data on mount - from client_contacts for customers, team for designers
+    useEffect(() => {
+        const fetchUserData = async () => {
+            if (!user?.email) return;
+
+            if (userRole === 'customer') {
+                const { data } = await supabase
+                    .from('client_contacts')
+                    .select('id, full_name, email')
+                    .eq('email', user.email)
+                    .maybeSingle();
+                if (data) {
+                    setTeamMember({ id: data.id, full_name: data.full_name, email: data.email, status: 'Active' });
+                    setProfileData({
+                        full_name: data.full_name || user?.user_metadata?.full_name || '',
+                        avatar_url: user?.user_metadata?.avatar_url || ''
+                    });
+                } else {
+                    setProfileData({
+                        full_name: user?.user_metadata?.full_name || '',
+                        avatar_url: user?.user_metadata?.avatar_url || ''
+                    });
+                }
+            } else {
+                const { data } = await supabase
+                    .from('team')
+                    .select('id, full_name, avatar_url, profil_pic, email, status')
+                    .eq('email', user.email)
+                    .maybeSingle();
+                if (data) {
+                    setTeamMember(data);
+                    setProfileData({
+                        full_name: data.full_name || user?.user_metadata?.full_name || '',
+                        avatar_url: data.avatar_url || data.profil_pic || user?.user_metadata?.avatar_url || ''
+                    });
+                } else {
+                    setProfileData({
+                        full_name: user?.user_metadata?.full_name || '',
+                        avatar_url: user?.user_metadata?.avatar_url || ''
+                    });
+                }
+            }
+        };
+        fetchUserData();
+    }, [user?.email, userRole]);
+
+    const displayName = profileData.full_name || user?.email || 'User';
+    const displayAvatar = profileData.avatar_url;
+
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please select an image file');
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error('Image must be under 2MB');
+            return;
+        }
+
+        setAvatarUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+            const filePath = `avatars/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            setProfileData(prev => ({ ...prev, avatar_url: publicUrl }));
+            toast.success('Avatar uploaded');
+        } catch (err) {
+            // If storage bucket doesn't exist, fall back to URL input
+            console.warn('Avatar upload failed, using URL input instead:', err.message);
+            toast.error('Upload not available — enter a URL instead');
+        } finally {
+            setAvatarUploading(false);
+        }
+    };
+
     const handleUpdateProfile = async () => {
         setLoading(true);
-        setMessage({ type: '', text: '' });
-
         try {
-            const { error } = await updateProfile(profileData);
+            // Update Supabase Auth user_metadata
+            const { error } = await updateProfile({
+                full_name: profileData.full_name,
+                avatar_url: profileData.avatar_url
+            });
             if (error) throw error;
 
-            setMessage({ type: 'success', text: 'Profile updated successfully!' });
+            // Also update the appropriate table record
+            if (teamMember?.id) {
+                if (userRole === 'customer') {
+                    const { error: contactError } = await supabase
+                        .from('client_contacts')
+                        .update({ full_name: profileData.full_name })
+                        .eq('id', teamMember.id);
+                    if (contactError) console.warn('Contact table update failed:', contactError.message);
+                } else {
+                    const { error: teamError } = await supabase
+                        .from('team')
+                        .update({
+                            full_name: profileData.full_name,
+                            avatar_url: profileData.avatar_url
+                        })
+                        .eq('id', teamMember.id);
+                    if (teamError) console.warn('Team table update failed:', teamError.message);
+                }
+            }
+
+            toast.success('Profile updated');
         } catch (err) {
-            setMessage({ type: 'error', text: err.message });
+            toast.error(err.message);
         } finally {
             setLoading(false);
         }
     };
 
     const handleUpdatePassword = async () => {
-        setLoading(true);
-        setMessage({ type: '', text: '' });
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            toast.error('Passwords do not match');
+            return;
+        }
+        if (passwordData.newPassword.length < 6) {
+            toast.error('Password must be at least 6 characters');
+            return;
+        }
 
+        setPasswordLoading(true);
         try {
-            if (passwordData.newPassword !== passwordData.confirmPassword) {
-                throw new Error('Passwords do not match');
-            }
-            if (passwordData.newPassword.length < 6) {
-                throw new Error('Password must be at least 6 characters');
-            }
-
             const { error } = await updatePassword(passwordData.newPassword);
             if (error) throw error;
 
-            setMessage({ type: 'success', text: 'Password updated successfully!' });
+            toast.success('Password updated');
             setPasswordData({ newPassword: '', confirmPassword: '' });
         } catch (err) {
-            setMessage({ type: 'error', text: err.message });
+            toast.error(err.message);
         } finally {
-            setLoading(false);
+            setPasswordLoading(false);
         }
     };
 
     const handleSignOut = async () => {
-        if (confirm('Are you sure you want to sign out?')) {
+        const confirmed = await confirm({
+            title: 'Sign Out',
+            message: 'Are you sure you want to sign out?',
+            confirmText: 'Sign Out',
+            cancelText: 'Cancel',
+            variant: 'info'
+        });
+
+        if (confirmed) {
             await signOut();
         }
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-8 animate-fade-in pb-24">
+        <div className="max-w-2xl mx-auto p-8 animate-fade-in pb-24">
+            {/* Page Header */}
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white mb-2">Profile Settings</h1>
-                <p className="text-neutral-500 text-sm">Manage your personal account settings and preferences.</p>
+                <h1 className="text-xl font-semibold text-neutral-900 dark:text-white mb-1">Profile</h1>
+                <p className="text-sm text-neutral-400">Manage your personal account settings.</p>
             </div>
 
-            {/* Message */}
-            {message.text && (
-                <div className={`mb-6 p-4 rounded-lg flex items-start gap-3 ${
-                    message.type === 'success'
-                        ? 'bg-green-500/10 border border-green-500/50'
-                        : 'bg-red-500/10 border border-red-500/50'
-                }`}>
-                    <AlertCircle size={18} className={message.type === 'success' ? 'text-green-500' : 'text-red-500'} />
-                    <p className={`text-sm ${message.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
-                        {message.text}
-                    </p>
-                </div>
-            )}
-
-            {/* Profile Information */}
-            <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 mb-8">
-                <h3 className="text-sm font-bold text-white mb-4">Profile Information</h3>
-
-                {/* Avatar */}
-                <div className="mb-6">
-                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
-                        Profile Picture
-                    </label>
-                    <div className="flex items-center gap-4">
+            {/* Avatar & Identity Section */}
+            <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 mb-6">
+                <div className="flex items-start gap-5">
+                    {/* Avatar with upload */}
+                    <div className="relative group">
                         <Avatar
-                            name={profileData.full_name || user?.email}
-                            url={profileData.avatar_url}
-                            size="lg"
+                            name={displayName}
+                            url={displayAvatar}
+                            size="2xl"
                         />
-                        <div className="flex flex-col gap-2">
+                        <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                            {avatarUploading ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            ) : (
+                                <Upload size={16} className="text-white" />
+                            )}
                             <input
-                                type="text"
-                                value={profileData.avatar_url}
-                                onChange={(e) => setProfileData({...profileData, avatar_url: e.target.value})}
-                                placeholder="Avatar URL"
-                                className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-neutral-600"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleAvatarUpload}
+                                className="hidden"
+                                disabled={avatarUploading}
                             />
-                            <p className="text-[10px] text-neutral-600">Enter a URL for your profile picture</p>
-                        </div>
+                        </label>
+                    </div>
+
+                    {/* Identity info */}
+                    <div className="flex-1 min-w-0 pt-1">
+                        <h2 className="text-lg font-semibold text-neutral-900 dark:text-white truncate">{displayName}</h2>
+                        <p className="text-sm text-neutral-400 truncate">{user?.email}</p>
+                        {teamMember?.status && (
+                            <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-500">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                {teamMember.status}
+                            </span>
+                        )}
                     </div>
                 </div>
 
-                {/* Email (read-only) */}
-                <div className="mb-6">
-                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
-                        Email Address
-                    </label>
-                    <input
-                        type="email"
-                        value={user?.email || ''}
-                        disabled
-                        className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-500 cursor-not-allowed"
-                    />
-                    <p className="text-[10px] text-neutral-600 mt-1">Email cannot be changed</p>
-                </div>
-
-                {/* Full Name */}
-                <div className="mb-6">
-                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
-                        Full Name
+                {/* Avatar URL fallback input */}
+                <div className="mt-5 pt-5 border-t border-neutral-100 dark:border-neutral-800">
+                    <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">
+                        Avatar URL
                     </label>
                     <input
                         type="text"
-                        value={profileData.full_name}
-                        onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
-                        placeholder="John Doe"
-                        className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neutral-600"
+                        value={profileData.avatar_url}
+                        onChange={(e) => setProfileData({ ...profileData, avatar_url: e.target.value })}
+                        placeholder="https://example.com/avatar.jpg"
+                        className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2 px-3 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                     />
+                    <p className="text-[10px] text-neutral-400 mt-1.5">Or upload an image by hovering over your avatar</p>
+                </div>
+            </div>
+
+            {/* Profile Information */}
+            <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 mb-6">
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-5">Personal Information</h3>
+
+                <div className="space-y-5">
+                    {/* Full Name */}
+                    <div>
+                        <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">
+                            Full Name
+                        </label>
+                        <input
+                            type="text"
+                            value={profileData.full_name}
+                            onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
+                            placeholder="Your full name"
+                            className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                        />
+                    </div>
+
+                    {/* Email (read-only) */}
+                    <div>
+                        <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">
+                            Email Address
+                        </label>
+                        <input
+                            type="email"
+                            value={user?.email || ''}
+                            disabled
+                            className="w-full bg-neutral-100 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-400 cursor-not-allowed"
+                        />
+                        <p className="text-[10px] text-neutral-400 mt-1.5">Email cannot be changed</p>
+                    </div>
                 </div>
 
-                <div className="flex justify-end pt-4 border-t border-neutral-800">
+                <div className="flex justify-end pt-5 mt-5 border-t border-neutral-100 dark:border-neutral-800">
                     <button
                         onClick={handleUpdateProfile}
                         disabled={loading}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-all active:scale-95 disabled:opacity-50"
+                        className="flex items-center gap-2 px-5 py-2 bg-neutral-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all active:scale-[0.97] disabled:opacity-50"
                     >
                         {loading ? (
-                            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                            <div className="w-3.5 h-3.5 border-2 border-white/30 dark:border-black/30 border-t-white dark:border-t-black rounded-full animate-spin"></div>
                         ) : (
-                            <Save size={16} />
+                            <Save size={14} />
                         )}
-                        Save Profile
+                        Save Changes
                     </button>
                 </div>
             </div>
 
             {/* Change Password */}
-            <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 mb-8">
-                <h3 className="text-sm font-bold text-white mb-4">Change Password</h3>
+            <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 mb-6">
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-5">Change Password</h3>
 
-                <div className="space-y-4">
+                <div className="space-y-5">
                     <div>
-                        <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
+                        <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">
                             New Password
                         </label>
                         <input
                             type="password"
                             value={passwordData.newPassword}
-                            onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                            onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                             placeholder="••••••••"
-                            className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neutral-600"
+                            className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1 mb-2 block">
+                        <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">
                             Confirm Password
                         </label>
                         <input
                             type="password"
                             value={passwordData.confirmPassword}
-                            onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                            onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                             placeholder="••••••••"
-                            className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neutral-600"
+                            className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                         />
                     </div>
                 </div>
 
-                <div className="flex justify-end pt-4 border-t border-neutral-800 mt-6">
+                {/* Password strength indicator */}
+                {passwordData.newPassword && (
+                    <div className="mt-4">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="flex-1 flex gap-1">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div
+                                        key={i}
+                                        className={`h-1 flex-1 rounded-full transition-colors ${
+                                            passwordData.newPassword.length >= i * 3
+                                                ? passwordData.newPassword.length >= 12 ? 'bg-emerald-500' : passwordData.newPassword.length >= 8 ? 'bg-amber-500' : 'bg-red-500'
+                                                : 'bg-neutral-200 dark:bg-neutral-800'
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                            <span className="text-[10px] text-neutral-400">
+                                {passwordData.newPassword.length < 6 ? 'Too short' : passwordData.newPassword.length < 8 ? 'Weak' : passwordData.newPassword.length < 12 ? 'Good' : 'Strong'}
+                            </span>
+                        </div>
+                        {passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
+                            <p className="text-[11px] text-red-500 flex items-center gap-1">
+                                <X size={12} /> Passwords don&apos;t match
+                            </p>
+                        )}
+                        {passwordData.confirmPassword && passwordData.newPassword === passwordData.confirmPassword && passwordData.newPassword.length >= 6 && (
+                            <p className="text-[11px] text-emerald-500 flex items-center gap-1">
+                                <Check size={12} /> Passwords match
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                <div className="flex justify-end pt-5 mt-5 border-t border-neutral-100 dark:border-neutral-800">
                     <button
                         onClick={handleUpdatePassword}
-                        disabled={loading || !passwordData.newPassword}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-all active:scale-95 disabled:opacity-50"
+                        disabled={passwordLoading || !passwordData.newPassword || !passwordData.confirmPassword || passwordData.newPassword !== passwordData.confirmPassword || passwordData.newPassword.length < 6}
+                        className="flex items-center gap-2 px-5 py-2 bg-neutral-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all active:scale-[0.97] disabled:opacity-50"
                     >
-                        {loading ? (
-                            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                        {passwordLoading ? (
+                            <div className="w-3.5 h-3.5 border-2 border-white/30 dark:border-black/30 border-t-white dark:border-t-black rounded-full animate-spin"></div>
                         ) : (
-                            <Lock size={16} />
+                            <Lock size={14} />
                         )}
                         Update Password
                     </button>
@@ -212,18 +391,20 @@ export const ProfileSettingsView = () => {
             </div>
 
             {/* Sign Out */}
-            <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6">
-                <h3 className="text-sm font-bold text-white mb-2">Sign Out</h3>
-                <p className="text-xs text-neutral-500 mb-4">
-                    Sign out of your account on this device.
-                </p>
-                <button
-                    onClick={handleSignOut}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-red-500/10 text-red-500 border border-red-500/50 rounded-lg text-sm font-bold hover:bg-red-500/20 transition-all active:scale-95"
-                >
-                    <LogOut size={16} />
-                    Sign Out
-                </button>
+            <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-1">Sign Out</h3>
+                        <p className="text-xs text-neutral-400">Sign out of your account on this device.</p>
+                    </div>
+                    <button
+                        onClick={handleSignOut}
+                        className="flex items-center gap-2 px-4 py-2 text-red-500 border border-red-500/20 rounded-lg text-xs font-semibold hover:bg-red-500/10 transition-all active:scale-[0.97]"
+                    >
+                        <LogOut size={14} />
+                        Sign Out
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -231,19 +412,45 @@ export const ProfileSettingsView = () => {
 
 // --- AGENCY SETTINGS (Branding) ---
 export const AgencySettingsView = () => {
+    const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: 'Dafolle',
         slug: 'dafolle',
         supportEmail: 'support@dafolle.io',
-        brandColor: '#a3e635', 
+        brandColor: '#a3e635',
         logoUrl: null
     });
+    const fileInputRef = React.useRef(null);
 
     useEffect(() => {
         const saved = localStorage.getItem('orchestra_agency_settings');
         if (saved) setFormData(JSON.parse(saved));
     }, []);
+
+    const handleLogoUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file size (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error('File size must be less than 2MB');
+            return;
+        }
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please upload an image file');
+            return;
+        }
+
+        // Convert to base64 and store
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setFormData({ ...formData, logoUrl: reader.result });
+        };
+        reader.readAsDataURL(file);
+    };
 
     const handleSave = () => {
         setLoading(true);
@@ -270,7 +477,10 @@ export const AgencySettingsView = () => {
                 <h3 className="text-sm font-bold text-white mb-1">Agency Logo</h3>
                 <p className="text-xs text-neutral-500 mb-4">This logo will appear on your dashboard and client portals.</p>
                 <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden relative group cursor-pointer">
+                    <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-20 h-20 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden relative group cursor-pointer"
+                    >
                         {formData.logoUrl ? (
                             <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-cover" />
                         ) : (
@@ -281,7 +491,30 @@ export const AgencySettingsView = () => {
                         </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                        <button className="px-4 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-neutral-200 transition-colors">Upload new logo</button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-4 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-neutral-200 transition-colors"
+                        >
+                            Upload new logo
+                        </button>
+                        {formData.logoUrl && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFormData({ ...formData, logoUrl: null });
+                                }}
+                                className="px-4 py-2 text-red-400 hover:text-red-500 text-xs font-medium transition-colors"
+                            >
+                                Remove logo
+                            </button>
+                        )}
                         <p className="text-[10px] text-neutral-600">Recommended size: 400x400px. Max 2MB.</p>
                     </div>
                 </div>
@@ -326,6 +559,8 @@ export const AgencySettingsView = () => {
 
 // --- TEAM SETTINGS ---
 export const TeamSettingsView = ({ team }) => {
+    const toast = useToast();
+    const { confirm } = useConfirm();
     const [localTeam, setLocalTeam] = useState(team || []);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
@@ -335,6 +570,11 @@ export const TeamSettingsView = ({ team }) => {
 
     useEffect(() => { if(team) setLocalTeam(team); }, [team]);
 
+    // Filter out "Left company" members and sort alphabetically
+    const visibleMembers = localTeam
+        .filter(m => !(m.status || '').toLowerCase().includes('left'))
+        .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+
     const handleInvite = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -342,53 +582,164 @@ export const TeamSettingsView = ({ team }) => {
             const { data, error } = await supabase.from('team').insert([{ full_name: inviteName, email: inviteEmail, status: 'Active', notes: `Role: ${inviteRole}` }]).select();
             if (error) throw error;
             if (data) { setLocalTeam([...localTeam, data[0]]); setIsInviteOpen(false); setInviteName(''); setInviteEmail(''); }
-        } catch (error) { alert("Failed to invite member."); } finally { setLoading(false); }
+            toast.success('Member invited');
+        } catch (error) { toast.error("Failed to invite member."); } finally { setLoading(false); }
     };
 
-    const handleDelete = async (id) => {
-        if(!confirm("Remove this member?")) return;
-        try {
-            const { error } = await supabase.from('team').delete().eq('id', id);
-            if (error) throw error;
-            setLocalTeam(localTeam.filter(m => m.id !== id));
-        } catch(e) { console.error(e); }
+    const getStatusStyle = (status) => {
+        const s = (status || '').toLowerCase();
+        if (s === 'active') return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+        if (s === 'inactive' || s === 'disabled') return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border-neutral-200 dark:border-neutral-700';
+        if (s === 'invited' || s === 'pending') return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+        return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border-neutral-200 dark:border-neutral-700';
+    };
+
+    const getStatusDot = (status) => {
+        const s = (status || '').toLowerCase();
+        if (s === 'active') return 'bg-emerald-500';
+        if (s === 'invited' || s === 'pending') return 'bg-amber-500';
+        return 'bg-neutral-400';
+    };
+
+    const getRoleFromNotes = (notes) => {
+        if (!notes) return 'Member';
+        return notes.replace('Role: ', '') || 'Member';
     };
 
     return (
-        <div className="max-w-6xl mx-auto p-8 animate-fade-in pb-24 h-full flex flex-col">
-             <div className="flex items-center justify-between mb-8">
-                <div><h1 className="text-2xl font-bold text-white mb-2">Team Members</h1><p className="text-neutral-500 text-sm">Manage access and roles.</p></div>
-                <button onClick={() => setIsInviteOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-colors"><UserPlus size={16} /> Invite Member</button>
+        <div className="max-w-2xl mx-auto p-8 animate-fade-in pb-24">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-xl font-semibold text-neutral-900 dark:text-white mb-1">Team</h1>
+                    <p className="text-sm text-neutral-400">Manage your team members and roles.</p>
+                </div>
+                <button
+                    onClick={() => setIsInviteOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all active:scale-[0.97]"
+                >
+                    <UserPlus size={14} /> Invite
+                </button>
             </div>
-            <div className="bg-[#0f0f0f] border border-neutral-800 rounded-xl overflow-hidden flex-1">
-                <table className="w-full text-left text-sm border-collapse">
-                    <thead className="bg-[#141414] text-neutral-500 font-medium text-xs uppercase tracking-wider border-b border-neutral-800"><tr><th className="px-6 py-4 font-medium w-1/3">Name</th><th className="px-6 py-4 font-medium">Email</th><th className="px-6 py-4 font-medium">Status</th><th className="px-6 py-4 font-medium text-right">Actions</th></tr></thead>
-                    <tbody className="divide-y divide-neutral-800/50">
-                        {localTeam.map((member) => (
-                            <tr key={member.id} className="group hover:bg-[#1a1a1a] transition-colors">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400 font-bold text-xs border border-neutral-700">{member.full_name ? member.full_name[0] : '?'}</div>
-                                        <div><div className="text-white font-medium">{member.full_name}</div><div className="text-neutral-500 text-xs">{member.notes ? member.notes.replace('Role: ', '') : 'Member'}</div></div>
+
+            {/* Team count */}
+            <div className="mb-4">
+                <span className="text-xs text-neutral-400">{visibleMembers.length} active member{visibleMembers.length !== 1 ? 's' : ''}</span>
+            </div>
+
+            {/* Team list */}
+            <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden divide-y divide-neutral-100 dark:divide-neutral-800/50">
+                {visibleMembers.length === 0 ? (
+                    <div className="py-16 text-center">
+                        <User size={32} className="mx-auto mb-3 text-neutral-300 dark:text-neutral-700" />
+                        <p className="text-sm text-neutral-400">No team members yet</p>
+                    </div>
+                ) : (
+                    visibleMembers.map((member) => (
+                        <div
+                            key={member.id}
+                            className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-neutral-50 dark:hover:bg-white/[0.02]"
+                        >
+                            {/* Avatar */}
+                            <div className="shrink-0">
+                                {member.avatar_url || member.profil_pic ? (
+                                    <img
+                                        src={member.avatar_url || member.profil_pic}
+                                        alt={member.full_name}
+                                        className="w-10 h-10 rounded-full object-cover border border-neutral-200 dark:border-neutral-700"
+                                    />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center text-neutral-500 dark:text-neutral-300 font-semibold text-sm">
+                                        {member.full_name ? member.full_name[0].toUpperCase() : '?'}
                                     </div>
-                                </td>
-                                <td className="px-6 py-4 text-neutral-400">{member.email}</td>
-                                <td className="px-6 py-4"><span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Active</span></td>
-                                <td className="px-6 py-4 text-right"><button onClick={() => handleDelete(member.id)} className="p-2 text-neutral-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button></td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                )}
+                            </div>
+
+                            {/* Name, Role & Email */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-neutral-900 dark:text-white truncate">
+                                        {member.full_name || 'Unnamed'}
+                                    </span>
+                                    <span className="text-[10px] font-medium text-neutral-400 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-1.5 py-0.5 rounded shrink-0">
+                                        {getRoleFromNotes(member.notes)}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-neutral-400 truncate mt-0.5">{member.email || '-'}</p>
+                            </div>
+
+                            {/* Status */}
+                            <div className="shrink-0">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border ${getStatusStyle(member.status)}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(member.status)}`}></span>
+                                    {member.status || 'Active'}
+                                </span>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
+
+            {/* Invite Modal */}
             {isInviteOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-[#0f0f0f] border border-neutral-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-scale-up">
-                        <div className="p-6 border-b border-neutral-800 flex justify-between items-center bg-[#141414]"><h3 className="font-bold text-white">Invite Team Member</h3><button onClick={() => setIsInviteOpen(false)}><X size={20} className="text-neutral-400 hover:text-white"/></button></div>
-                        <form onSubmit={handleInvite} className="p-6 space-y-4">
-                            <div className="space-y-2"><label className="text-xs font-medium text-neutral-400 uppercase">Full Name</label><input required type="text" className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-white transition-colors" value={inviteName} onChange={e => setInviteName(e.target.value)}/></div>
-                            <div className="space-y-2"><label className="text-xs font-medium text-neutral-400 uppercase">Email Address</label><input required type="email" className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-white transition-colors" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}/></div>
-                            <div className="space-y-2"><label className="text-xs font-medium text-neutral-400 uppercase">Role</label><select className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-white transition-colors" value={inviteRole} onChange={e => setInviteRole(e.target.value)}><option value="Admin">Admin</option><option value="Designer">Designer</option><option value="Project Manager">Project Manager</option></select></div>
-                            <button type="submit" disabled={loading} className="w-full py-3 mt-2 bg-white text-black font-bold rounded-lg hover:bg-neutral-200 transition-colors disabled:opacity-50">{loading ? 'Sending...' : 'Send Invite'}</button>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-[2px] p-4 animate-fade-in" onClick={() => setIsInviteOpen(false)}>
+                    <div
+                        className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 w-full max-w-md rounded-xl shadow-2xl overflow-hidden animate-scale-up"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="px-6 py-4 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center">
+                            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Invite Team Member</h3>
+                            <button onClick={() => setIsInviteOpen(false)} className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors p-1">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleInvite} className="p-6 space-y-5">
+                            <div>
+                                <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">Full Name</label>
+                                <input
+                                    required
+                                    type="text"
+                                    className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                                    placeholder="John Doe"
+                                    value={inviteName}
+                                    onChange={e => setInviteName(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">Email Address</label>
+                                <input
+                                    required
+                                    type="email"
+                                    className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                                    placeholder="john@example.com"
+                                    value={inviteEmail}
+                                    onChange={e => setInviteEmail(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2 block">Role</label>
+                                <select
+                                    className="w-full bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg py-2.5 px-4 text-sm text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors cursor-pointer"
+                                    value={inviteRole}
+                                    onChange={e => setInviteRole(e.target.value)}
+                                >
+                                    <option value="Admin">Admin</option>
+                                    <option value="Designer">Designer</option>
+                                    <option value="Project Manager">Project Manager</option>
+                                </select>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full py-2.5 bg-neutral-900 dark:bg-white text-white dark:text-black font-semibold text-sm rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {loading ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 dark:border-black/30 border-t-white dark:border-t-black rounded-full animate-spin"></div>
+                                ) : (
+                                    <UserPlus size={14} />
+                                )}
+                                {loading ? 'Inviting...' : 'Send Invite'}
+                            </button>
                         </form>
                     </div>
                 </div>
@@ -518,6 +869,7 @@ export const WorkflowSettingsView = () => {
 
 // --- CLIENT PORTAL SETTINGS (Feature Rich & Functional) ---
 export const ClientPortalSettingsView = () => {
+    const { prompt } = useConfirm();
     const [settings, setSettings] = useState({
         customDomain: '',
         portalName: 'Client Portal',
@@ -540,10 +892,26 @@ export const ClientPortalSettingsView = () => {
         if(btn) { btn.innerText = 'Saved!'; setTimeout(() => btn.innerText = 'Save Changes', 2000); }
     };
 
-    const addLink = () => {
-        const label = prompt("Link Label");
-        const url = prompt("URL");
-        if (label && url) setSettings({ ...settings, links: [...settings.links, { id: Date.now(), label, url }] });
+    const addLink = async () => {
+        const label = await prompt({
+            title: 'Add Link',
+            message: 'Enter the link label:',
+            confirmText: 'Next',
+            cancelText: 'Cancel'
+        });
+
+        if (!label) return;
+
+        const url = await prompt({
+            title: 'Add Link',
+            message: 'Enter the URL:',
+            confirmText: 'Add',
+            cancelText: 'Cancel'
+        });
+
+        if (url) {
+            setSettings({ ...settings, links: [...settings.links, { id: Date.now(), label, url }] });
+        }
     };
 
     return (
@@ -629,135 +997,298 @@ export const ClientPortalSettingsView = () => {
 
 // --- PLANS & ADD-ONS SETTINGS (Fully Functional) ---
 export const PlansSettingsView = () => {
-    const [tab, setTab] = useState('retainers'); // 'retainers' | 'addons'
-    const [plans, setPlans] = useState([
-        { id: 1, name: 'Scale', price: 4900, interval: 'month', description: 'Perfect for growing startups', features: ['Unlimited Requests', 'Slack Support', '48h Delivery'] },
-        { id: 2, name: 'Enterprise', price: 8900, interval: 'month', description: 'For large organizations', features: ['Priority Support', 'Dedicated Manager', 'Same-day Delivery'] }
-    ]);
-    const [addons, setAddons] = useState([
-        { id: 101, name: 'Webflow Development', price: 1500, type: 'One-off', description: 'Convert designs to code' },
-        { id: 102, name: 'Extra Meeting', price: 200, type: 'Unit', description: '1h strategy call' }
-    ]);
-    
+    const toast = useToast();
+    const { confirm } = useConfirm();
+    const [plans, setPlans] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [isEditOpen, setIsEditOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState(null);
+    const [editingPlan, setEditingPlan] = useState(null);
+
+    // Only show these specific plan IDs
+    const ALLOWED_PLAN_IDS = [
+        '449834cd-2067-44cb-a019-cd34c45d2418', // Boost - 2 tâches / 48h
+        'a190bfe1-5376-4855-9721-2f26e6f10920', // Grow - 1 tâche / 48h
+        'a9c6f4cf-ba79-4525-b9e8-4f01624c1ef1', // Lite - 1 tâche / 5 jours
+        'b638801e-3e84-45b8-9dfd-f8563ff10288'  // Start - 1 tâche / 72h
+    ];
 
     useEffect(() => {
-        const savedPlans = localStorage.getItem('orchestra_plans');
-        if(savedPlans) setPlans(JSON.parse(savedPlans));
-        const savedAddons = localStorage.getItem('orchestra_addons');
-        if(savedAddons) setAddons(JSON.parse(savedAddons));
+        fetchPlans();
     }, []);
 
-    const saveItem = (e) => {
-        e.preventDefault();
-        if (tab === 'retainers') {
-            const updated = editingItem.id ? plans.map(p => p.id === editingItem.id ? editingItem : p) : [...plans, { ...editingItem, id: Date.now() }];
-            setPlans(updated);
-            localStorage.setItem('orchestra_plans', JSON.stringify(updated));
-        } else {
-            const updated = editingItem.id ? addons.map(a => a.id === editingItem.id ? editingItem : a) : [...addons, { ...editingItem, id: Date.now() }];
-            setAddons(updated);
-            localStorage.setItem('orchestra_addons', JSON.stringify(updated));
+    const fetchPlans = async () => {
+        try {
+            console.log('Fetching plans from Supabase...');
+            console.log('Table name: Plans');
+            console.log('Allowed plan IDs:', ALLOWED_PLAN_IDS);
+
+            const { data, error } = await supabase
+                .from('Plans')
+                .select('*')
+                .in('whalesync_postgres_id', ALLOWED_PLAN_IDS)
+                .order('monthly_price_ht', { ascending: true });
+
+            console.log('Supabase response:', { data, error });
+
+            if (error) {
+                console.error('Supabase error details:', error);
+                throw error;
+            }
+
+            console.log('Plans fetched successfully:', data);
+            setPlans(data || []);
+        } catch (err) {
+            console.error('Error fetching plans:', err);
+            toast.error(`Failed to load plans: ${err.message || 'Unknown error'}`);
+        } finally {
+            setLoading(false);
         }
-        setIsEditOpen(false);
     };
 
-    const deleteItem = (id) => {
-        if(!confirm("Delete item?")) return;
-        if (tab === 'retainers') {
-            const updated = plans.filter(p => p.id !== id);
-            setPlans(updated);
-            localStorage.setItem('orchestra_plans', JSON.stringify(updated));
-        } else {
-            const updated = addons.filter(a => a.id !== id);
-            setAddons(updated);
-            localStorage.setItem('orchestra_addons', JSON.stringify(updated));
+    const savePlan = async (e) => {
+        e.preventDefault();
+        if (!editingPlan.plan_name || !editingPlan.monthly_price_ht) {
+            toast.error('Plan name and price are required');
+            return;
+        }
+
+        try {
+            if (editingPlan.whalesync_postgres_id) {
+                // Update existing plan
+                const { error } = await supabase
+                    .from('Plans')
+                    .update({
+                        plan_name: editingPlan.plan_name,
+                        monthly_price_ht: parseFloat(editingPlan.monthly_price_ht),
+                        description: editingPlan.description,
+                        delivery_sla_business_days: editingPlan.delivery_sla_business_days,
+                        tasks_at_once: editingPlan.tasks_at_once,
+                        status: editingPlan.status || 'clean'
+                    })
+                    .eq('whalesync_postgres_id', editingPlan.whalesync_postgres_id);
+
+                if (error) throw error;
+            } else {
+                // Create new plan
+                const { error } = await supabase
+                    .from('Plans')
+                    .insert([{
+                        plan_name: editingPlan.plan_name,
+                        monthly_price_ht: parseFloat(editingPlan.monthly_price_ht),
+                        description: editingPlan.description,
+                        delivery_sla_business_days: editingPlan.delivery_sla_business_days,
+                        tasks_at_once: editingPlan.tasks_at_once,
+                        status: 'clean',
+                        active: false
+                    }]);
+
+                if (error) throw error;
+            }
+
+            setIsEditOpen(false);
+            setEditingPlan(null);
+            await fetchPlans();
+            toast.success(editingPlan?.whalesync_postgres_id ? 'Plan updated successfully' : 'Plan created successfully');
+        } catch (err) {
+            console.error('Error saving plan:', err);
+            toast.error(`Failed to save plan: ${err.message}`);
         }
     };
+
+    const deletePlan = async (id) => {
+        const confirmed = await confirm({
+            title: 'Delete Plan',
+            message: 'Are you sure you want to delete this plan? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+
+        if (!confirmed) return;
+
+        try {
+            const { error } = await supabase
+                .from('Plans')
+                .delete()
+                .eq('whalesync_postgres_id', id);
+
+            if (error) throw error;
+            await fetchPlans();
+            toast.success('Plan deleted successfully');
+        } catch (err) {
+            console.error('Error deleting plan:', err);
+            toast.error(`Failed to delete plan: ${err.message}`);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="max-w-6xl mx-auto p-8 animate-fade-in pb-24">
+                <div className="flex items-center justify-center py-20">
+                    <div className="text-neutral-500">Loading plans...</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-6xl mx-auto p-8 animate-fade-in pb-24">
-             <div className="mb-8 flex justify-between items-center">
-                <div><h1 className="text-2xl font-bold text-white mb-2">Plans & Add-ons</h1><p className="text-neutral-500 text-sm">Configure your service offerings.</p></div>
-                <div className="flex bg-[#141414] p-1 rounded-lg border border-neutral-800">
-                    <button onClick={() => setTab('retainers')} className={`px-4 py-1.5 rounded text-xs font-bold transition-colors ${tab === 'retainers' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>Retainers</button>
-                    <button onClick={() => setTab('addons')} className={`px-4 py-1.5 rounded text-xs font-bold transition-colors ${tab === 'addons' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>Add-ons</button>
+            <div className="mb-8 flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold text-white mb-2">Plans & Add-ons</h1>
+                    <p className="text-neutral-500 text-sm">Configure your subscription plans.</p>
                 </div>
+                <button
+                    onClick={() => {
+                        setEditingPlan({
+                            plan_name: '',
+                            monthly_price_ht: '',
+                            description: '',
+                            delivery_sla_business_days: '',
+                            tasks_at_once: ''
+                        });
+                        setIsEditOpen(true);
+                    }}
+                    className="px-4 py-2 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-colors flex items-center gap-2"
+                >
+                    <Plus size={16} />
+                    Create Plan
+                </button>
             </div>
 
-            {tab === 'retainers' ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {plans.map(plan => (
-                        <div key={plan.id} className="bg-[#141414] border border-neutral-800 rounded-xl p-6 flex flex-col hover:border-neutral-700 transition-colors group relative">
-                            <div className="flex justify-between items-start mb-4">
-                                <div><h3 className="text-lg font-bold text-white">{plan.name}</h3><div className="text-neutral-500 text-xs mt-1">{plan.description}</div></div>
-                                <div className="text-right">
-                                    <div className="text-white font-mono font-medium">€{plan.price}</div>
-                                    <div className="text-[10px] text-neutral-600">/{plan.interval}</div>
-                                </div>
-                            </div>
-                            <ul className="space-y-2 mb-8 flex-1">
-                                {plan.features && plan.features.map((feat, i) => (
-                                    <li key={i} className="flex items-center gap-2 text-sm text-neutral-400"><Check size={12} className="text-lime-500"/> {feat}</li>
-                                ))}
-                            </ul>
-                            <button onClick={() => { setEditingItem(plan); setIsEditOpen(true); }} className="w-full py-2 bg-white text-black rounded-lg text-xs font-bold hover:bg-neutral-200 mb-2">Edit Plan</button>
-                            <button onClick={() => deleteItem(plan.id)} className="w-full py-2 text-neutral-600 hover:text-red-500 text-xs">Delete</button>
-                        </div>
-                    ))}
-                    <button onClick={() => { setEditingItem({ name: '', price: '', interval: 'month', description: '', features: [] }); setIsEditOpen(true); }} className="border border-dashed border-neutral-800 rounded-xl flex flex-col items-center justify-center text-neutral-600 hover:text-white hover:border-neutral-600 transition-all h-full min-h-[250px]">
-                        <Plus size={32} className="mb-2 opacity-50"/>
-                        <span className="text-sm font-medium">Create Plan</span>
-                    </button>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                     {addons.map(addon => (
-                        <div key={addon.id} className="bg-[#141414] border border-neutral-800 rounded-xl p-5 flex flex-col hover:border-neutral-700 transition-colors">
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="bg-neutral-900 text-neutral-400 px-2 py-0.5 rounded text-[10px] border border-neutral-800">{addon.type}</div>
-                                <div className="text-white font-mono text-sm">€{addon.price}</div>
-                            </div>
-                            <h3 className="text-white font-bold mb-1">{addon.name}</h3>
-                            <p className="text-neutral-500 text-xs mb-4 flex-1">{addon.description}</p>
-                            <div className="flex gap-2 mt-auto">
-                                <button onClick={() => { setEditingItem(addon); setIsEditOpen(true); }} className="flex-1 py-1.5 bg-neutral-800 text-white rounded text-xs hover:bg-neutral-700">Edit</button>
-                                <button onClick={() => deleteItem(addon.id)} className="p-1.5 text-neutral-600 hover:text-red-500"><Trash2 size={14}/></button>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {plans.map(plan => (
+                    <div key={plan.whalesync_postgres_id} className="bg-[#141414] border border-neutral-800 rounded-xl p-6 flex flex-col hover:border-neutral-700 transition-colors group relative">
+                        <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-lg font-bold text-white">{plan.plan_name}</h3>
+                            <div className="text-right">
+                                <div className="text-white font-mono font-medium">€{plan.monthly_price_ht}</div>
+                                <div className="text-[10px] text-neutral-600">/month</div>
                             </div>
                         </div>
-                     ))}
-                     <button onClick={() => { setEditingItem({ name: '', price: '', type: 'One-off', description: '' }); setIsEditOpen(true); }} className="border border-dashed border-neutral-800 rounded-xl flex flex-col items-center justify-center text-neutral-600 hover:text-white hover:border-neutral-600 transition-all h-full min-h-[150px]">
-                        <Plus size={24} className="mb-2 opacity-50"/>
-                        <span className="text-xs font-medium">Add Add-on</span>
-                    </button>
-                </div>
-            )}
+
+                        {plan.description && (
+                            <div className="text-neutral-500 text-xs mb-4">{plan.description}</div>
+                        )}
+
+                        <ul className="space-y-2 mb-6 flex-1">
+                            {plan.tasks_at_once && (
+                                <li className="flex items-center gap-2 text-sm text-neutral-400">
+                                    <Check size={12} className="text-lime-500"/>
+                                    {plan.tasks_at_once} task{plan.tasks_at_once > 1 ? 's' : ''} at once
+                                </li>
+                            )}
+                            {plan.delivery_sla_business_days && (
+                                <li className="flex items-center gap-2 text-sm text-neutral-400">
+                                    <Check size={12} className="text-lime-500"/>
+                                    {plan.delivery_sla_business_days} day delivery
+                                </li>
+                            )}
+                            {plan.status === 'clean' && (
+                                <li className="flex items-center gap-2 text-sm text-neutral-400">
+                                    <Check size={12} className="text-lime-500"/>
+                                    Active plan
+                                </li>
+                            )}
+                        </ul>
+
+                        <button
+                            onClick={() => {
+                                setEditingPlan(plan);
+                                setIsEditOpen(true);
+                            }}
+                            className="w-full py-2 bg-white text-black rounded-lg text-xs font-bold hover:bg-neutral-200 mb-2 transition-colors"
+                        >
+                            Edit Plan
+                        </button>
+                        <button
+                            onClick={() => deletePlan(plan.whalesync_postgres_id)}
+                            className="w-full py-2 text-neutral-600 hover:text-red-500 text-xs transition-colors"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                ))}
+            </div>
 
             {isEditOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-[#0f0f0f] border border-neutral-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 animate-scale-up">
-                        <h3 className="font-bold text-white mb-6">{editingItem.id ? 'Edit Item' : 'New Item'}</h3>
-                        <form onSubmit={saveItem} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Name</label><input required type="text" className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm" value={editingItem.name} onChange={e => setEditingItem({...editingItem, name: e.target.value})} /></div>
-                                <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Price (€)</label><input required type="number" className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm" value={editingItem.price} onChange={e => setEditingItem({...editingItem, price: e.target.value})} /></div>
+                        <h3 className="font-bold text-white mb-6">{editingPlan?.whalesync_postgres_id ? 'Edit Plan' : 'Create New Plan'}</h3>
+                        <form onSubmit={savePlan} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs text-neutral-500 uppercase">Plan Name</label>
+                                <input
+                                    required
+                                    type="text"
+                                    className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg p-2 text-white text-sm focus:border-neutral-600 outline-none"
+                                    value={editingPlan?.plan_name || ''}
+                                    onChange={e => setEditingPlan({...editingPlan, plan_name: e.target.value})}
+                                    placeholder="e.g., 🟩 Boost - 2 tâches / 48h"
+                                />
                             </div>
-                            
-                            {tab === 'retainers' ? (
-                                <>
-                                    <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Billing Interval</label><select className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm" value={editingItem.interval} onChange={e => setEditingItem({...editingItem, interval: e.target.value})}><option value="month">Monthly</option><option value="quarter">Quarterly</option><option value="year">Yearly</option></select></div>
-                                    <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Features (comma separated)</label><textarea className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm h-20 resize-none" value={editingItem.features?.join(', ') || ''} onChange={e => setEditingItem({...editingItem, features: e.target.value.split(',').map(s => s.trim())})} /></div>
-                                </>
-                            ) : (
-                                <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Type</label><select className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm" value={editingItem.type} onChange={e => setEditingItem({...editingItem, type: e.target.value})}><option value="One-off">One-off Service</option><option value="Unit">Unit (e.g., Hours)</option></select></div>
-                            )}
-                            
-                            <div className="space-y-1"><label className="text-xs text-neutral-500 uppercase">Description</label><input type="text" className="w-full bg-[#1a1a1a] border-neutral-800 rounded-lg p-2 text-white text-sm" value={editingItem.description} onChange={e => setEditingItem({...editingItem, description: e.target.value})} /></div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-neutral-500 uppercase">Price (€/month)</label>
+                                    <input
+                                        required
+                                        type="number"
+                                        step="0.01"
+                                        className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg p-2 text-white text-sm focus:border-neutral-600 outline-none"
+                                        value={editingPlan?.monthly_price_ht || ''}
+                                        onChange={e => setEditingPlan({...editingPlan, monthly_price_ht: e.target.value})}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-neutral-500 uppercase">Tasks at Once</label>
+                                    <input
+                                        type="number"
+                                        className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg p-2 text-white text-sm focus:border-neutral-600 outline-none"
+                                        value={editingPlan?.tasks_at_once || ''}
+                                        onChange={e => setEditingPlan({...editingPlan, tasks_at_once: e.target.value})}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs text-neutral-500 uppercase">Delivery SLA (Business Days)</label>
+                                <input
+                                    type="number"
+                                    className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg p-2 text-white text-sm focus:border-neutral-600 outline-none"
+                                    value={editingPlan?.delivery_sla_business_days || ''}
+                                    onChange={e => setEditingPlan({...editingPlan, delivery_sla_business_days: e.target.value})}
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs text-neutral-500 uppercase">Description</label>
+                                <textarea
+                                    rows="3"
+                                    className="w-full bg-[#1a1a1a] border border-neutral-800 rounded-lg p-2 text-white text-sm focus:border-neutral-600 outline-none resize-none"
+                                    value={editingPlan?.description || ''}
+                                    onChange={e => setEditingPlan({...editingPlan, description: e.target.value})}
+                                    placeholder="Optional description"
+                                />
+                            </div>
 
                             <div className="flex gap-3 mt-6 pt-4 border-t border-neutral-800">
-                                <button type="button" onClick={() => setIsEditOpen(false)} className="flex-1 py-2.5 text-neutral-400 hover:text-white text-sm font-medium">Cancel</button>
-                                <button type="submit" className="flex-1 py-2.5 bg-white text-black rounded-lg font-bold text-sm">Save</button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsEditOpen(false);
+                                        setEditingPlan(null);
+                                    }}
+                                    className="flex-1 py-2.5 text-neutral-400 hover:text-white text-sm font-medium transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-2.5 bg-white text-black rounded-lg font-bold text-sm hover:bg-neutral-200 transition-colors"
+                                >
+                                    {editingPlan?.whalesync_postgres_id ? 'Update Plan' : 'Create Plan'}
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -774,3 +1305,82 @@ export const TemplatesView = () => (
       <p className="max-w-md text-center text-neutral-500">Create reusable task templates to speed up your workflow.</p>
     </div>
 );
+
+// --- CLIENT TEAM SETTINGS VIEW (Shows client's own contacts) ---
+export const ClientTeamSettingsView = () => {
+    const { user, userMembership } = useAuth();
+    const [contacts, setContacts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchContacts = async () => {
+            if (!user?.email) {
+                setLoading(false);
+                return;
+            }
+
+            // Extract domain from the current user's email
+            const emailDomain = user.email.split('@')[1];
+            if (!emailDomain) {
+                setLoading(false);
+                return;
+            }
+
+            // Fetch all contacts that share the same email domain
+            const { data } = await supabase
+                .from('client_contacts')
+                .select('id, full_name, email, domain, membership_id')
+                .ilike('email', `%@${emailDomain}`)
+                .order('full_name', { ascending: true });
+            setContacts(data || []);
+            setLoading(false);
+        };
+        fetchContacts();
+    }, [user?.email]);
+
+    if (loading) {
+        return (
+            <div className="max-w-3xl mx-auto p-8 animate-fade-in">
+                <div className="flex items-center justify-center py-20">
+                    <div className="text-neutral-500 dark:text-neutral-500">Loading team...</div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-3xl mx-auto p-8 animate-fade-in pb-24">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Your Team</h1>
+                <p className="text-neutral-500 text-sm">Team members with access to your workspace</p>
+            </div>
+
+            {contacts.length === 0 ? (
+                <div className="text-center py-16">
+                    <User size={48} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-700" />
+                    <p className="text-neutral-500 text-sm">No team members found</p>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {contacts.map(contact => (
+                        <div key={contact.id} className="flex items-center gap-4 p-4 border border-neutral-200 dark:border-neutral-800 rounded-xl">
+                            <Avatar
+                                name={contact.full_name}
+                                size="md"
+                            />
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-sm font-medium text-neutral-900 dark:text-white">{contact.full_name || 'No name'}</h3>
+                                <p className="text-xs text-neutral-500">{contact.email}</p>
+                            </div>
+                            {contact.domain && (
+                                <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2.5 py-1 rounded-full">
+                                    {contact.domain}
+                                </span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};

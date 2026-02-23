@@ -1,10 +1,25 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git log:*)",
-      "Bash(npm run dev:*)",
-      "Bash(npm install)",
-      "Bash(node:*)"
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(git -C \"C:\\\\Users\\\\user\\\\.claude-worktrees\\\\orchestra-dashboard\\\\eager-cray\" log --oneline --all -20)",
+      "Bash(git -C \"C:\\\\Users\\\\user\\\\.claude-worktrees\\\\orchestra-dashboard\\\\eager-cray\" show dd9d89b --stat)",
+      "Bash(git -C \"C:\\\\Users\\\\user\\\\.claude-worktrees\\\\orchestra-dashboard\\\\eager-cray\" diff dd9d89b~1..dd9d89b -- src/App.jsx)",
+      "Bash(git -C \"C:\\\\Users\\\\user\\\\.claude-worktrees\\\\orchestra-dashboard\\\\eager-cray\" show bd493a0:src/App.jsx)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(node fix-theme.cjs:*)",
+      "Bash(node:*)",
+      "Bash(npx vite build)",
+      "Bash(xargs:*)",
+      "Bash(find:*)",
+      "Bash(npx vite build:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(npx --no-install vite build:*)"
     ]
   }
 }

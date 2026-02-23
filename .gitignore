@@ -160,3 +160,4 @@ Vite build output
 
 dist-ssr
 *.local
+nul

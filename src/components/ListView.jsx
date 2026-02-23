@@ -13,9 +13,9 @@ export const ListView = ({ tasks, setActiveTask, displaySettings }) => {
 
     return (
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-            <div className="border border-neutral-800 rounded-xl bg-[#0f0f0f] overflow-hidden">
+            <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white dark:bg-[#0f0f0f] overflow-hidden">
                 <table className="w-full text-left text-sm border-collapse">
-                    <thead className="bg-[#141414] text-neutral-500 font-medium text-xs uppercase tracking-wider border-b border-neutral-800 sticky top-0 z-10">
+                    <thead className="bg-neutral-50 dark:bg-[#141414] text-neutral-500 font-medium text-xs uppercase tracking-wider border-b border-neutral-200 dark:border-neutral-800 sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-3 font-medium w-[40%]">Title</th>
                             <th className="px-6 py-3 font-medium">Status</th>
@@ -25,18 +25,18 @@ export const ListView = ({ tasks, setActiveTask, displaySettings }) => {
                             {showId && <th className="px-6 py-3 font-medium text-right">ID</th>}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-800/50">
+                    <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800/50">
                         {tasks.map((task) => (
                             <tr 
                                 key={task.id} 
                                 onClick={() => setActiveTask(task)}
-                                className="group hover:bg-[#1a1a1a] transition-colors cursor-pointer"
+                                className="group hover:bg-neutral-100 dark:hover:bg-white dark:bg-[#1a1a1a] transition-colors cursor-pointer"
                             >
                                 <td className="px-6 py-3">
                                     <div className="flex items-center gap-3">
                                         {/* Status Indicator Dot */}
                                         <div className={`w-2 h-2 rounded-full ${STATUS_CONFIG[task.status]?.color?.replace('text-', 'bg-') || 'bg-neutral-500'}`}></div>
-                                        <span className="font-medium text-neutral-200 group-hover:text-white transition-colors line-clamp-1">
+                                        <span className="font-medium text-neutral-700 dark:text-neutral-200 group-hover:text-neutral-900 dark:hover:text-white transition-colors line-clamp-1">
                                             {task.title}
                                         </span>
                                         {task.commentCount > 0 && (
@@ -48,7 +48,7 @@ export const ListView = ({ tasks, setActiveTask, displaySettings }) => {
                                 </td>
 
                                 <td className="px-6 py-3">
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium border border-neutral-800 bg-neutral-900 text-neutral-400 whitespace-nowrap">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 text-neutral-400 whitespace-nowrap">
                                         {task.status}
                                     </span>
                                 </td>
