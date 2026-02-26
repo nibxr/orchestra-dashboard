@@ -110,8 +110,8 @@ export const AuthProvider = ({ children }) => {
       }
 
       // If not found in either, default to team (for backwards compatibility)
-      console.log('[detectUserRole] User not found in team or contacts, defaulting to team role');
-      setUserRole('team');
+      console.log('[detectUserRole] User not found in team or contacts, defaulting to customer role');
+      setUserRole('customer');
       setUserMembership(null);
       setTeamMemberId(null);
       setTeamMemberRole(null);
@@ -119,7 +119,7 @@ export const AuthProvider = ({ children }) => {
       setPlanLimits(null);
     } catch (error) {
       console.error('[detectUserRole] Error detecting user role:', error);
-      setUserRole('team'); // Default to team on error
+      setUserRole('customer'); // Default to team on error
       setUserMembership(null);
       setTeamMemberId(null);
       setTeamMemberRole(null);
