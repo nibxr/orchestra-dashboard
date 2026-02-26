@@ -58,7 +58,13 @@ export const AuthPage = () => {
         setMessage('Check your email to confirm your account');
       }
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      const msg = err.message || 'An error occurred';
+      // Friendly message for unconfirmed email
+      if (msg.toLowerCase().includes('email not confirmed')) {
+        setError('Please check your inbox and confirm your email before signing in.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }

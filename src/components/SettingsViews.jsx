@@ -561,6 +561,8 @@ export const AgencySettingsView = () => {
 export const TeamSettingsView = ({ team }) => {
     const toast = useToast();
     const { confirm } = useConfirm();
+    const { teamMemberRole: currentUserRole } = useAuth();
+    const isCurrentUserAdmin = currentUserRole === 'admin';
     const [localTeam, setLocalTeam] = useState(team || []);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
@@ -579,11 +581,23 @@ export const TeamSettingsView = ({ team }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const { data, error } = await supabase.from('team').insert([{ full_name: inviteName, email: inviteEmail, status: 'Active', notes: `Role: ${inviteRole}` }]).select();
+            const { data, error } = await supabase.from('team').insert([{ full_name: inviteName, email: inviteEmail, status: 'Active', notes: `Role: ${inviteRole}`, role: inviteRole === 'Admin' ? 'admin' : 'designer' }]).select();
             if (error) throw error;
             if (data) { setLocalTeam([...localTeam, data[0]]); setIsInviteOpen(false); setInviteName(''); setInviteEmail(''); }
             toast.success('Member invited');
         } catch (error) { toast.error("Failed to invite member."); } finally { setLoading(false); }
+    };
+
+    const handleRoleChange = async (member, newRole) => {
+        if (!isCurrentUserAdmin || newRole === member.role) return;
+        try {
+            const { error } = await supabase.from('team').update({ role: newRole }).eq('id', member.id);
+            if (error) throw error;
+            setLocalTeam(prev => prev.map(m => m.id === member.id ? { ...m, role: newRole } : m));
+            toast.success(`${member.full_name || 'Member'} is now ${newRole === 'admin' ? 'an Admin' : 'a Designer'}`);
+        } catch (error) {
+            toast.error('Failed to update role');
+        }
     };
 
     const getStatusStyle = (status) => {
@@ -604,6 +618,15 @@ export const TeamSettingsView = ({ team }) => {
     const getRoleFromNotes = (notes) => {
         if (!notes) return 'Member';
         return notes.replace('Role: ', '') || 'Member';
+    };
+
+    const getTeamRole = (member) => {
+        return member.role === 'admin' ? 'Admin' : 'Designer';
+    };
+
+    const getRoleBadgeStyle = (member) => {
+        if (member.role === 'admin') return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+        return 'text-neutral-400 bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700';
     };
 
     return (
@@ -655,20 +678,38 @@ export const TeamSettingsView = ({ team }) => {
                                 )}
                             </div>
 
-                            {/* Name, Role & Email */}
+                            {/* Access level dropdown (admin only) or static badge */}
+                            <div className="shrink-0">
+                                {isCurrentUserAdmin ? (
+                                    <select
+                                        value={member.role || 'designer'}
+                                        onChange={(e) => handleRoleChange(member, e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`text-[10px] font-medium border px-1.5 py-0.5 rounded cursor-pointer outline-none transition-colors ${
+                                            member.role === 'admin'
+                                                ? 'text-amber-500 bg-amber-500/10 border-amber-500/20'
+                                                : 'text-neutral-500 bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700'
+                                        }`}
+                                    >
+                                        <option value="designer">Designer</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                ) : (
+                                    <span className={`text-[10px] font-medium border px-1.5 py-0.5 rounded ${getRoleBadgeStyle(member)}`}>
+                                        {getTeamRole(member)}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Name & Email */}
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-neutral-900 dark:text-white truncate">
-                                        {member.full_name || 'Unnamed'}
-                                    </span>
-                                    <span className="text-[10px] font-medium text-neutral-400 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-1.5 py-0.5 rounded shrink-0">
-                                        {getRoleFromNotes(member.notes)}
-                                    </span>
-                                </div>
+                                <span className="text-sm font-medium text-neutral-900 dark:text-white truncate block">
+                                    {member.full_name || 'Unnamed'}
+                                </span>
                                 <p className="text-xs text-neutral-400 truncate mt-0.5">{member.email || '-'}</p>
                             </div>
 
-                            {/* Status */}
+                            {/* Status badge */}
                             <div className="shrink-0">
                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border ${getStatusStyle(member.status)}`}>
                                     <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(member.status)}`}></span>

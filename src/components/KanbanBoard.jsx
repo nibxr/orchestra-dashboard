@@ -317,6 +317,13 @@ export const KanbanBoard = ({ tasks, setActiveTask, onOpenNewTask, onDeleteTask,
                             <span>{task.orchestra_task_id.slice(-4)}</span>
                         </div>
                     )}
+
+                    {/* VERSION BADGE: Show if task has versions */}
+                    {task.latestVersionNumber && (
+                        <div className="ml-auto flex items-center text-[10px] font-semibold text-violet-500 dark:text-violet-400 bg-violet-500/10 dark:bg-violet-500/15 px-1.5 py-0.5 rounded">
+                            v{task.latestVersionNumber}
+                        </div>
+                    )}
                   </div>
                 </div>
               ))}

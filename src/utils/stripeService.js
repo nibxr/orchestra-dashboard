@@ -19,15 +19,15 @@ export const createCheckoutSession = async (membershipId, planId, successUrl, ca
         // Get the plan details to get stripe_price_id
         const { data: plan, error: planError } = await supabase
             .from('Plans')
-            .select('stripe_price_id, name')
-            .eq('id', planId)
+            .select('stripe_price_id, plan_name')
+            .eq('whalesync_postgres_id', planId)
             .single();
 
         if (planError || !plan?.stripe_price_id) {
             throw new Error('Plan not found or missing Stripe price ID');
         }
 
-        // Get membership details for customer info
+        // Get membership details + contact email for customer info
         const { data: membership, error: membershipError } = await supabase
             .from('client_memberships')
             .select('client_name, stripe_customer_id')
@@ -37,6 +37,13 @@ export const createCheckoutSession = async (membershipId, planId, successUrl, ca
         if (membershipError) {
             throw new Error('Membership not found');
         }
+
+        // Get the contact email from client_contacts
+        const { data: contact } = await supabase
+            .from('client_contacts')
+            .select('email')
+            .eq('membership_id', membershipId)
+            .maybeSingle();
 
         // Call the Supabase Edge Function to create checkout session
         const response = await fetch(`${SUPABASE_URL}/functions/v1/create-checkout-session`, {
@@ -48,16 +55,17 @@ export const createCheckoutSession = async (membershipId, planId, successUrl, ca
             body: JSON.stringify({
                 membershipId,
                 priceId: plan.stripe_price_id,
-                customerEmail: membership.client_name, // Will be replaced with actual email
+                customerEmail: contact?.email || null,
                 customerId: membership.stripe_customer_id,
+                clientName: membership.client_name,
                 successUrl: successUrl || `${window.location.origin}/checkout/success`,
                 cancelUrl: cancelUrl || `${window.location.origin}/checkout/cancel`
             })
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Failed to create checkout session');
+            const errBody = await response.json();
+            throw new Error(errBody.error || errBody.message || 'Failed to create checkout session');
         }
 
         const { url } = await response.json();
@@ -81,12 +89,13 @@ export const getSubscriptionStatus = async (membershipId) => {
                 id,
                 stripe_customer_id,
                 stripe_subscription_id,
-                plan_id,
+                plan_from_agreements,
                 "Plans" (
-                    id,
-                    name,
-                    max_active_tasks,
-                    turnaround_hours,
+                    whalesync_postgres_id,
+                    plan_name,
+                    tasks_at_once,
+                    delivery_sla_business_days,
+                    monthly_price_ht,
                     stripe_price_id
                 )
             `)
@@ -128,8 +137,8 @@ export const redirectToCustomerPortal = async (stripeCustomerId) => {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Failed to create portal session');
+            const errBody = await response.json();
+            throw new Error(errBody.error || errBody.message || 'Failed to create portal session');
         }
 
         const { url } = await response.json();
@@ -150,10 +159,10 @@ export const getPlanLimits = async (membershipId) => {
         const { data: membership, error } = await supabase
             .from('client_memberships')
             .select(`
-                plan_id,
+                plan_from_agreements,
                 "Plans" (
-                    max_active_tasks,
-                    turnaround_hours
+                    tasks_at_once,
+                    delivery_sla_business_days
                 )
             `)
             .eq('id', membershipId)
@@ -163,8 +172,8 @@ export const getPlanLimits = async (membershipId) => {
 
         const plan = membership['Plans'];
         return {
-            maxActiveTasks: plan?.max_active_tasks || 1,
-            turnaroundHours: plan?.turnaround_hours || 72
+            maxActiveTasks: plan?.tasks_at_once || 1,
+            turnaroundHours: plan?.delivery_sla_business_days ? plan.delivery_sla_business_days * 24 : 72
         };
     } catch (error) {
         console.error('Error fetching plan limits:', error);
@@ -203,10 +212,75 @@ export const checkTaskLimit = async (membershipId) => {
     }
 };
 
+/**
+ * Get client financial details (subscription, invoices, upcoming invoice)
+ * @param {string} membershipId - The client membership ID
+ * @returns {Promise<Object>} Client financial data
+ */
+export const getClientFinancials = async (membershipId) => {
+    try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/get-client-financials`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            },
+            body: JSON.stringify({ membershipId })
+        });
+
+        if (!response.ok) {
+            const errBody = await response.json();
+            throw new Error(errBody.error || errBody.message || 'Failed to fetch financials');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching client financials:', error);
+        return { error };
+    }
+};
+
+/**
+ * Manage subscription (pause, resume, cancel, reactivate, change plan)
+ * Admin-only action
+ * @param {string} action - 'pause' | 'resume' | 'cancel' | 'cancel_immediately' | 'reactivate' | 'change_plan'
+ * @param {Object} params - { membershipId, subscriptionId?, newPriceId? }
+ * @returns {Promise<Object>} Result
+ */
+export const manageSubscription = async (action, { membershipId, subscriptionId, newPriceId } = {}) => {
+    try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/manage-subscription`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            },
+            body: JSON.stringify({
+                action,
+                membershipId,
+                subscriptionId,
+                newPriceId
+            })
+        });
+
+        if (!response.ok) {
+            const errBody = await response.json();
+            throw new Error(errBody.error || errBody.message || 'Failed to manage subscription');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error managing subscription:', error);
+        return { error };
+    }
+};
+
 export default {
     createCheckoutSession,
     getSubscriptionStatus,
     redirectToCustomerPortal,
     getPlanLimits,
-    checkTaskLimit
+    checkTaskLimit,
+    getClientFinancials,
+    manageSubscription
 };

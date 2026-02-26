@@ -24,7 +24,8 @@ import { useToast } from './components/Toast';
 import { createVersion } from './utils/versionService';
 
 export default function App() {
-  const { user, userRole, userMembership, clientContactId, planLimits } = useAuth();
+  const { user, userRole, userMembership, clientContactId, teamMemberId, teamMemberRole, planLimits } = useAuth();
+  const isAdmin = userRole === 'team' && teamMemberRole === 'admin';
   const { confirm } = useConfirm();
   const toast = useToast();
   const navigate = useNavigate();
@@ -113,9 +114,9 @@ export default function App() {
 
       // Fetch agreements and plans for the Customers view
       const { data: agreementsData } = await supabase.from('Agreements').select('*');
-      const { data: plansData } = await supabase.from('Plans').select('whalesync_postgres_id, plan_name');
+      // Fetch plans with price data for MRR
+      const { data: plansData } = await supabase.from('Plans').select('whalesync_postgres_id, plan_name, monthly_price_ht');
 
-      // Build agreements list with client name from client_memberships and plan name from plans
       const enrichedAgreements = (agreementsData || []).map(a => {
         const membership = (clientsData || []).find(c => c.id === a.client_memberships);
         const plan = a.plans ? (plansData || []).find(p => p.whalesync_postgres_id === a.plans) : null;
@@ -124,9 +125,30 @@ export default function App() {
           client_name: membership?.client_name || 'Unknown',
           membership_id: a.client_memberships,
           plan_name: plan?.plan_name || null,
+          // Fallback: use plan's monthly_price_ht if custom_price_ht is not set
+          custom_price_ht: a.custom_price_ht || plan?.monthly_price_ht || null,
         };
       });
-      setAgreements(enrichedAgreements);
+
+      // Also include memberships that DON'T have an Agreement record (e.g., newly invited clients)
+      const agreementMembershipIds = new Set(enrichedAgreements.map(a => a.client_memberships).filter(Boolean));
+      const orphanMemberships = (clientsData || [])
+        .filter(m => !agreementMembershipIds.has(m.id))
+        .map(m => {
+          const plan = m.plan_from_agreements ? (plansData || []).find(p => p.whalesync_postgres_id === m.plan_from_agreements) : null;
+          return {
+            whalesync_postgres_id: m.id,
+            client_memberships: m.id,
+            client_name: m.client_name || 'Unknown',
+            membership_id: m.id,
+            plan_name: plan?.plan_name || null,
+            status: m.status || 'Pending',
+            custom_price_ht: plan?.monthly_price_ht || (m.monthly_amount_cents ? m.monthly_amount_cents / 100 : null),
+            start_date: m.start_date || m.created_at,
+          };
+        });
+
+      setAgreements([...enrichedAgreements, ...orphanMemberships]);
       // Fetch full plans data for client views
       const { data: allPlansData } = await supabase.from('Plans').select('*');
       setAvailablePlans(allPlansData || []);
@@ -136,6 +158,8 @@ export default function App() {
       const { data: tasksData } = await supabase.from('tasks').select('*');
       // Fetch only task-level comments (where version_id is null) for the normal task view
       const { data: commentsData } = await supabase.from('comments').select('*').is('version_id', null);
+      // Fetch latest version number per task for kanban display
+      const { data: versionsData } = await supabase.from('task_versions').select('task_id, version_number').is('archived_at', null).order('version_number', { ascending: false });
 
       if (tasksData) {
           const enrichedTasks = tasksData.map(t => {
@@ -206,6 +230,10 @@ export default function App() {
                 normalizedStatus = normalizedStatus.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
               }
 
+              // Get latest version number for this task
+              const taskVersion = versionsData?.find(v => v.task_id === t.id);
+              const latestVersionNumber = taskVersion ? taskVersion.version_number : null;
+
               return {
                   ...t,
                   creatorName,
@@ -219,9 +247,10 @@ export default function App() {
                   clientName: client ? client.client_name : 'Internal',
                   clientStatus: client ? client.status : 'Active',
                   status: normalizedStatus,
-                  comments: enrichedComments, // Use comments from comments table
+                  comments: enrichedComments,
                   commentCount: enrichedComments.length,
-                  dueDate: t.delivered_at || t.properties?.dueDate
+                  dueDate: t.delivered_at || t.properties?.dueDate,
+                  latestVersionNumber
               };
           });
           setTasks(enrichedTasks);
@@ -269,8 +298,12 @@ export default function App() {
 
 
       // CUSTOMER ROLE: Only show tasks for their client
-      if (userRole === 'customer' && userMembership) {
-        result = result.filter(t => t.membership_id === userMembership);
+      if (userRole === 'customer') {
+        if (userMembership) {
+          result = result.filter(t => t.membership_id === userMembership);
+        } else {
+          result = []; // No membership linked — show empty state
+        }
       }
       // TEAM ROLE: Apply filters as normal
       else if (userRole === 'team') {
@@ -451,8 +484,8 @@ export default function App() {
   // --- HANDLER FOR CLIENT INVITATION ---
   const handleInviteClient = (invitationData) => {
       console.log('Client invitation created:', invitationData);
-      // TODO: Save to database when backend is ready
-      toast.success(`Invitation sent to ${invitationData.clientEmail}`);
+      // DB records are now created inside NewClientModal
+      // This callback can be used for additional side effects
   };
 
   if (loading && user) return (
@@ -565,7 +598,7 @@ export default function App() {
                   ) : <h1 className="text-lg font-medium text-neutral-900 dark:text-white capitalize">{dashboardView === 'ai_brief' ? 'AI Brief' : dashboardView}</h1>}
               </div>
               <div className="flex items-center gap-4">
-                  {userRole === 'team' && dashboardView === DASHBOARD_VIEWS.CUSTOMERS && (
+                  {isAdmin && dashboardView === DASHBOARD_VIEWS.CUSTOMERS && (
                     <button
                       onClick={() => setIsNewClientModalOpen(true)}
                       className="flex items-center gap-2 text-xs font-medium bg-neutral-200 dark:bg-white/10 hover:bg-neutral-300 dark:hover:bg-white/20 text-neutral-700 dark:text-white px-3 py-1.5 rounded-lg transition-colors"
@@ -611,6 +644,7 @@ export default function App() {
                     <CustomersView
                         agreements={agreements}
                         onOpenPortal={handleOpenPortal}
+                        isAdmin={isAdmin}
                     />
                 )}
                 {dashboardView === DASHBOARD_VIEWS.CYCLES && <CyclesView />}
@@ -648,7 +682,7 @@ export default function App() {
 
       {/* Modals */}
       <NewTaskModal isOpen={isNewTaskModalOpen} onClose={() => setIsNewTaskModalOpen(false)} onAddTask={handleAddTask} clients={clients} team={team} initialStatus={newTaskStatus} currentUser={user} userRole={userRole} userMembership={userMembership} clientContactId={clientContactId} />
-      <NewClientModal isOpen={isNewClientModalOpen} onClose={() => setIsNewClientModalOpen(false)} onInvite={handleInviteClient} />
+      <NewClientModal isOpen={isNewClientModalOpen} onClose={() => setIsNewClientModalOpen(false)} onInvite={handleInviteClient} availablePlans={availablePlans} teamMemberId={teamMemberId} onDataRefresh={fetchData} />
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} tasks={processedTasks} onSelectTask={openTaskDetails} userRole={userRole} />
 
       {/* Notifications Dropdown */}

@@ -19,7 +19,9 @@
       "Bash(grep:*)",
       "Bash(wc:*)",
       "Bash(ls:*)",
-      "Bash(npx --no-install vite build:*)"
+      "Bash(npx --no-install vite build:*)",
+      "WebFetch(domain:docs.stripe.com)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

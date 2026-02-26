@@ -47,8 +47,8 @@ serve(async (req) => {
 
                     // Find the plan with this stripe_price_id
                     const { data: plan } = await supabase
-                        .from('🔄 Plans')
-                        .select('id')
+                        .from('Plans')
+                        .select('whalesync_postgres_id, monthly_price_ht')
                         .eq('stripe_price_id', priceId)
                         .single()
 
@@ -58,7 +58,7 @@ serve(async (req) => {
                         .update({
                             stripe_subscription_id: subscription.id,
                             stripe_customer_id: subscription.customer as string,
-                            plan_id: plan?.id || null,
+                            plan_from_agreements: plan?.whalesync_postgres_id || null,
                             status: subscription.status === 'active' ? 'En cours' : subscription.status,
                             updated_at: new Date().toISOString()
                         })
@@ -68,6 +68,30 @@ serve(async (req) => {
                         console.error('Error updating membership:', updateError)
                     } else {
                         console.log(`Subscription ${subscription.id} synced for membership ${membershipId}`)
+                    }
+
+                    // Create Agreements record if one doesn't exist yet (for newly invited clients)
+                    if (event.type === 'customer.subscription.created') {
+                        try {
+                            const { data: existingAgreement } = await supabase
+                                .from('Agreements')
+                                .select('id')
+                                .eq('client_memberships', membershipId)
+                                .maybeSingle()
+
+                            if (!existingAgreement) {
+                                await supabase.from('Agreements').insert([{
+                                    client_memberships: membershipId,
+                                    plans: plan?.whalesync_postgres_id || null,
+                                    status: 'Active',
+                                    custom_price_ht: plan?.monthly_price_ht || null,
+                                    start_date: new Date().toISOString().split('T')[0],
+                                }])
+                                console.log(`Agreement created for membership ${membershipId}`)
+                            }
+                        } catch (err) {
+                            console.warn('Could not create agreement:', err.message)
+                        }
                     }
                 }
                 break

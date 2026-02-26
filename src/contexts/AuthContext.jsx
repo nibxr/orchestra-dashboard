@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [userRole, setUserRole] = useState(null); // 'team', 'customer', or null
   const [userMembership, setUserMembership] = useState(null); // Client membership for customers
   const [teamMemberId, setTeamMemberId] = useState(null); // Team member ID for team users
+  const [teamMemberRole, setTeamMemberRole] = useState(null); // 'admin' or 'designer' for team users
   const [clientContactId, setClientContactId] = useState(null); // Client contact ID for customers
   const [planLimits, setPlanLimits] = useState(null); // Plan limits for customers
   const isInitializedRef = useRef(false);
@@ -32,6 +33,7 @@ export const AuthProvider = ({ children }) => {
       setUserRole(null);
       setUserMembership(null);
       setTeamMemberId(null);
+      setTeamMemberRole(null);
       setClientContactId(null);
       setPlanLimits(null);
       return;
@@ -42,7 +44,7 @@ export const AuthProvider = ({ children }) => {
       // Check if user is in team table
       const { data: teamData, error: teamError } = await supabase
         .from('team')
-        .select('id, full_name, email')
+        .select('id, full_name, email, role')
         .eq('email', email)
         .maybeSingle(); // Changed from .single() to .maybeSingle()
 
@@ -53,6 +55,7 @@ export const AuthProvider = ({ children }) => {
         setUserRole('team');
         setUserMembership(null);
         setTeamMemberId(teamData.id);
+        setTeamMemberRole(teamData.role || 'designer');
         setClientContactId(null);
         setPlanLimits(null);
         console.log('[detectUserRole] User detected as team member:', teamData);
@@ -74,6 +77,7 @@ export const AuthProvider = ({ children }) => {
         setUserRole('customer');
         setUserMembership(contactData.membership_id);
         setTeamMemberId(null);
+        setTeamMemberRole(null);
         setClientContactId(contactData.id);
 
         // Fetch plan limits for customer
@@ -81,11 +85,11 @@ export const AuthProvider = ({ children }) => {
           const { data: membershipData } = await supabase
             .from('client_memberships')
             .select(`
-              plan_id,
+              plan_from_agreements,
               "Plans" (
-                max_active_tasks,
-                turnaround_hours,
-                name
+                tasks_at_once,
+                delivery_sla_business_days,
+                plan_name
               )
             `)
             .eq('id', contactData.membership_id)
@@ -93,9 +97,9 @@ export const AuthProvider = ({ children }) => {
 
           if (membershipData?.['Plans']) {
             setPlanLimits({
-              maxActiveTasks: membershipData['Plans'].max_active_tasks || 1,
-              turnaroundHours: membershipData['Plans'].turnaround_hours || 72,
-              planName: membershipData['Plans'].name
+              maxActiveTasks: membershipData['Plans'].tasks_at_once || 1,
+              turnaroundHours: membershipData['Plans'].delivery_sla_business_days ? membershipData['Plans'].delivery_sla_business_days * 24 : 72,
+              planName: membershipData['Plans'].plan_name
             });
             console.log('[detectUserRole] Plan limits:', membershipData['Plans']);
           }
@@ -110,6 +114,7 @@ export const AuthProvider = ({ children }) => {
       setUserRole('team');
       setUserMembership(null);
       setTeamMemberId(null);
+      setTeamMemberRole(null);
       setClientContactId(null);
       setPlanLimits(null);
     } catch (error) {
@@ -117,6 +122,7 @@ export const AuthProvider = ({ children }) => {
       setUserRole('team'); // Default to team on error
       setUserMembership(null);
       setTeamMemberId(null);
+      setTeamMemberRole(null);
       setClientContactId(null);
       setPlanLimits(null);
     }
@@ -211,6 +217,7 @@ export const AuthProvider = ({ children }) => {
           setUserRole(null);
           setUserMembership(null);
           setTeamMemberId(null);
+          setTeamMemberRole(null);
           setClientContactId(null);
           setPlanLimits(null);
         }
@@ -337,6 +344,7 @@ export const AuthProvider = ({ children }) => {
     userRole,
     userMembership,
     teamMemberId,
+    teamMemberRole,
     clientContactId,
     planLimits,
     signUp,

@@ -12,7 +12,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-    // Handle CORS preflight requests
+    // Handle CORS preflight
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
@@ -24,10 +24,10 @@ serve(async (req) => {
             throw new Error('Customer ID is required')
         }
 
-        // Create Billing Portal Session
+        // Create a Stripe Billing Portal session
         const session = await stripe.billingPortal.sessions.create({
             customer: customerId,
-            return_url: returnUrl || req.headers.get('origin') || 'https://app.dafolle.com',
+            return_url: returnUrl || 'https://app.dafolle.io/',
         })
 
         return new Response(
@@ -38,7 +38,7 @@ serve(async (req) => {
             }
         )
     } catch (error) {
-        console.error('Portal session error:', error)
+        console.error('Create portal session error:', error)
         return new Response(
             JSON.stringify({ error: error.message }),
             {

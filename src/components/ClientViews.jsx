@@ -3,6 +3,7 @@ import { FileText, ExternalLink, Package, Check, ChevronUp, ChevronDown, Calenda
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from './Toast';
 import { createCheckoutSession } from '../utils/stripeService';
 
 // ============================================================
@@ -13,9 +14,11 @@ const HIDDEN_PLAN_NAMES = ['👿 Custom plan', '🟦 Lite - 1 tâche / 5 jours']
 
 export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }) => {
   const { isDark } = useTheme();
+  const toast = useToast();
   const [billingPeriod, setBillingPeriod] = useState('monthly');
   const [showIncluded, setShowIncluded] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(false);
 
   const currentPlan = availablePlans?.find(p => p.whalesync_postgres_id === clientMembership?.plan_from_agreements);
 
@@ -47,14 +50,29 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
   const periodLabel = { weekly: 'week', monthly: 'month', quarterly: 'quarter', yearly: 'year' };
 
   const handleManageBilling = async () => {
-    if (!clientMembership?.stripe_customer_id) return;
+    if (!clientMembership?.stripe_customer_id) {
+      toast.error('No billing account linked. Please contact support.');
+      return;
+    }
+    setBillingLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-portal-session', {
-        body: { customerId: clientMembership.stripe_customer_id }
+        body: {
+          customerId: clientMembership.stripe_customer_id,
+          returnUrl: window.location.href
+        }
       });
-      if (data?.url) window.open(data.url, '_blank');
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error('Could not open billing portal. Please try again.');
+      }
     } catch (err) {
       console.error('Error opening billing portal:', err);
+      toast.error('Failed to open billing portal');
+    } finally {
+      setBillingLoading(false);
     }
   };
 
@@ -85,8 +103,10 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
           <div className="flex items-center gap-3">
             <button
               onClick={handleManageBilling}
-              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+              disabled={billingLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
             >
+              {billingLoading ? <Loader2 size={14} className="animate-spin" /> : null}
               Manage Billing
             </button>
           </div>
@@ -99,7 +119,19 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{currentPlan.plan_name}</h2>
-                <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">Active</span>
+                {(() => {
+                  const status = clientMembership?.status;
+                  const statusConfig = {
+                    'En cours': { label: 'Active', bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400' },
+                    'Paused': { label: 'Paused', bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400' },
+                    'Cancelling': { label: 'Cancelling', bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400' },
+                    'Canceled': { label: 'Canceled', bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400' },
+                    'Payment Failed': { label: 'Payment Failed', bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400' },
+                    'Pending': { label: 'Pending', bg: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-600 dark:text-neutral-400' },
+                  };
+                  const cfg = statusConfig[status] || statusConfig['En cours'];
+                  return <span className={`px-3 py-1 ${cfg.bg} ${cfg.text} rounded-full text-xs font-medium`}>{cfg.label}</span>;
+                })()}
               </div>
               <button onClick={() => setShowIncluded(!showIncluded)} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">
                 {showIncluded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -156,7 +188,12 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
             const sla = plan.delivery_sla_business_days || '48h';
 
             return (
-              <div key={plan.whalesync_postgres_id} className={`border rounded-2xl p-6 transition-all flex flex-col ${isCurrent ? 'border-neutral-900 dark:border-white' : 'border-neutral-200 dark:border-neutral-800'}`}>
+              <div key={plan.whalesync_postgres_id} className={`border rounded-2xl p-6 transition-all flex flex-col relative ${isCurrent ? 'border-neutral-900 dark:border-white ring-1 ring-neutral-900 dark:ring-white' : 'border-neutral-200 dark:border-neutral-800'}`}>
+                {isCurrent && (
+                  <div className="absolute -top-3 left-6 px-3 py-0.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-[10px] font-bold uppercase tracking-wider rounded-full">
+                    Your Plan
+                  </div>
+                )}
                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">{plan.plan_name}</h3>
                 <p className="text-sm text-neutral-500 mb-6 min-h-[60px]">{plan.description || `${tasksAtOnce} tâche${tasksAtOnce > 1 ? 's' : ''} à la fois, ${sla} par tâche.`}</p>
 
