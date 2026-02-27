@@ -951,11 +951,61 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                         <p className="text-neutral-600 italic text-sm">No description provided.</p>
                                     )}
                                     <button
-                                        onClick={() => setIsEditingDescription(true)}
+                                        onClick={() => {
+                                            console.log('[TaskDetails] Edit click — task.description:', JSON.stringify(task.description), '| task.content:', JSON.stringify(task.content));
+                                            setEditedDescription(task.description || task.content || '');
+                                            setIsEditingDescription(true);
+                                        }}
                                         className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-neutral-500 hover:text-white p-2 rounded"
                                     >
                                         <Edit3 size={16} />
                                     </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* AI-Generated Concept Images — visible to designers */}
+                        {task.properties?.ai_images && task.properties.ai_images.length > 0 && (
+                            <div className="mb-8 border border-neutral-800 rounded-xl overflow-hidden">
+                                <div className="px-5 py-3 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                    <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Concept Images</span>
+                                </div>
+                                <div className="p-4 grid grid-cols-2 gap-3">
+                                    {task.properties.ai_images.map((img, i) => (
+                                        <img
+                                            key={i}
+                                            src={img}
+                                            alt={`AI concept ${i + 1}`}
+                                            className="w-full rounded-lg border border-neutral-700 cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={() => window.open(img, '_blank')}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* AI Brief Conversation — visible to designers */}
+                        {task.properties?.ai_conversation && task.properties.ai_conversation.length > 0 && (
+                            <div className="mb-12 border border-neutral-800 rounded-xl overflow-hidden">
+                                <div className="px-5 py-3 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                                    <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Brief Assistant — Q&A</span>
+                                </div>
+                                <div className="px-5 py-4 space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                    {task.properties.ai_conversation.map((msg, i) => (
+                                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`max-w-[85%] px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
+                                                msg.role === 'user'
+                                                    ? 'bg-neutral-800 text-neutral-200 rounded-xl rounded-br-sm'
+                                                    : 'bg-neutral-800/50 text-neutral-400 rounded-xl rounded-bl-sm'
+                                            }`}>
+                                                {msg.role === 'assistant' && <span className="text-[10px] text-[#D08B00] font-semibold block mb-1">AI</span>}
+                                                {msg.role === 'user' && <span className="text-[10px] text-neutral-500 font-semibold block mb-1">Client</span>}
+                                                {msg.content}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}

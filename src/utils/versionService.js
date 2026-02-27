@@ -43,6 +43,7 @@ export const getTaskVersions = async (taskId) => {
     .from('task_versions')
     .select('*')
     .eq('task_id', taskId)
+    .is('archived_at', null)
     .order('version_number', { ascending: true });
 
   if (error) {
@@ -62,6 +63,7 @@ export const getCurrentVersion = async (taskId) => {
     .select('*')
     .eq('task_id', taskId)
     .eq('is_current', true)
+    .is('archived_at', null)
     .single();
 
   if (error) {

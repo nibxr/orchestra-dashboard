@@ -109,9 +109,9 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      // If not found in either, default to team (for backwards compatibility)
-      console.log('[detectUserRole] User not found in team or contacts, defaulting to team role');
-      setUserRole('team');
+      // If not found in either, default to customer (restricted access)
+      console.log('[detectUserRole] User not found in team or contacts, defaulting to customer role');
+      setUserRole('customer');
       setUserMembership(null);
       setTeamMemberId(null);
       setTeamMemberRole(null);
@@ -119,7 +119,7 @@ export const AuthProvider = ({ children }) => {
       setPlanLimits(null);
     } catch (error) {
       console.error('[detectUserRole] Error detecting user role:', error);
-      setUserRole('team'); // Default to team on error
+      setUserRole('customer'); // Default to customer on error (restricted access)
       setUserMembership(null);
       setTeamMemberId(null);
       setTeamMemberRole(null);
@@ -279,11 +279,35 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      return { error: null };
+      if (error) {
+        // If session is already expired/invalidated (403 session_not_found),
+        // still clear local state so user can sign out gracefully
+        console.warn('[signOut] Supabase signOut error:', error.message, '— clearing local state anyway');
+      }
     } catch (error) {
-      return { error };
+      console.warn('[signOut] Unexpected error during signOut:', error);
+    } finally {
+      // Always clear local auth state regardless of server response
+      setUser(null);
+      setSession(null);
+      setUserRole(null);
+      setUserMembership(null);
+      setTeamMemberId(null);
+      setTeamMemberRole(null);
+      setClientContactId(null);
+      setPlanLimits(null);
+      lastUserIdRef.current = null;
+
+      // Clear any lingering Supabase session from localStorage
+      try {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch {}
     }
+    return { error: null };
   };
 
   const resetPassword = async (email) => {

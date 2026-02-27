@@ -317,7 +317,7 @@ export default function App() {
       }
 
       if (!displaySettings.showArchived) result = result.filter(t => !t.archived_at);
-      if (!displaySettings.showInactive) result = result.filter(t => {
+      if (!displaySettings.showInactive && userRole !== 'customer') result = result.filter(t => {
          if (!t.membership_id) return true;
          const status = (t.clientStatus || '').toLowerCase();
          return status.includes('en cours') || status.includes('start') || status.includes('active') ||
@@ -338,8 +338,6 @@ export default function App() {
   };
 
   const handleAddTask = async (formData) => {
-      console.log('[handleAddTask] formData received:', formData);
-      console.log('[handleAddTask] formData.clientId:', formData.clientId);
 
       // Check task limit when creating as Active Task for a client
       if (formData.status === 'Active Task' && formData.clientId) {
@@ -348,8 +346,6 @@ export default function App() {
               const { data: limitCheck, error } = await supabase.rpc('check_task_limit', {
                   p_membership_id: formData.clientId
               });
-
-              console.log('[handleAddTask] check_task_limit result:', limitCheck, 'error:', error);
 
               if (!error && limitCheck && !limitCheck.can_activate) {
                   toast.error(`Task limit reached: ${limitCheck.current_active}/${limitCheck.max_tasks} active tasks for this client`);
@@ -373,8 +369,6 @@ export default function App() {
                       .single();
 
                   const maxTasks = planData?.tasks_at_once ? parseInt(planData.tasks_at_once) : null;
-                  console.log('[handleAddTask] Client-side check: active=', currentActiveCount, 'max=', maxTasks);
-
                   if (maxTasks && currentActiveCount >= maxTasks) {
                       toast.error(`Task limit reached: ${currentActiveCount}/${maxTasks} active tasks for this client`);
                       return;
@@ -391,11 +385,117 @@ export default function App() {
       const currentTeamMember = team.find(t => t.email === user?.email);
       const teamMemberId = currentTeamMember?.id;
 
+      // Convert plain-text markdown brief to simple HTML for rendering in task views
+      const briefToHtml = (text) => {
+          if (!text || text.startsWith('<')) return text; // already HTML or empty
+          return text
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/^## (.+)$/gm, '<strong>$1</strong>')  // ## headers → bold
+              .replace(/^- (.+)$/gm, '• $1')                   // - bullets → bullet char
+              .replace(/\n/g, '<br>');                           // newlines → <br>
+      };
+
+      const htmlDescription = briefToHtml(formData.description);
+
+      // ── Upload base64 AI images to Supabase Storage ──
+      // Base64 data URIs are too large for the `properties` jsonb column
+      // (causes Postgres statement timeout). Upload to storage and replace with URLs.
+      const STORAGE_BUCKET = 'ai-images';
+      const taskSlug = `task-${Date.now()}`;
+      let imgCounter = 0;
+      let bucketReady = false;
+
+      // Ensure the storage bucket exists (only when we actually have images)
+      const hasAnyImages = (formData.aiImages?.length > 0) ||
+          formData.aiConversation?.some(m => m.images?.length > 0);
+      if (hasAnyImages) {
+          try {
+              const { data: buckets } = await supabase.storage.listBuckets();
+              if (!buckets?.some(b => b.name === STORAGE_BUCKET)) {
+                  await supabase.storage.createBucket(STORAGE_BUCKET, { public: true, fileSizeLimit: 10485760 });
+              }
+              bucketReady = true;
+          } catch (e) {
+              console.warn('[AI Images] Could not ensure bucket:', e.message);
+          }
+      }
+
+      const uploadBase64 = async (base64Data) => {
+          if (!bucketReady) return null;
+          if (!base64Data || !base64Data.startsWith('data:image/')) return base64Data; // already a URL
+          try {
+              const match = base64Data.match(/^data:image\/(\w+);base64,(.+)$/);
+              if (!match) return null;
+              const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+              const raw = atob(match[2]);
+              const bytes = new Uint8Array(raw.length);
+              for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+
+              const filePath = `${taskSlug}/${imgCounter++}.${ext}`;
+              const { error } = await supabase.storage
+                  .from(STORAGE_BUCKET)
+                  .upload(filePath, bytes, { contentType: `image/${match[1]}`, upsert: true });
+              if (error) {
+                  console.warn('[AI Image Upload] Storage error:', error.message);
+                  return null; // graceful degradation — skip image
+              }
+              const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+              return urlData.publicUrl;
+          } catch (err) {
+              console.warn('[AI Image Upload] Failed:', err.message);
+              return null;
+          }
+      };
+
+      // Process AI conversation — upload images, replace base64 with URLs
+      let processedConversation = formData.aiConversation || null;
+      let processedAiImages = formData.aiImages || null;
+
+      if (processedConversation || processedAiImages) {
+          try {
+              // Upload images from conversation messages
+              if (processedConversation) {
+                  processedConversation = await Promise.all(
+                      processedConversation.map(async (msg) => {
+                          if (!msg.images || msg.images.length === 0) return msg;
+                          const uploadedImages = await Promise.all(msg.images.map(uploadBase64));
+                          const validImages = uploadedImages.filter(Boolean);
+                          return { ...msg, images: validImages.length > 0 ? validImages : undefined, imageRating: validImages.length > 0 ? msg.imageRating : undefined };
+                      })
+                  );
+              }
+
+              // Upload images from ai_images gallery
+              if (processedAiImages) {
+                  const uploaded = await Promise.all(
+                      processedAiImages.map(async (img) => {
+                          const url = await uploadBase64(img.url || img);
+                          return url ? { url, rating: img.rating || 0 } : null;
+                      })
+                  );
+                  processedAiImages = uploaded.filter(Boolean);
+                  if (processedAiImages.length === 0) processedAiImages = null;
+              }
+          } catch (uploadErr) {
+              console.warn('[AI Image Upload] Batch failed, saving without images:', uploadErr);
+              // Strip images entirely to prevent timeout
+              if (processedConversation) {
+                  processedConversation = processedConversation.map(msg => {
+                      const { images, imageRating, ...rest } = msg;
+                      return rest;
+                  });
+              }
+              processedAiImages = null;
+          }
+      }
+
       const isClientCreating = userRole === 'customer';
       const newTaskPayload = {
           title: formData.title,
-          description: formData.description,
-          content: formData.description,
+          description: htmlDescription,
+          content: htmlDescription,
           status: formData.status,
           assigned_to_id: isClientCreating ? null : (formData.assigneeId || teamMemberId),
           created_by_team_id: isClientCreating ? null : (formData.createdById || teamMemberId),
@@ -407,14 +507,26 @@ export default function App() {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           orchestra_task_id: `TASK-${Date.now()}`,
-          properties: formData.type ? { type: formData.type, dueDate: formData.dueDate } : { dueDate: formData.dueDate }
+          properties: {
+              ...(formData.type ? { type: formData.type } : {}),
+              dueDate: formData.dueDate,
+              ...(processedConversation ? { ai_conversation: processedConversation } : {}),
+              ...(processedAiImages ? { ai_images: processedAiImages } : {})
+          }
       };
-      console.log('[handleAddTask] newTaskPayload:', newTaskPayload);
-      const { data, error } = await supabase.from('tasks').insert([newTaskPayload]).select();
-      if (error) {
-          console.error('Error creating task:', error);
-          toast.error(`Error creating task: ${error.message}`);
-      } else if (data) {
+      try {
+          const { data, error } = await supabase.from('tasks').insert([newTaskPayload]).select();
+          if (error) {
+              console.error('Error creating task:', error);
+              toast.error(`Error creating task: ${error.message}`);
+              return;
+          }
+          if (!data || data.length === 0) {
+              console.error('Error creating task: no data returned from insert');
+              toast.error('Error creating task: no data returned');
+              return;
+          }
+
           const newTask = data[0];
 
           // If a design URL was provided, create version 1
@@ -437,8 +549,10 @@ export default function App() {
           }
 
           setIsNewTaskModalOpen(false);
-          // Reload tasks to show the new task
           await fetchData();
+      } catch (insertErr) {
+          console.error('[handleAddTask] Unexpected error during insert:', insertErr);
+          toast.error(`Failed to create task: ${insertErr.message || 'Unknown error'}`);
       }
   };
 
@@ -564,6 +678,7 @@ export default function App() {
             setAdvancedFilters({ assignee: [], client: [] });
           }}
           width={sidebarWidth}
+          isAdmin={isAdmin}
         />
       ) : (
         <SettingsSidebar currentView={settingsView} setView={setSettingsView} setMode={setMode} width={sidebarWidth} />
@@ -648,7 +763,7 @@ export default function App() {
                     />
                 )}
                 {dashboardView === DASHBOARD_VIEWS.CYCLES && <CyclesView />}
-                {dashboardView === DASHBOARD_VIEWS.ANALYTICS && <AnalyticsView tasks={processedTasks} clients={clients} team={team} />}
+                {dashboardView === DASHBOARD_VIEWS.ANALYTICS && isAdmin && <AnalyticsView tasks={processedTasks} clients={clients} team={team} agreements={agreements} />}
                 {dashboardView === DASHBOARD_VIEWS.PAYMENTS && <PaymentsView />}
                 {dashboardView === DASHBOARD_VIEWS.PLANS && userRole === 'customer' && (
                   <ClientPlansView

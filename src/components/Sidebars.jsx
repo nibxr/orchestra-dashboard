@@ -19,7 +19,7 @@ const NavItem = ({ icon: Icon, label, active, onClick }) => (
   </button>
 );
 
-export const DashboardSidebar = ({ currentView, setView, setMode, clients, activeClientId, onOpenSearch, onOpenNotifications, onClientClick, onClearFilters, width }) => {
+export const DashboardSidebar = ({ currentView, setView, setMode, clients, activeClientId, onOpenSearch, onOpenNotifications, onClientClick, onClearFilters, width, isAdmin }) => {
   const { userRole } = useAuth();
   const isCustomer = userRole === 'customer';
 
@@ -66,7 +66,7 @@ export const DashboardSidebar = ({ currentView, setView, setMode, clients, activ
         )}
         {!isCustomer && (
           <>
-            <NavItem icon={BarChart3} label="Analytics" active={currentView === DASHBOARD_VIEWS.ANALYTICS} onClick={() => setView(DASHBOARD_VIEWS.ANALYTICS)} />
+            {isAdmin && <NavItem icon={BarChart3} label="Analytics" active={currentView === DASHBOARD_VIEWS.ANALYTICS} onClick={() => setView(DASHBOARD_VIEWS.ANALYTICS)} />}
             <NavItem icon={CreditCard} label="Payments" active={currentView === DASHBOARD_VIEWS.PAYMENTS} onClick={() => setView(DASHBOARD_VIEWS.PAYMENTS)} />
             <NavItem icon={Users} label="Customers" active={currentView === DASHBOARD_VIEWS.CUSTOMERS} onClick={() => setView(DASHBOARD_VIEWS.CUSTOMERS)} />
             <NavItem icon={RefreshCw} label="Cycles" active={currentView === DASHBOARD_VIEWS.CYCLES} onClick={() => setView(DASHBOARD_VIEWS.CYCLES)} />

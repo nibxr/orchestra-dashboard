@@ -33,158 +33,407 @@ import { useToast } from './Toast';
 import { manageSubscription, redirectToCustomerPortal } from '../utils/stripeService';
 import { useConfirm } from './ConfirmModal';
 
-// --- Analytics View (Real Implementation) ---
-// Now receives filtered tasks, clients, and team as props from App.jsx
-export const AnalyticsView = ({ tasks = [], clients = [], team = [] }) => {
-  // Data is passed as props (already filtered by App.jsx based on user role and filters)
-  if (!tasks || tasks.length === 0) {
-    return <div className="h-full flex items-center justify-center text-neutral-500">No tasks to analyze</div>;
-  }
-
-  const totalTasks = tasks.length;
-  const activeTasks = tasks.filter(t => t.status === 'Active Task').length;
-  const completedTasks = tasks.filter(t => t.status === 'Done').length;
-  const activeClients = clients.filter(c => c.status === 'En cours' || c.status === 'Start' || c.status === 'Active').length;
-
-  // Calculate median task completion time
-  const completedTasksWithDates = tasks.filter(t => t.status === 'Done' && t.created_at && t.updated_at);
-  const completionTimes = completedTasksWithDates.map(t => {
-    const created = new Date(t.created_at);
-    const completed = new Date(t.updated_at);
-    return (completed - created) / (1000 * 60 * 60 * 24); // days
-  }).sort((a, b) => a - b);
-  const medianCompletionTime = completionTimes.length > 0
-    ? completionTimes[Math.floor(completionTimes.length / 2)].toFixed(2)
-    : 0;
-
-  // Tasks worked on (recently updated in last 7 days)
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const tasksWorkedOn = tasks.filter(t => new Date(t.updated_at) > sevenDaysAgo).length;
-
-  // Paused clients
-  const pausedClients = clients.filter(c => (c.status || '').toLowerCase().includes('pause')).length;
-
-  const tasksByStatus = {
-    'Backlog': tasks.filter(t => t.status === 'Backlog').length,
-    'Active Task': activeTasks,
-    'To Review': tasks.filter(t => t.status === 'To Review').length,
-    'Done': completedTasks,
-    'Cancelled': tasks.filter(t => t.status === 'Cancelled').length,
+// --- Analytics View (Admin Only) ---
+export const AnalyticsView = ({ tasks = [], clients = [], team = [], agreements = [] }) => {
+  // ── Currency formatter ──
+  const fmtEur = (amount) => {
+    if (!amount && amount !== 0) return '€0';
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
   };
 
-  const teamWorkload = team.map(member => ({
-    name: member.full_name || member.email,
-    tasks: tasks.filter(t => t.assigned_to_id === member.id).length
-  })).sort((a, b) => b.tasks - a.tasks);
+  // ══════════════════════════════════════════
+  //  REVENUE METRICS
+  // ══════════════════════════════════════════
+  const activeAgreements = agreements.filter(a => {
+    const s = (a.status || '').toLowerCase();
+    return s === 'active' || s === 'en cours';
+  });
+  const pausedAgreements = agreements.filter(a => (a.status || '').toLowerCase() === 'paused');
+  const cancelledAgreements = agreements.filter(a => {
+    const s = (a.status || '').toLowerCase();
+    return s === 'canceled' || s === 'cancelled' || s === 'cancelling';
+  });
 
-  const recentActivity = tasks
-    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-    .slice(0, 10);
+  const totalMRR = activeAgreements.reduce((sum, a) => sum + (Number(a.custom_price_ht) || 0), 0);
+  const pausedMRR = pausedAgreements.reduce((sum, a) => sum + (Number(a.custom_price_ht) || 0), 0);
+  const avgRevenuePerClient = activeAgreements.length > 0 ? totalMRR / activeAgreements.length : 0;
+
+  // MRR by Plan
+  const mrrByPlan = {};
+  activeAgreements.forEach(a => {
+    const plan = a.plan_name || 'Custom';
+    mrrByPlan[plan] = (mrrByPlan[plan] || 0) + (Number(a.custom_price_ht) || 0);
+  });
+  const mrrByPlanSorted = Object.entries(mrrByPlan).sort((a, b) => b[1] - a[1]);
+
+  // Client count by plan
+  const clientsByPlan = {};
+  activeAgreements.forEach(a => {
+    const plan = a.plan_name || 'Custom';
+    clientsByPlan[plan] = (clientsByPlan[plan] || 0) + 1;
+  });
+
+  // ══════════════════════════════════════════
+  //  CLIENT METRICS
+  // ══════════════════════════════════════════
+  const totalClients = agreements.length;
+  const activeCount = activeAgreements.length;
+  const pausedCount = pausedAgreements.length;
+  const churnedCount = cancelledAgreements.length;
+  const pendingCount = agreements.filter(a => (a.status || '').toLowerCase() === 'pending').length;
+
+  // Client status distribution
+  const statusDist = {};
+  agreements.forEach(a => {
+    const s = a.status || 'Unknown';
+    statusDist[s] = (statusDist[s] || 0) + 1;
+  });
+
+  // Churn rate (churned / total)
+  const churnRate = totalClients > 0 ? ((churnedCount / totalClients) * 100).toFixed(1) : '0.0';
+
+  // ══════════════════════════════════════════
+  //  TASK PERFORMANCE
+  // ══════════════════════════════════════════
+  const totalTasks = tasks.length;
+  const doneTasks = tasks.filter(t => t.status === 'Done');
+  const activeTasks = tasks.filter(t => t.status === 'Active Task');
+  const backlogTasks = tasks.filter(t => t.status === 'Backlog');
+  const reviewTasks = tasks.filter(t => t.status === 'To Review');
+  const cancelledTasks = tasks.filter(t => t.status === 'Cancelled');
+
+  const completionRate = totalTasks > 0 ? ((doneTasks.length / totalTasks) * 100).toFixed(1) : '0.0';
+
+  // Cycle time: created_at → delivered_at or updated_at for Done tasks
+  const cycleTimeDays = doneTasks
+    .filter(t => t.created_at)
+    .map(t => {
+      const start = new Date(t.created_at);
+      const end = new Date(t.delivered_at || t.updated_at);
+      return Math.max(0, (end - start) / (1000 * 60 * 60 * 24));
+    })
+    .sort((a, b) => a - b);
+  const medianCycleTime = cycleTimeDays.length > 0
+    ? cycleTimeDays[Math.floor(cycleTimeDays.length / 2)].toFixed(1)
+    : '0';
+  const avgCycleTime = cycleTimeDays.length > 0
+    ? (cycleTimeDays.reduce((s, v) => s + v, 0) / cycleTimeDays.length).toFixed(1)
+    : '0';
+
+  // Tasks by status
+  const taskStatusMap = [
+    { label: 'Backlog', count: backlogTasks.length, color: 'bg-neutral-400' },
+    { label: 'Active', count: activeTasks.length, color: 'bg-blue-500' },
+    { label: 'Review', count: reviewTasks.length, color: 'bg-amber-500' },
+    { label: 'Done', count: doneTasks.length, color: 'bg-emerald-500' },
+    { label: 'Cancelled', count: cancelledTasks.length, color: 'bg-red-400' },
+  ];
+
+  // Tasks per client (active clients only)
+  const tasksPerClient = {};
+  tasks.filter(t => t.membership_id).forEach(t => {
+    tasksPerClient[t.membership_id] = (tasksPerClient[t.membership_id] || 0) + 1;
+  });
+  const avgTasksPerClient = activeCount > 0
+    ? (Object.values(tasksPerClient).reduce((s, v) => s + v, 0) / activeCount).toFixed(1)
+    : '0';
+
+  // 7-day activity
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const tasksLast7d = tasks.filter(t => new Date(t.updated_at) > sevenDaysAgo).length;
+  const tasksCompleted30d = doneTasks.filter(t => new Date(t.delivered_at || t.updated_at) > thirtyDaysAgo).length;
+
+  // ══════════════════════════════════════════
+  //  TEAM PRODUCTIVITY
+  // ══════════════════════════════════════════
+  const designers = team.filter(m => m.role === 'designer' || m.role === 'admin');
+  const teamStats = designers.map(member => {
+    const memberTasks = tasks.filter(t => t.assigned_to_id === member.id);
+    const memberDone = memberTasks.filter(t => t.status === 'Done');
+    const memberActive = memberTasks.filter(t => t.status === 'Active Task');
+    const memberCycleTimes = memberDone
+      .filter(t => t.created_at)
+      .map(t => Math.max(0, (new Date(t.delivered_at || t.updated_at) - new Date(t.created_at)) / (1000 * 60 * 60 * 24)));
+    const memberAvgCycle = memberCycleTimes.length > 0
+      ? (memberCycleTimes.reduce((s, v) => s + v, 0) / memberCycleTimes.length).toFixed(1)
+      : null;
+
+    return {
+      name: member.full_name || member.email,
+      role: member.role,
+      avatar: member.profil_pic || member.avatar_url,
+      total: memberTasks.length,
+      active: memberActive.length,
+      done: memberDone.length,
+      avgCycleDays: memberAvgCycle,
+      completionRate: memberTasks.length > 0 ? ((memberDone.length / memberTasks.length) * 100).toFixed(0) : '0',
+    };
+  }).sort((a, b) => b.total - a.total);
+
+  // ══════════════════════════════════════════
+  //  CLIENT HEALTH TABLE
+  // ══════════════════════════════════════════
+  const clientHealthData = activeAgreements.map(a => {
+    const clientTasks = tasks.filter(t => t.membership_id === a.membership_id);
+    const clientActiveTasks = clientTasks.filter(t => t.status === 'Active Task').length;
+    const clientDoneTasks = clientTasks.filter(t => t.status === 'Done').length;
+    const clientBacklog = clientTasks.filter(t => t.status === 'Backlog').length;
+    const lastActivity = clientTasks.length > 0
+      ? new Date(Math.max(...clientTasks.map(t => new Date(t.updated_at).getTime())))
+      : null;
+    const daysSinceActivity = lastActivity ? Math.floor((Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+
+    return {
+      name: a.client_name,
+      mrr: Number(a.custom_price_ht) || 0,
+      plan: a.plan_name || 'Custom',
+      totalTasks: clientTasks.length,
+      activeTasks: clientActiveTasks,
+      doneTasks: clientDoneTasks,
+      backlog: clientBacklog,
+      daysSinceActivity,
+      health: daysSinceActivity > 30 ? 'at-risk' : daysSinceActivity > 14 ? 'warning' : 'healthy',
+    };
+  }).sort((a, b) => b.mrr - a.mrr);
+
+  // ══════════════════════════════════════════
+  //  RENDER
+  // ══════════════════════════════════════════
+  const StatCard = ({ label, value, sub, color = 'text-neutral-900 dark:text-white' }) => (
+    <div className="bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
+      <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2">{label}</div>
+      <div className={`text-2xl font-bold font-mono ${color}`}>{value}</div>
+      {sub && <div className="text-[11px] text-neutral-400 mt-1">{sub}</div>}
+    </div>
+  );
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar bg-neutral-50 dark:bg-black p-8 animate-fade-in">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-8">Analytics</h1>
+    <div className="h-full overflow-y-auto custom-scrollbar bg-neutral-50 dark:bg-black p-6 lg:p-8 animate-fade-in">
+      <div className="max-w-[1400px] mx-auto space-y-8">
 
-        {/* Stats Grid - Row 1 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 hover:border-lime-400/50 hover:shadow-lg hover:shadow-lime-400/10 transition-all duration-300 cursor-pointer group">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-500 text-sm group-hover:text-neutral-500 dark:hover:text-neutral-400 transition-colors">Active subscribers</span>
-              <Building2 size={16} className="text-lime-400 group-hover:scale-110 transition-transform" />
-            </div>
-            <div className="text-3xl font-bold text-neutral-900 dark:text-white">{activeClients}</div>
-            <p className="text-xs text-neutral-600 mt-1">Currently active clients</p>
+        {/* ───── REVENUE ───── */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-4">Revenue</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Monthly Recurring Revenue" value={fmtEur(totalMRR)} sub={`${activeCount} active clients`} color="text-emerald-600 dark:text-emerald-400" />
+            <StatCard label="Paused MRR" value={fmtEur(pausedMRR)} sub={`${pausedCount} paused clients`} color="text-amber-600 dark:text-amber-400" />
+            <StatCard label="Avg Revenue / Client" value={fmtEur(avgRevenuePerClient)} sub="Active clients only" />
+            <StatCard label="Churn Rate" value={`${churnRate}%`} sub={`${churnedCount} churned of ${totalClients}`} color={Number(churnRate) > 10 ? 'text-red-500' : 'text-neutral-900 dark:text-white'} />
           </div>
 
-          <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-300 cursor-pointer group">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-500 text-sm group-hover:text-neutral-500 dark:hover:text-neutral-400 transition-colors">Paused subscribers</span>
-              <AlertCircle size={16} className="text-amber-500 group-hover:scale-110 transition-transform" />
-            </div>
-            <div className="text-3xl font-bold text-neutral-900 dark:text-white">{pausedClients}</div>
-            <p className="text-xs text-neutral-600 mt-1">On hold or paused</p>
-          </div>
-
-          <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 cursor-pointer group">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-500 text-sm group-hover:text-neutral-500 dark:hover:text-neutral-400 transition-colors">Tasks worked on</span>
-              <Database size={16} className="text-blue-500 group-hover:scale-110 transition-transform" />
-            </div>
-            <div className="text-3xl font-bold text-neutral-900 dark:text-white">{tasksWorkedOn}</div>
-            <p className="text-xs text-neutral-600 mt-1">Updated in last 7 days</p>
-          </div>
-
-          <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 hover:border-green-500/50 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300 cursor-pointer group">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-500 text-sm group-hover:text-neutral-500 dark:hover:text-neutral-400 transition-colors">Median task completion time</span>
-              <CheckCircle2 size={16} className="text-green-500 group-hover:scale-110 transition-transform" />
-            </div>
-            <div className="text-3xl font-bold text-neutral-900 dark:text-white">{medianCompletionTime}<span className="text-lg text-neutral-500">d</span></div>
-            <p className="text-xs text-neutral-600 mt-1">Average completion days</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Tasks by Status */}
-          <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">Tasks by Status</h2>
-            <div className="space-y-3">
-              {Object.entries(tasksByStatus).map(([status, count]) => (
-                <div key={status} className="flex items-center justify-between">
-                  <span className="text-neutral-400 text-sm">{status}</span>
-                  <div className="flex items-center gap-3">
-                    <div className="w-32 h-2 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden">
+          {/* MRR by Plan */}
+          {mrrByPlanSorted.length > 0 && (
+            <div className="mt-4 bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
+              <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-4">MRR by Plan</div>
+              <div className="space-y-3">
+                {mrrByPlanSorted.map(([plan, mrr]) => (
+                  <div key={plan} className="flex items-center gap-4">
+                    <span className="text-xs text-neutral-500 w-24 truncate">{plan}</span>
+                    <div className="flex-1 h-6 bg-neutral-100 dark:bg-neutral-900 rounded-lg overflow-hidden relative">
                       <div
-                        className="h-full bg-lime-400 rounded-full"
-                        style={{ width: `${(count / totalTasks) * 100}%` }}
+                        className="h-full bg-emerald-500/20 dark:bg-emerald-500/30 rounded-lg transition-all duration-500"
+                        style={{ width: `${totalMRR > 0 ? (mrr / totalMRR) * 100 : 0}%` }}
                       />
+                      <div className="absolute inset-0 flex items-center px-3">
+                        <span className="text-[11px] font-mono font-medium text-neutral-900 dark:text-white">{fmtEur(mrr)}</span>
+                        <span className="text-[10px] text-neutral-400 ml-auto">{clientsByPlan[plan] || 0} client{(clientsByPlan[plan] || 0) !== 1 ? 's' : ''}</span>
+                      </div>
                     </div>
-                    <span className="text-neutral-900 dark:text-white font-medium w-8 text-right">{count}</span>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+          )}
+        </section>
+
+        {/* ───── OPERATIONS ───── */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-4">Operations</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+            <StatCard label="Total Tasks" value={totalTasks} sub={`${tasksLast7d} active last 7d`} />
+            <StatCard label="Completion Rate" value={`${completionRate}%`} sub={`${doneTasks.length} completed`} color={Number(completionRate) > 60 ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-900 dark:text-white'} />
+            <StatCard label="Avg Cycle Time" value={`${avgCycleTime}d`} sub={`Median: ${medianCycleTime}d`} />
+            <StatCard label="Completed (30d)" value={tasksCompleted30d} sub="Last 30 days" />
+            <StatCard label="Avg Tasks / Client" value={avgTasksPerClient} sub="Active clients" />
           </div>
 
-          {/* Team Workload */}
-          <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">Team Workload</h2>
-            <div className="space-y-3">
-              {teamWorkload.slice(0, 8).map((member, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <span className="text-neutral-400 text-sm truncate">{member.name}</span>
-                  <div className="flex items-center gap-3">
-                    <div className="w-24 h-2 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 rounded-full"
-                        style={{ width: `${Math.min((member.tasks / 10) * 100, 100)}%` }}
-                      />
-                    </div>
-                    <span className="text-neutral-900 dark:text-white font-medium w-8 text-right">{member.tasks}</span>
+          {/* Task Pipeline */}
+          <div className="bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
+            <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-4">Task Pipeline</div>
+            <div className="flex gap-2 h-8 rounded-lg overflow-hidden">
+              {taskStatusMap.filter(s => s.count > 0).map(s => (
+                <div
+                  key={s.label}
+                  className={`${s.color} relative group transition-all duration-300 hover:opacity-90 rounded-md`}
+                  style={{ flex: s.count }}
+                  title={`${s.label}: ${s.count}`}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    {s.count > 0 && totalTasks > 0 && (s.count / totalTasks) > 0.08 && (
+                      <span className="text-[10px] font-semibold text-white drop-shadow-sm">{s.count}</span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+              {taskStatusMap.map(s => (
+                <div key={s.label} className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${s.color}`} />
+                  <span className="text-[10px] text-neutral-500">{s.label}</span>
+                  <span className="text-[10px] text-neutral-400 font-mono">{s.count}</span>
+                </div>
+              ))}
+            </div>
           </div>
+        </section>
 
-          {/* Recent Activity */}
-          <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 lg:col-span-2">
-            <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">Recent Activity</h2>
-            <div className="space-y-2">
-              {recentActivity.map((task) => (
-                <div key={task.id} className="flex items-center justify-between py-2 border-b border-neutral-200 dark:border-neutral-800 last:border-0">
-                  <div className="flex-1">
-                    <p className="text-neutral-900 dark:text-white text-sm">{task.title}</p>
-                    <p className="text-neutral-500 text-xs">
-                      {task.status} • {new Date(task.updated_at).toLocaleDateString()}
-                    </p>
+        {/* ───── TEAM ───── */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-4">Team</h2>
+          <div className="bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-neutral-50 dark:bg-[#0f0f0f] border-b border-neutral-200 dark:border-neutral-800">
+                <tr className="text-neutral-400 text-[10px] uppercase tracking-wider">
+                  <th className="text-left px-5 py-3 font-medium">Member</th>
+                  <th className="text-center px-3 py-3 font-medium">Active</th>
+                  <th className="text-center px-3 py-3 font-medium">Done</th>
+                  <th className="text-center px-3 py-3 font-medium">Total</th>
+                  <th className="text-center px-3 py-3 font-medium">Completion</th>
+                  <th className="text-center px-3 py-3 font-medium">Avg Cycle</th>
+                  <th className="px-5 py-3 font-medium">Workload</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/50">
+                {teamStats.map((m, i) => (
+                  <tr key={i} className="hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-neutral-600 dark:text-neutral-300 overflow-hidden">
+                          {m.avatar ? <img src={m.avatar} alt="" className="w-full h-full object-cover" /> : m.name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div>
+                          <span className="text-neutral-900 dark:text-white font-medium">{m.name}</span>
+                          <span className="text-neutral-400 text-[10px] ml-2 capitalize">{m.role}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="text-center px-3 py-3.5">
+                      <span className={`font-mono font-medium ${m.active > 0 ? 'text-blue-500' : 'text-neutral-300 dark:text-neutral-600'}`}>{m.active}</span>
+                    </td>
+                    <td className="text-center px-3 py-3.5">
+                      <span className="font-mono font-medium text-emerald-500">{m.done}</span>
+                    </td>
+                    <td className="text-center px-3 py-3.5 text-neutral-900 dark:text-white font-mono">{m.total}</td>
+                    <td className="text-center px-3 py-3.5">
+                      <span className={`font-mono text-[11px] px-2 py-0.5 rounded ${Number(m.completionRate) >= 50 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'}`}>
+                        {m.completionRate}%
+                      </span>
+                    </td>
+                    <td className="text-center px-3 py-3.5 text-neutral-500 font-mono">{m.avgCycleDays ? `${m.avgCycleDays}d` : '—'}</td>
+                    <td className="px-5 py-3.5">
+                      <div className="w-full h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min((m.active / 5) * 100, 100)}%` }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {teamStats.length === 0 && (
+                  <tr><td colSpan="7" className="text-center py-8 text-neutral-400">No team members</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* ───── CLIENT HEALTH ───── */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-4">Client Health</h2>
+          <div className="bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-neutral-50 dark:bg-[#0f0f0f] border-b border-neutral-200 dark:border-neutral-800">
+                <tr className="text-neutral-400 text-[10px] uppercase tracking-wider">
+                  <th className="text-left px-5 py-3 font-medium">Client</th>
+                  <th className="text-left px-3 py-3 font-medium">Plan</th>
+                  <th className="text-right px-3 py-3 font-medium">MRR</th>
+                  <th className="text-center px-3 py-3 font-medium">Active</th>
+                  <th className="text-center px-3 py-3 font-medium">Backlog</th>
+                  <th className="text-center px-3 py-3 font-medium">Done</th>
+                  <th className="text-center px-3 py-3 font-medium">Last Activity</th>
+                  <th className="text-center px-3 py-3 font-medium">Health</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/50">
+                {clientHealthData.map((c, i) => (
+                  <tr key={i} className="hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-md bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-neutral-600 dark:text-neutral-300">
+                          {c.name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <span className="text-neutral-900 dark:text-white font-medium">{c.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3.5 text-neutral-500">{c.plan}</td>
+                    <td className="px-3 py-3.5 text-right font-mono text-neutral-900 dark:text-white">{fmtEur(c.mrr)}</td>
+                    <td className="text-center px-3 py-3.5">
+                      <span className={`font-mono ${c.activeTasks > 0 ? 'text-blue-500 font-medium' : 'text-neutral-300 dark:text-neutral-600'}`}>{c.activeTasks}</span>
+                    </td>
+                    <td className="text-center px-3 py-3.5 text-neutral-400 font-mono">{c.backlog}</td>
+                    <td className="text-center px-3 py-3.5 text-emerald-500 font-mono">{c.doneTasks}</td>
+                    <td className="text-center px-3 py-3.5 text-neutral-500">
+                      {c.daysSinceActivity < 999 ? `${c.daysSinceActivity}d ago` : 'Never'}
+                    </td>
+                    <td className="text-center px-3 py-3.5">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        c.health === 'healthy' ? 'bg-emerald-500/10 text-emerald-500' :
+                        c.health === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                        'bg-red-500/10 text-red-500'
+                      }`}>
+                        <span className={`w-1 h-1 rounded-full ${
+                          c.health === 'healthy' ? 'bg-emerald-500' :
+                          c.health === 'warning' ? 'bg-amber-500' :
+                          'bg-red-500'
+                        }`} />
+                        {c.health === 'healthy' ? 'Healthy' : c.health === 'warning' ? 'Quiet' : 'At Risk'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {clientHealthData.length === 0 && (
+                  <tr><td colSpan="8" className="text-center py-8 text-neutral-400">No active clients</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* ───── CLIENT STATUS BREAKDOWN ───── */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-4">Client Status Breakdown</h2>
+          <div className="bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {Object.entries(statusDist).sort((a, b) => b[1] - a[1]).map(([status, count]) => {
+                const s = status.toLowerCase();
+                const dotColor = s === 'active' ? 'bg-emerald-500' : s === 'paused' ? 'bg-amber-500' : (s === 'canceled' || s === 'cancelled' || s === 'cancelling') ? 'bg-red-500' : s === 'pending' ? 'bg-neutral-400' : 'bg-blue-500';
+                return (
+                  <div key={status} className="flex items-center gap-3 py-2">
+                    <span className={`w-2 h-2 rounded-full ${dotColor} shrink-0`} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-neutral-900 dark:text-white font-mono">{count}</div>
+                      <div className="text-[10px] text-neutral-400 truncate">{status}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
-        </div>
+        </section>
+
       </div>
     </div>
   );

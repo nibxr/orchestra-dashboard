@@ -572,6 +572,17 @@ const DesignReviewPage = () => {
       versions={versions}
       currentVersion={currentVersion}
       onVersionChange={handleVersionChange}
+      onVersionDeleted={async () => {
+        // Refetch versions — if none remain, React will render VersionlessTaskView
+        const { data } = await getTaskVersions(taskId);
+        const remaining = data || [];
+        setVersions(remaining);
+        if (remaining.length > 0) {
+          setCurrentVersion(remaining[remaining.length - 1]);
+        } else {
+          setCurrentVersion(null);
+        }
+      }}
       comments={comments}
       team={team}
       onUpdateTask={handleUpdateTask}

@@ -200,21 +200,28 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
 
   // Handle "Created By" - could be team member OR client contact
   let creatorName = 'Unknown';
-  let createdById = null;
+  let createdByTeamId = null;  // Only team member IDs go here (for the dropdown)
+  let isClientCreated = false;
 
   if (task.created_by_team_id) {
     // Created by team member
-    createdById = task.created_by_team_id;
+    createdByTeamId = task.created_by_team_id;
     creatorName = team.find(t => t.id === task.created_by_team_id)?.full_name || 'Unknown';
   } else if (task.created_by_id) {
-    // Created by client contact
-    createdById = task.created_by_id;
+    // Created by client contact — do NOT put this ID in the team dropdown
+    isClientCreated = true;
     const contact = clientContacts.find(c => c.id === task.created_by_id);
     creatorName = contact?.full_name || contact?.email || 'Client';
   } else if (task.properties?.createdById) {
     // Backwards compatibility
-    createdById = task.properties.createdById;
-    creatorName = team.find(t => t.id === task.properties.createdById)?.full_name || 'Unknown';
+    const legacyId = task.properties.createdById;
+    const matchedTeam = team.find(t => t.id === legacyId);
+    if (matchedTeam) {
+      createdByTeamId = legacyId;
+      creatorName = matchedTeam.full_name || 'Unknown';
+    } else {
+      creatorName = 'Unknown';
+    }
   }
 
   // Co-creator lookup
@@ -228,6 +235,8 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
     created_by_team_id: task.created_by_team_id,
     created_by_id: task.created_by_id,
     creatorName,
+    createdByTeamId,
+    isClientCreated,
     teamCount: team.length,
     contactsCount: clientContacts.length
   });
@@ -308,7 +317,9 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
   const handleCreatorMultiChange = async (newValues) => {
     const result = await onUpdateTask(task.id, {
       created_by_team_id: newValues[0] || null,
-      co_creator_team_id: newValues[1] || null
+      co_creator_team_id: newValues[1] || null,
+      // Clear client contact creator when assigning a team member
+      ...(newValues[0] ? { created_by_id: null } : {})
     });
     if (!result?.error) {
       toast.success('Creators updated');
@@ -884,15 +895,15 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
               />
             )}
 
-            {/* Created By - Multi-select */}
+            {/* Created By */}
             {!isCustomer && (
               <MultiSelectUsers
                 label="Created By"
                 icon={User}
-                values={[createdById, coCreatorId].filter(Boolean)}
+                values={[createdByTeamId, coCreatorId].filter(Boolean)}
                 options={teamOptions}
                 onChange={handleCreatorMultiChange}
-                placeholder="Unknown"
+                placeholder={isClientCreated ? creatorName : "Unknown"}
                 maxSelections={2}
                 searchable
               />
@@ -1002,8 +1013,10 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
         <div className="flex-1 overflow-hidden flex flex-col bg-black theme-bg-secondary items-center py-6">
           {/* Centered Content Box - 50% width */}
           <div className="w-full max-w-[50%] flex flex-col overflow-hidden rounded-lg border border-neutral-800 bg-[#0f0f0f]">
+            {/* Scrollable content area — title, description, AI sections */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4">
             {/* Description Section */}
-            <div className="border-b border-neutral-800 p-6">
+            <div className="p-6">
             <h2 className="text-lg font-semibold text-white mb-3">{task.title}</h2>
             {isEditingDescription ? (
               <div className="space-y-2">
@@ -1080,7 +1093,12 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
 
                 {/* Content editor */}
                 <div
-                  ref={descEditorRef}
+                  ref={(el) => {
+                    descEditorRef.current = el;
+                    if (el && el.innerHTML === '') {
+                      el.innerHTML = editedDescription;
+                    }
+                  }}
                   contentEditable
                   data-placeholder="Add a description..."
                   className="w-full bg-neutral-900 text-neutral-300 text-sm p-3 rounded border border-neutral-800 focus:outline-none focus:border-neutral-600 min-h-[100px] max-h-[200px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-600"
@@ -1138,18 +1156,108 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
               </div>
             ) : (
               <div
-                onClick={() => setIsEditingDescription(true)}
+                onClick={() => {
+                  setEditedDescription(task.description || task.content || '');
+                  setIsEditingDescription(true);
+                }}
                 className="text-neutral-300 text-sm cursor-pointer hover:bg-neutral-800/30 p-3 rounded min-h-[60px]"
                 dangerouslySetInnerHTML={{ __html: task.description || task.content || '<span class="text-neutral-600 italic">Click to add description...</span>' }}
               />
             )}
           </div>
 
+          {/* AI-Generated Concept Images — visible to designers */}
+          {task.properties?.ai_images && task.properties.ai_images.length > 0 && (
+            <div className="mx-4 mt-4 border border-neutral-800 rounded-xl overflow-hidden flex flex-col">
+              <div className="px-4 py-2.5 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2 shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Concept Images</span>
+              </div>
+              <div className="p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar" style={{ maxHeight: task.properties.ai_images.length > 2 ? '420px' : undefined }}>
+                {task.properties.ai_images.map((img, i) => {
+                  const imgUrl = typeof img === 'string' ? img : img.url;
+                  const imgRating = typeof img === 'object' ? img.rating : 0;
+                  return (
+                    <div key={i}>
+                      <img
+                        src={imgUrl}
+                        alt={`AI concept ${i + 1}`}
+                        className="w-full rounded-lg border border-neutral-700 cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(imgUrl, '_blank')}
+                      />
+                      {imgRating > 0 && (
+                        <div className="flex items-center gap-0.5 mt-1.5">
+                          <span className="text-[10px] text-neutral-500 mr-1">Client rating:</span>
+                          {[1, 2, 3, 4, 5].map(s => (
+                            <svg key={s} width="12" height="12" viewBox="0 0 24 24" fill={s <= imgRating ? '#D08B00' : 'none'} stroke={s <= imgRating ? '#D08B00' : '#525252'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                          ))}
+                          <span className="text-[10px] text-neutral-500 ml-1">{imgRating}/5</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* AI Brief Conversation — visible to designers */}
+          {task.properties?.ai_conversation && task.properties.ai_conversation.length > 0 && (
+            <div className="mx-4 mt-4 border border-neutral-800 rounded-xl overflow-hidden flex flex-col" style={{ maxHeight: '350px' }}>
+              <div className="px-4 py-2.5 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2 shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Brief Assistant — Q&A</span>
+              </div>
+              <div className="px-4 py-3 space-y-2.5 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                {task.properties.ai_conversation.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] px-3 py-1.5 text-xs leading-relaxed whitespace-pre-wrap ${
+                      msg.role === 'user'
+                        ? 'bg-neutral-800 text-neutral-200 rounded-xl rounded-br-sm'
+                        : 'bg-neutral-800/50 text-neutral-400 rounded-xl rounded-bl-sm'
+                    }`}>
+                      {msg.role === 'assistant' && <span className="text-[9px] text-[#D08B00] font-semibold block mb-0.5">AI</span>}
+                      {msg.role === 'user' && <span className="text-[9px] text-neutral-500 font-semibold block mb-0.5">Client</span>}
+                      {/* Display text — strip 🖼 prefix for cleaner look */}
+                      {msg.content?.startsWith('🖼 ')
+                        ? <span className="italic text-neutral-500">{msg.content.replace('🖼 ', '')}</span>
+                        : msg.content
+                      }
+                      {/* Inline images with ratings */}
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="mt-2 space-y-1.5">
+                          {msg.images.map((img, j) => (
+                            <img key={j} src={img} alt={`AI concept ${j + 1}`} className="w-full rounded-lg border border-neutral-700" />
+                          ))}
+                          {msg.imageRating > 0 && (
+                            <div className="flex items-center gap-0.5">
+                              {[1,2,3,4,5].map(s => (
+                                <span key={s} className={`text-[10px] ${s <= msg.imageRating ? 'text-[#D08B00]' : 'text-neutral-700'}`}>★</span>
+                              ))}
+                              <span className="text-[9px] text-neutral-500 ml-1">{msg.imageRating}/5</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {msg.feedback && (
+                        <span className={`inline-flex items-center gap-0.5 ml-1.5 text-[9px] font-medium ${msg.feedback === 'up' ? 'text-green-500' : 'text-red-500'}`}>
+                          {msg.feedback === 'up' ? '👍' : '👎'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          </div>
+          {/* End scrollable content area */}
+
           {/* Comments/Notes tabs */}
-          <div className="flex items-center gap-6 px-4 pt-4 border-b border-neutral-800">
+          <div className="shrink-0 flex items-center gap-6 px-4 pt-2 border-t border-neutral-800">
             <button
               onClick={() => setActiveTab('comments')}
-              className={`text-sm font-bold pb-3 border-b-2 transition-colors ${
+              className={`text-sm font-bold pb-2 border-b-2 transition-colors ${
                 activeTab === 'comments'
                   ? 'text-white border-white'
                   : 'text-neutral-500 border-transparent hover:text-neutral-300'
@@ -1160,7 +1268,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             {currentTeamMember && !isCustomer && (
               <button
                 onClick={() => setActiveTab('notes')}
-                className={`text-sm font-bold pb-3 border-b-2 transition-colors ${
+                className={`text-sm font-bold pb-2 border-b-2 transition-colors ${
                   activeTab === 'notes'
                     ? 'text-white border-white'
                     : 'text-neutral-500 border-transparent hover:text-neutral-300'
@@ -1172,22 +1280,8 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
           </div>
 
           {/* Comments list */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
-            {filteredComments.length === 0 ? (
-              <div className="text-center text-neutral-500 py-12">
-                {activeTab === 'notes' ? (
-                  <>
-                    <p>No notes yet</p>
-                    <p className="text-sm mt-1">Add internal notes visible only to team members</p>
-                  </>
-                ) : (
-                  <>
-                    <p>No comments yet</p>
-                    <p className="text-sm mt-1">Add a comment to get started</p>
-                  </>
-                )}
-              </div>
-            ) : (
+          <div className="min-h-0 overflow-y-auto px-4 space-y-4 custom-scrollbar" style={{ flex: '0 1 auto', maxHeight: '25%' }}>
+            {filteredComments.length === 0 ? null : (
               Object.keys(groupedComments).map((dateKey) => {
                 const dateComments = groupedComments[dateKey];
                 const dateLabel = formatDate(dateComments[0].created_at);
@@ -1499,7 +1593,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
           </div>
 
           {/* New comment input */}
-          <div className="p-4">
+          <div className="shrink-0 px-4 pt-3 pb-3">
             <div className="space-y-3">
               {/* Formatting toolbar */}
               {showFormattingToolbar && (

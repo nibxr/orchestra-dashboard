@@ -328,6 +328,7 @@ export const ImprovedDesignReview = ({
   versions,
   currentVersion,
   onVersionChange,
+  onVersionDeleted,
   comments,
   team,
   onUpdateTask,
@@ -710,22 +711,20 @@ export const ImprovedDesignReview = ({
 
       toast.success(`Version ${versionToDelete.version_number} deleted`);
 
-      // If we deleted the current version, switch to another one
-      if (currentVersion?.id === versionToDelete.id) {
+      setShowDeleteVersionModal(false);
+      setVersionToDelete(null);
+
+      // Let the parent refetch versions and handle state
+      // If no versions remain, parent will render VersionlessTaskView
+      if (onVersionDeleted) {
+        await onVersionDeleted();
+      } else {
+        // Fallback: refresh via onVersionChange
         const remaining = versions.filter(v => v.id !== versionToDelete.id);
         if (remaining.length > 0) {
           onVersionChange(remaining[remaining.length - 1]);
-        } else {
-          // No versions left — navigate back to dashboard
-          navigate('/');
         }
-      } else {
-        // Just refresh the list via onVersionChange with current
-        if (onVersionChange && currentVersion) onVersionChange(currentVersion);
       }
-
-      setShowDeleteVersionModal(false);
-      setVersionToDelete(null);
     } catch (error) {
       console.error('Error deleting version:', error);
       toast.error('Failed to delete version');
@@ -2032,6 +2031,89 @@ const DetailsTab = ({
           />
         )}
       </div>
+
+      {/* AI-Generated Concept Images — visible to designers */}
+      {task.properties?.ai_images && task.properties.ai_images.length > 0 && (
+        <div className="mx-4 mt-2 mb-2 border border-neutral-800 rounded-xl overflow-hidden flex flex-col">
+          <div className="px-4 py-2.5 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2 shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Concept Images</span>
+          </div>
+          <div className="p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar" style={{ maxHeight: task.properties.ai_images.length > 2 ? '420px' : undefined }}>
+            {task.properties.ai_images.map((img, i) => {
+              const imgUrl = typeof img === 'string' ? img : img.url;
+              const imgRating = typeof img === 'object' ? img.rating : 0;
+              return (
+                <div key={i}>
+                  <img
+                    src={imgUrl}
+                    alt={`AI concept ${i + 1}`}
+                    className="w-full rounded-lg border border-neutral-700 cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => window.open(imgUrl, '_blank')}
+                  />
+                  {imgRating > 0 && (
+                    <div className="flex items-center gap-0.5 mt-1.5">
+                      <span className="text-[10px] text-neutral-500 mr-1">Client rating:</span>
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <svg key={s} width="12" height="12" viewBox="0 0 24 24" fill={s <= imgRating ? '#D08B00' : 'none'} stroke={s <= imgRating ? '#D08B00' : '#525252'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      ))}
+                      <span className="text-[10px] text-neutral-500 ml-1">{imgRating}/5</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* AI Brief Conversation — visible to designers */}
+      {task.properties?.ai_conversation && task.properties.ai_conversation.length > 0 && (
+        <div className="mx-4 mt-2 mb-2 border border-neutral-800 rounded-xl overflow-hidden flex flex-col" style={{ maxHeight: '350px' }}>
+          <div className="px-4 py-2.5 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2 shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+            <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Brief Assistant — Q&A</span>
+          </div>
+          <div className="px-4 py-3 space-y-2.5 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+            {task.properties.ai_conversation.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] px-3 py-1.5 text-xs leading-relaxed whitespace-pre-wrap ${
+                  msg.role === 'user'
+                    ? 'bg-neutral-800 text-neutral-200 rounded-xl rounded-br-sm'
+                    : 'bg-neutral-800/50 text-neutral-400 rounded-xl rounded-bl-sm'
+                }`}>
+                  {msg.role === 'assistant' && <span className="text-[9px] text-[#D08B00] font-semibold block mb-0.5">AI</span>}
+                  {msg.role === 'user' && <span className="text-[9px] text-neutral-500 font-semibold block mb-0.5">Client</span>}
+                  {msg.content?.startsWith('🖼 ')
+                    ? <span className="italic text-neutral-500">{msg.content.replace('🖼 ', '')}</span>
+                    : msg.content
+                  }
+                  {msg.images && msg.images.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      {msg.images.map((img, j) => (
+                        <img key={j} src={img} alt={`AI concept ${j + 1}`} className="w-full rounded-lg border border-neutral-700" />
+                      ))}
+                      {msg.imageRating > 0 && (
+                        <div className="flex items-center gap-0.5">
+                          {[1,2,3,4,5].map(s => (
+                            <span key={s} className={`text-[10px] ${s <= msg.imageRating ? 'text-[#D08B00]' : 'text-neutral-700'}`}>★</span>
+                          ))}
+                          <span className="text-[9px] text-neutral-500 ml-1">{msg.imageRating}/5</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {msg.feedback && (
+                    <span className={`inline-flex items-center gap-0.5 ml-1.5 text-[9px] font-medium ${msg.feedback === 'up' ? 'text-green-500' : 'text-red-500'}`}>
+                      {msg.feedback === 'up' ? '👍' : '👎'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Deliverables Section */}
       <div className="px-4 py-4 border-t border-neutral-800">

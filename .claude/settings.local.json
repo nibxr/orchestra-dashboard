@@ -21,7 +21,15 @@
       "Bash(ls:*)",
       "Bash(npx --no-install vite build:*)",
       "WebFetch(domain:docs.stripe.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:openrouter.ai)",
+      "WebFetch(domain:langdock.com)",
+      "WebFetch(domain:docs.langdock.com)",
+      "WebFetch(domain:developer.tenten.co)",
+      "WebFetch(domain:deepwiki.com)",
+      "Bash(python3:*)",
+      "Bash(npx supabase functions deploy:*)",
+      "Bash(npx supabase:*)"
     ]
   }
 }
