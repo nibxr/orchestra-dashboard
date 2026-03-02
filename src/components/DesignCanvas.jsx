@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { Loader2 } from 'lucide-react';
+import { Icon } from './Icon';
 import CanvasControls from './CanvasControls';
 import CommentPinsOverlay from './CommentPinsOverlay';
 import { formatEmbedUrl, DEVICE_SIZES } from '../utils/canvasTransforms';
@@ -151,7 +151,7 @@ const DesignCanvas = ({
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-neutral-800 z-20">
                   <div className="text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-neutral-400 mx-auto mb-2" />
+                    <Icon name="loader-01" className="w-8 h-8 animate-spin text-neutral-400 mx-auto mb-2" />
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">
                       Loading embed...
                     </p>

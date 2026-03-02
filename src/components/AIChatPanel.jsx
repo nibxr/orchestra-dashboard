@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, ImageIcon, Sparkles, Check, X, Loader2, Bot, Pencil, RotateCcw, Star, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Icon } from './Icon';
 import * as aiService from '../utils/aiService';
 
 const STORAGE_KEY = 'dafolle_ai_chat_session';
@@ -141,7 +141,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
 
     // Check if the conversation is mature enough for image generation
     // (at least 3 user messages means the brief is reasonably filled in)
-    const userMessageCount = messages.filter(m => m.role === 'user' && !m.content.startsWith('🖼')).length;
+    const userMessageCount = messages.filter(m => m.role === 'user' && !m.content.startsWith('[IMG]') && !m.content.startsWith('🖼')).length;
     const hasEnoughContext = userMessageCount >= 3;
 
     // After enough context is gathered, generate an image prompt in the background
@@ -160,7 +160,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
             // Build clean chat history (no image messages)
             const chatHistory = messages
                 .filter(m => {
-                    if (m.role === 'user' && m.content.startsWith('🖼')) return false;
+                    if (m.role === 'user' && (m.content.startsWith('[IMG]') || m.content.startsWith('🖼'))) return false;
                     if (m.role === 'user' && m.content.startsWith('Generate concept image')) return false;
                     if (m.role === 'assistant' && m.images && m.images.length > 0 && !m.content) return false;
                     return m.content;
@@ -184,7 +184,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
         return msgs
             .filter(m => {
                 // Skip image generation/edit user messages
-                if (m.role === 'user' && m.content.startsWith('🖼')) return false;
+                if (m.role === 'user' && (m.content.startsWith('[IMG]') || m.content.startsWith('🖼'))) return false;
                 if (m.role === 'user' && m.content.startsWith('Generate concept image')) return false;
                 // Skip assistant messages that are image-only responses
                 if (m.role === 'assistant' && m.images && m.images.length > 0) return false;
@@ -265,11 +265,12 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
         }
 
         // Display text: auto-suggested shows "Generate a Moodboard", manual shows actual prompt
+        // [IMG] prefix is an internal marker for filtering, not displayed to user
         const displayContent = isEdit
-            ? `🖼 Edit: ${prompt}`
+            ? `[IMG] Edit: ${prompt}`
             : isAutoSuggested
-                ? '🖼 Generate a Moodboard'
-                : `🖼 ${prompt}`;
+                ? '[IMG] Generate a Moodboard'
+                : `[IMG] ${prompt}`;
 
         setMessages(prev => [...prev, {
             role: 'user',
@@ -368,7 +369,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
             <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-200 dark:border-neutral-800">
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
-                        <Sparkles size={14} className="text-[#D08B00]" />
+                        <Icon name="stars" size={14} className="text-[#D08B00]" />
                         <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 uppercase tracking-wider">AI Assistant</span>
                     </div>
                     {messages.length > 1 && (
@@ -376,13 +377,13 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                             onClick={handleNewChat}
                             className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-neutral-500 hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-md transition-colors"
                         >
-                            <RotateCcw size={10} />
+                            <Icon name="arrow-refresh-01" size={10} />
                             New Chat
                         </button>
                     )}
                 </div>
                 <button onClick={onCloseModal} className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors">
-                    <X size={20} />
+                    <Icon name="x-01" size={20} />
                 </button>
             </div>
 
@@ -394,8 +395,8 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                             ? 'bg-neutral-900 dark:bg-white text-white dark:text-black rounded-2xl rounded-br-md'
                             : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 rounded-2xl rounded-bl-md'
                         } px-4 py-2.5`}>
-                            {/* Text content */}
-                            <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
+                            {/* Text content — strip internal [IMG] or legacy 🖼 marker */}
+                            <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content?.startsWith('[IMG] ') || msg.content?.startsWith('🖼') ? msg.content.replace(/^\[IMG\] |^🖼 ?/, '') : msg.content}</div>
 
                             {/* Images */}
                             {msg.images && msg.images.length > 0 && (
@@ -422,7 +423,8 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                                                 onClick={() => handleImageRating(i, star)}
                                                 className="transition-colors"
                                             >
-                                                <Star
+                                                <Icon
+                                                    name="star-01"
                                                     size={16}
                                                     className={star <= (msg.imageRating || 0)
                                                         ? 'text-[#D08B00] fill-[#D08B00]'
@@ -437,7 +439,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                                     </div>
                                     {/* Edit image input */}
                                     <div className="mt-2 flex items-center gap-2 bg-neutral-200/60 dark:bg-neutral-700/50 rounded-lg px-3 py-2">
-                                        <Pencil size={13} className="text-neutral-500 dark:text-neutral-400 shrink-0" />
+                                        <Icon name="pencil-01" size={13} className="text-neutral-500 dark:text-neutral-400 shrink-0" />
                                         <input
                                             type="text"
                                             value={imageEditTexts[i] || ''}
@@ -463,7 +465,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                                             disabled={!imageEditTexts[i]?.trim() || isGeneratingImage}
                                             className="text-[#D08B00] hover:text-[#b87a00] disabled:text-neutral-400 dark:disabled:text-neutral-600 transition-colors shrink-0"
                                         >
-                                            <Send size={14} />
+                                            <Icon name="send-01" size={14} />
                                         </button>
                                     </div>
                                 </div>
@@ -481,7 +483,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                                     prevSuggestionMsg.suggestion.description === msg.suggestion.description) return null;
                                 return (
                                     <div className="mt-2 flex items-center gap-1.5 text-[10px] text-[#D08B00] font-medium">
-                                        <Check size={11} />
+                                        <Icon name="check-01" size={11} />
                                         Brief updated
                                     </div>
                                 );
@@ -498,7 +500,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                                         }`}
                                         title="Helpful"
                                     >
-                                        <ThumbsUp size={12} />
+                                        <Icon name="thumb-up" size={12} />
                                     </button>
                                     <button
                                         onClick={() => handleMessageFeedback(i, 'down')}
@@ -508,7 +510,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                                         }`}
                                         title="Not helpful"
                                     >
-                                        <ThumbsDown size={12} />
+                                        <Icon name="thumb-down" size={12} />
                                     </button>
                                 </div>
                             )}
@@ -516,14 +518,18 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                     </div>
                 ))}
 
-                {/* Loading indicator */}
+                {/* Loading indicator — animated waveform */}
                 {isLoading && (
                     <div className="flex justify-start">
                         <div className="bg-neutral-100 dark:bg-neutral-800 rounded-2xl rounded-bl-md px-4 py-3">
-                            <div className="ai-dot-pulse flex gap-1">
-                                <span className="w-1.5 h-1.5 bg-neutral-400 dark:bg-neutral-500 rounded-full" />
-                                <span className="w-1.5 h-1.5 bg-neutral-400 dark:bg-neutral-500 rounded-full" />
-                                <span className="w-1.5 h-1.5 bg-neutral-400 dark:bg-neutral-500 rounded-full" />
+                            <div className="flex items-center gap-1.5">
+                                <div className="ai-waveform flex items-end gap-[3px] h-[18px]">
+                                    <span className="w-[3px] rounded-full bg-neutral-400 dark:bg-neutral-500" />
+                                    <span className="w-[3px] rounded-full bg-neutral-400 dark:bg-neutral-500" />
+                                    <span className="w-[3px] rounded-full bg-neutral-400 dark:bg-neutral-500" />
+                                    <span className="w-[3px] rounded-full bg-neutral-400 dark:bg-neutral-500" />
+                                </div>
+                                <span className="text-[11px] text-neutral-400 dark:text-neutral-500 ml-1">Thinking</span>
                             </div>
                         </div>
                     </div>
@@ -534,7 +540,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                     <div className="flex justify-start">
                         <div className="bg-neutral-100 dark:bg-neutral-800 rounded-2xl rounded-bl-md px-4 py-3">
                             <div className="flex items-center gap-2 text-sm text-neutral-500">
-                                <Loader2 size={14} className="animate-spin" />
+                                <Icon name="loader-01" size={14} className="animate-spin" />
                                 <span>Generating image...</span>
                             </div>
                         </div>
@@ -554,9 +560,10 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                             onClick={handleSuggestedImageGen}
                             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-full shadow-sm hover:shadow-md hover:border-neutral-300 dark:hover:border-neutral-600 transition-all text-sm text-neutral-800 dark:text-neutral-200 group"
                         >
-                            <Bot size={15} className="text-neutral-500 group-hover:text-neutral-700 dark:group-hover:text-neutral-300 transition-colors" />
+                            <Icon name="atom" size={15} className="text-neutral-500 group-hover:text-neutral-700 dark:group-hover:text-neutral-300 transition-colors" />
                             <span>Want me to generate a moodboard?</span>
-                            <X
+                            <Icon
+                                name="x-01"
                                 size={13}
                                 className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 ml-1 transition-colors"
                                 onClick={(e) => { e.stopPropagation(); setShowImageSuggestion(false); }}
@@ -584,13 +591,13 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                             disabled={!imagePrompt.trim() || isGeneratingImage}
                             className="p-1.5 rounded-lg bg-[#D08B00] hover:bg-[#b87a00] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
-                            <Send size={13} />
+                            <Icon name="send-01" size={13} />
                         </button>
                         <button
                             onClick={() => { setShowImageInput(false); setImagePrompt(''); }}
                             className="p-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
                         >
-                            <X size={14} />
+                            <Icon name="x-01" size={14} />
                         </button>
                     </div>
                 )}
@@ -604,7 +611,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                             className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 disabled:opacity-40 transition-colors shrink-0"
                             title="Generate image"
                         >
-                            <ImageIcon size={16} />
+                            <Icon name="image" size={16} />
                         </button>
                     )}
                     <textarea
@@ -623,7 +630,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                         disabled={!inputValue.trim() || isLoading}
                         className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
                     >
-                        <Send size={15} />
+                        <Icon name="send-01" size={15} />
                     </button>
                 </div>
             </div>
@@ -644,7 +651,7 @@ const AIChatPanel = ({ title, description, onApplySuggestion, onClose, onCloseMo
                         className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors"
                         onClick={() => setExpandedImage(null)}
                     >
-                        <X size={24} />
+                        <Icon name="x-01" size={24} />
                     </button>
                 </div>
             )}

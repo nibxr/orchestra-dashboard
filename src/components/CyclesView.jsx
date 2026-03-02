@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import {
-  Calendar, Search, X, RefreshCw, ChevronRight
-} from 'lucide-react';
+import { Icon } from './Icon';
 import { useToast } from './Toast';
 
 // ─── Operational Status Helpers ───────────────────────────────────────────────
@@ -144,7 +142,7 @@ const CycleDetails = ({ cycle, onClose }) => {
             onClick={onClose}
             className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors p-1"
           >
-            <X size={16} />
+            <Icon name="x-01" size={16} />
           </button>
         </div>
 
@@ -330,7 +328,7 @@ export const CyclesView = () => {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="flex items-center gap-3 text-neutral-400">
-          <RefreshCw size={16} className="animate-spin" />
+          <Icon name="refresh-01" size={16} className="animate-spin" />
           <span className="text-sm">Loading cycles...</span>
         </div>
       </div>
@@ -387,7 +385,7 @@ export const CyclesView = () => {
 
             {/* Search */}
             <div className="flex items-center gap-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg px-3 py-1.5 w-48 focus-within:ring-1 focus-within:ring-neutral-300 dark:focus-within:ring-neutral-700 transition-all">
-              <Search size={13} className="text-neutral-400 shrink-0" />
+              <Icon name="search-01" size={13} className="text-neutral-400 shrink-0" />
               <input
                 type="text"
                 placeholder="Search..."
@@ -397,7 +395,7 @@ export const CyclesView = () => {
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
-                  <X size={12} />
+                  <Icon name="x-01" size={12} />
                 </button>
               )}
             </div>
@@ -408,7 +406,7 @@ export const CyclesView = () => {
         {/* Content */}
         {grouped.length === 0 ? (
           <div className="py-20 text-center">
-            <RefreshCw size={32} className="mx-auto mb-3 text-neutral-300 dark:text-neutral-700" />
+            <Icon name="refresh-01" size={32} className="mx-auto mb-3 text-neutral-300 dark:text-neutral-700" />
             <p className="text-sm text-neutral-400">No cycles found</p>
           </div>
         ) : (
@@ -462,7 +460,7 @@ export const CyclesView = () => {
 
                         {/* Period */}
                         <div className="flex items-center gap-1.5 text-xs text-neutral-500">
-                          <Calendar size={12} className="text-neutral-400 shrink-0" />
+                          <Icon name="calendar-01" size={12} className="text-neutral-400 shrink-0" />
                           <span>{formatDate(cycle.planned_start_date)}</span>
                           <span className="text-neutral-300 dark:text-neutral-700">→</span>
                           <span>{formatDate(cycle.actual_end_date || cycle.schedule_ending_date_txt)}</span>
@@ -491,7 +489,7 @@ export const CyclesView = () => {
 
                         {/* Arrow indicator */}
                         <div className="flex items-center justify-center">
-                          <ChevronRight size={14} className="text-neutral-300 dark:text-neutral-700" />
+                          <Icon name="chevron-right" size={14} className="text-neutral-300 dark:text-neutral-700" />
                         </div>
                       </div>
                     );

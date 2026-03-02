@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { Icon } from './Icon';
 
 // --- Custom Dropdown (Replaces native select) ---
-export const CustomSelect = ({ label, icon: Icon, value, options, onChange, placeholder = "Empty", type = "text", displayName = null, searchable = false, disabled = false }) => {
+export const CustomSelect = ({ label, icon: IconProp, iconName, value, options, onChange, placeholder = "Empty", type = "text", displayName = null, searchable = false, disabled = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
@@ -53,7 +53,7 @@ export const CustomSelect = ({ label, icon: Icon, value, options, onChange, plac
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <div className="flex items-center gap-2 text-neutral-500 w-32">
-           {Icon && <Icon size={14} />}
+           {iconName ? <Icon name={iconName} size={14} /> : IconProp ? <IconProp size={14} /> : null}
            <span className="text-sm">{label}</span>
         </div>
         <div className="flex-1 flex items-center justify-end gap-2 truncate text-right">
@@ -79,7 +79,7 @@ export const CustomSelect = ({ label, icon: Icon, value, options, onChange, plac
            {searchable && (
              <div className="px-2 pt-2 pb-1">
                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700/50 rounded-md">
-                 <Search size={13} className="text-neutral-400 shrink-0" />
+                 <Icon name="search-01" size={13} className="text-neutral-400 shrink-0" />
                  <input
                    ref={searchRef}
                    type="text"
@@ -112,7 +112,7 @@ export const CustomSelect = ({ label, icon: Icon, value, options, onChange, plac
                             )}
                             <span className="truncate">{opt.label}</span>
                          </div>
-                         {value === opt.value && <Check size={14} className="text-neutral-900 dark:text-white shrink-0" />}
+                         {value === opt.value && <Icon name="check-01" size={14} className="text-neutral-900 dark:text-white shrink-0" />}
                       </div>
                     ))}
                   </div>
@@ -132,7 +132,7 @@ export const CustomSelect = ({ label, icon: Icon, value, options, onChange, plac
                         )}
                         <span className="truncate">{opt.label}</span>
                      </div>
-                     {value === opt.value && <Check size={14} className="text-neutral-900 dark:text-white shrink-0" />}
+                     {value === opt.value && <Icon name="check-01" size={14} className="text-neutral-900 dark:text-white shrink-0" />}
                   </div>
                 ))
               )}
@@ -149,7 +149,7 @@ export const CustomSelect = ({ label, icon: Icon, value, options, onChange, plac
 };
 
 // --- Multi-Select Users Dropdown ---
-export const MultiSelectUsers = ({ label, icon: Icon, values = [], options, onChange, placeholder = "Select...", maxSelections = 2, searchable = true }) => {
+export const MultiSelectUsers = ({ label, icon: IconProp, iconName, values = [], options, onChange, placeholder = "Select...", maxSelections = 2, searchable = true }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
@@ -199,7 +199,7 @@ export const MultiSelectUsers = ({ label, icon: Icon, values = [], options, onCh
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex items-center gap-2 text-neutral-500 w-32 shrink-0">
-          {Icon && <Icon size={14} />}
+          {iconName ? <Icon name={iconName} size={14} /> : IconProp ? <IconProp size={14} /> : null}
           <span className="text-sm">{label}</span>
         </div>
         <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
@@ -214,7 +214,7 @@ export const MultiSelectUsers = ({ label, icon: Icon, values = [], options, onCh
                   onClick={(e) => handleRemove(e, opt.value)}
                   className="text-neutral-400 hover:text-neutral-700 dark:hover:text-white shrink-0 ml-0.5"
                 >
-                  <X size={10} />
+                  <Icon name="x-01" size={10} />
                 </button>
               </div>
             ))
@@ -229,7 +229,7 @@ export const MultiSelectUsers = ({ label, icon: Icon, values = [], options, onCh
           {searchable && (
             <div className="px-2 pt-2 pb-1">
               <div className="flex items-center gap-2 px-2.5 py-1.5 bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700/50 rounded-md">
-                <Search size={13} className="text-neutral-400 shrink-0" />
+                <Icon name="search-01" size={13} className="text-neutral-400 shrink-0" />
                 <input
                   ref={searchRef}
                   type="text"
@@ -261,7 +261,7 @@ export const MultiSelectUsers = ({ label, icon: Icon, values = [], options, onCh
                     </div>
                     <span className="truncate">{opt.label}</span>
                   </div>
-                  {isSelected && <Check size={14} className="text-neutral-900 dark:text-white shrink-0" />}
+                  {isSelected && <Icon name="check-01" size={14} className="text-neutral-900 dark:text-white shrink-0" />}
                 </div>
               );
             })}

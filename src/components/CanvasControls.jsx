@@ -1,5 +1,5 @@
 import React from 'react';
-import { MousePointer, MessageSquare, Hand, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Icon } from './Icon';
 import DevicePreviewToggle from './DevicePreviewToggle';
 
 /**
@@ -18,9 +18,9 @@ const CanvasControls = ({
   currentZoom = 1
 }) => {
   const canvasModes = [
-    { key: 'view', icon: MousePointer, label: 'View', tooltip: 'Navigate and select' },
-    { key: 'comment', icon: MessageSquare, label: 'Comment', tooltip: 'Click to add comment' },
-    { key: 'move', icon: Hand, label: 'Pan', tooltip: 'Pan canvas' }
+    { key: 'view', iconName: 'cursor-01', label: 'View', tooltip: 'Navigate and select' },
+    { key: 'comment', iconName: 'message-square', label: 'Comment', tooltip: 'Click to add comment' },
+    { key: 'move', iconName: 'pointer-01', label: 'Pan', tooltip: 'Pan canvas' }
   ];
 
   return (
@@ -28,7 +28,7 @@ const CanvasControls = ({
       {/* Left: Canvas Mode Toggle */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
-          {canvasModes.map(({ key, icon: Icon, label, tooltip }) => (
+          {canvasModes.map(({ key, iconName, label, tooltip }) => (
             <button
               key={key}
               onClick={() => onCanvasModeChange(key)}
@@ -41,7 +41,7 @@ const CanvasControls = ({
               `}
               title={tooltip}
             >
-              <Icon className="w-4 h-4" />
+              <Icon name={iconName} size={16} />
               <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
@@ -64,7 +64,7 @@ const CanvasControls = ({
             title="Zoom out"
             disabled={currentZoom <= 0.5}
           >
-            <ZoomOut className="w-4 h-4" />
+            <Icon name="zoom-out" size={16} />
           </button>
 
           <span className="text-sm text-neutral-600 dark:text-neutral-400 min-w-[3rem] text-center">
@@ -77,7 +77,7 @@ const CanvasControls = ({
             title="Zoom in"
             disabled={currentZoom >= 2}
           >
-            <ZoomIn className="w-4 h-4" />
+            <Icon name="zoom-in" size={16} />
           </button>
 
           <button
@@ -85,7 +85,7 @@ const CanvasControls = ({
             className="p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 transition-colors"
             title="Fit to screen"
           >
-            <Maximize2 className="w-4 h-4" />
+            <Icon name="maximise-01" size={16} />
           </button>
         </div>
 

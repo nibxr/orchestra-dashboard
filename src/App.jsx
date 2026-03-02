@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
-import { Filter, Settings, Plus, X, Bell } from 'lucide-react';
+import { Icon } from './components/Icon';
 
 import { APP_ID, APP_MODES, DASHBOARD_VIEWS, SETTINGS_VIEWS } from './utils/constants';
 import { DashboardSidebar, SettingsSidebar } from './components/Sidebars';
@@ -234,6 +234,13 @@ export default function App() {
               const taskVersion = versionsData?.find(v => v.task_id === t.id);
               const latestVersionNumber = taskVersion ? taskVersion.version_number : null;
 
+              // Get client's plan name
+              let clientPlanName = null;
+              if (client?.plan_from_agreements) {
+                const plan = (plansData || []).find(p => p.whalesync_postgres_id === client.plan_from_agreements);
+                clientPlanName = plan?.plan_name || null;
+              }
+
               return {
                   ...t,
                   creatorName,
@@ -246,6 +253,7 @@ export default function App() {
                   coCreatorAvatar: coCreator ? coCreator.avatar_url : null,
                   clientName: client ? client.client_name : 'Internal',
                   clientStatus: client ? client.status : 'Active',
+                  clientPlanName,
                   status: normalizedStatus,
                   comments: enrichedComments,
                   commentCount: enrichedComments.length,
@@ -342,17 +350,7 @@ export default function App() {
       // Check task limit when creating as Active Task for a client
       if (formData.status === 'Active Task' && formData.clientId) {
           try {
-              // First try the RPC check
-              const { data: limitCheck, error } = await supabase.rpc('check_task_limit', {
-                  p_membership_id: formData.clientId
-              });
-
-              if (!error && limitCheck && !limitCheck.can_activate) {
-                  toast.error(`Task limit reached: ${limitCheck.current_active}/${limitCheck.max_tasks} active tasks for this client`);
-                  return;
-              }
-
-              // Fallback: also check client-side count against plan limit
+              // Client-side count check against plan limit
               const currentActiveCount = tasks.filter(t =>
                   t.membership_id === formData.clientId &&
                   t.status === 'Active Task' &&
@@ -422,9 +420,17 @@ export default function App() {
           }
       }
 
+      // Cache to avoid uploading the same base64 image twice
+      const uploadCache = new Map();
+
       const uploadBase64 = async (base64Data) => {
-          if (!bucketReady) return null;
-          if (!base64Data || !base64Data.startsWith('data:image/')) return base64Data; // already a URL
+          if (!base64Data) return null;
+          if (!base64Data.startsWith('data:image/')) return base64Data; // already a URL — keep as-is
+          if (!bucketReady) return base64Data; // bucket unavailable — keep original data
+
+          // Return cached URL if this exact image was already uploaded
+          if (uploadCache.has(base64Data)) return uploadCache.get(base64Data);
+
           try {
               const match = base64Data.match(/^data:image\/(\w+);base64,(.+)$/);
               if (!match) return null;
@@ -439,13 +445,15 @@ export default function App() {
                   .upload(filePath, bytes, { contentType: `image/${match[1]}`, upsert: true });
               if (error) {
                   console.warn('[AI Image Upload] Storage error:', error.message);
-                  return null; // graceful degradation — skip image
+                  return base64Data; // keep original data so images still render
               }
               const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
-              return urlData.publicUrl;
+              const publicUrl = urlData.publicUrl;
+              uploadCache.set(base64Data, publicUrl);
+              return publicUrl;
           } catch (err) {
               console.warn('[AI Image Upload] Failed:', err.message);
-              return null;
+              return base64Data; // keep original data so images still render
           }
       };
 
@@ -563,9 +571,18 @@ export default function App() {
           return;
       }
 
+      // Optimistic update — apply immediately for responsive UI
+      const previousTask = tasks.find(t => t.id === taskId);
       const payload = { ...updates, updated_at: new Date().toISOString() };
+      updateLocalTask(taskId, payload);
+
       const { error } = await supabase.from('tasks').update(payload).eq('id', taskId);
-      if (!error) updateLocalTask(taskId, payload);
+      if (error) {
+          console.error('[handleUpdateTask] Update failed:', error);
+          // Revert optimistic update on failure
+          if (previousTask) updateLocalTask(taskId, previousTask);
+          toast.error('Failed to update task. Check database triggers.');
+      }
   };
 
   const handleDeleteTask = async (taskId) => {
@@ -603,39 +620,19 @@ export default function App() {
   };
 
   if (loading && user) return (
-    <div className="h-screen w-screen bg-white dark:bg-[#0f0f0f] flex items-center justify-center">
+    <div className="h-screen w-screen bg-white dark:bg-black flex items-center justify-center">
       <div className="flex flex-col items-center gap-6">
-        {/* Minimalist spinner */}
         <div className="relative">
-          <div className="w-12 h-12 border-2 border-neutral-200 dark:border-neutral-800 rounded-full"></div>
-          <div className="w-12 h-12 border-2 border-neutral-900 dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+          <div className="w-12 h-12 border-2 border-gray-200 dark:border-gray-800 rounded-full"></div>
+          <div className="w-12 h-12 border-2 border-gray-800 dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
         </div>
-
-        {/* Loading text and branding */}
-        <div className="text-center flex flex-col items-center gap-3">
-          
-          <div className="flex flex-col items-center" style={{ gap: '10px' }}>
-            <p
-              className="text-neutral-300 dark:text-white tracking-[0.3em] uppercase leading-none"
-              style={{
-                fontWeight: 200,
-                fontSize: '33px',
-                letterSpacing: '0.3em'
-              }}
-            >
-              Dafolle
-            </p>
-            <p
-              className="text-neutral-300 dark:text-white tracking-[0.3em] uppercase leading-none"
-              style={{
-                fontWeight: 200,
-                fontSize: '16px',
-                letterSpacing: '0.3em'
-              }}
-            >
-              Studio
-            </p>
-          </div>
+        <div className="text-center flex flex-col items-center" style={{ gap: '10px' }}>
+          <p className="font-lastik text-[33px] font-normal text-gray-300 dark:text-white tracking-[0.3em] uppercase leading-none">
+            Dafolle
+          </p>
+          <p className="font-inter-tight text-[16px] font-normal text-gray-300 dark:text-white tracking-[0.3em] uppercase leading-none">
+            Studio
+          </p>
         </div>
       </div>
     </div>
@@ -655,7 +652,7 @@ export default function App() {
 
   return (
     <ProtectedRoute>
-    <div className="flex h-screen w-full bg-neutral-50 dark:bg-[#0f0f0f] font-sans text-neutral-800 dark:text-neutral-200 overflow-hidden theme-bg-primary" onClick={() => { setDisplayMenuOpen(false); setFilterMenuOpen(false); }}>
+    <div className="flex h-screen w-full bg-white dark:bg-black font-inter-tight text-gray-800 dark:text-neutral-200 overflow-hidden" onClick={() => { setDisplayMenuOpen(false); setFilterMenuOpen(false); }}>
       {mode === APP_MODES.DASHBOARD ? (
         <DashboardSidebar
           currentView={dashboardView}
@@ -679,66 +676,67 @@ export default function App() {
           }}
           width={sidebarWidth}
           isAdmin={isAdmin}
+          tasks={processedTasks}
         />
       ) : (
         <SettingsSidebar currentView={settingsView} setView={setSettingsView} setMode={setMode} width={sidebarWidth} />
       )}
 
-      {/* Draggable resize handle */}
+      {/* Draggable resize handle — no visible line, color difference separates sidebar from content */}
       <div
         onMouseDown={handleResizeStart}
         className="w-1 cursor-col-resize shrink-0 group relative z-10 flex items-center justify-center"
       >
         <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
-        <div className={`w-px h-full transition-colors ${isDraggingSidebar ? 'bg-neutral-400 dark:bg-neutral-500' : 'bg-neutral-200 dark:bg-neutral-800 group-hover:bg-neutral-400 dark:group-hover:bg-neutral-600'}`} />
+        <div className={`w-px h-full transition-colors ${isDraggingSidebar ? 'bg-gray-400 dark:bg-neutral-500' : 'bg-transparent group-hover:bg-gray-300 dark:group-hover:bg-neutral-700'}`} />
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#0f0f0f] theme-bg-secondary relative">
+      {/* Content area — rounded rectangle encapsulated in the darker sidebar frame */}
+      <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#0f0f0f] relative rounded-2xl overflow-hidden my-2 mr-2">
         {mode === APP_MODES.DASHBOARD && (
-            <div className="h-14 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between px-6 bg-white dark:bg-[#0f0f0f] theme-bg-primary shrink-0">
+            <div className="h-14 flex items-center justify-between px-12 shrink-0 bg-gray-100 dark:bg-[#0d1014]">
               <div className="flex items-center gap-4">
                   {dashboardView === DASHBOARD_VIEWS.BOARD ? (
                       <>
                         {userRole === 'team' && (
-                          <div className="flex bg-neutral-100 dark:bg-neutral-900 rounded-lg p-1 text-xs font-medium">
-                            <button onClick={() => setTaskFilter('all')} className={`px-3 py-1 rounded-md transition-all ${taskFilter === 'all' ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>All tasks</button>
-                            <button onClick={() => setTaskFilter('mine')} className={`px-3 py-1 rounded-md transition-all ${taskFilter === 'mine' ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>For me</button>
-                            <button onClick={() => setTaskFilter('internal')} className={`px-3 py-1 rounded-md transition-all ${taskFilter === 'internal' ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>Internal</button>
+                          <div className="flex bg-white dark:bg-black border border-white dark:border-black rounded-full p-1">
+                            <button onClick={() => setTaskFilter('all')} className={`px-3 py-1.5 rounded-full transition-all text-[12px] leading-[1.3] tracking-[-0.24px] ${taskFilter === 'all' ? 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white' : 'text-gray-500 dark:text-neutral-500 hover:text-gray-800 dark:hover:text-white'}`}>All tasks</button>
+                            <button onClick={() => setTaskFilter('mine')} className={`px-3 py-1.5 rounded-full transition-all text-[12px] leading-[1.3] tracking-[-0.24px] ${taskFilter === 'mine' ? 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white' : 'text-gray-500 dark:text-neutral-500 hover:text-gray-800 dark:hover:text-white'}`}>For me</button>
+                            <button onClick={() => setTaskFilter('internal')} className={`px-3 py-1.5 rounded-full transition-all text-[12px] leading-[1.3] tracking-[-0.24px] ${taskFilter === 'internal' ? 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white' : 'text-gray-500 dark:text-neutral-500 hover:text-gray-800 dark:hover:text-white'}`}>Internal</button>
                           </div>
                         )}
                         {userRole === 'customer' && (
-                          <h1 className="text-lg font-medium text-neutral-900 dark:text-white">Your Tasks</h1>
+                          <h1 className="font-lastik text-h6-brand text-gray-800 dark:text-white">Your Tasks</h1>
                         )}
                       </>
-                  ) : <h1 className="text-lg font-medium text-neutral-900 dark:text-white capitalize">{dashboardView === 'ai_brief' ? 'AI Brief' : dashboardView}</h1>}
+                  ) : <h1 className="font-lastik text-h6-brand text-gray-800 dark:text-white capitalize">{dashboardView === 'ai_brief' ? 'AI Brief' : dashboardView}</h1>}
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                   {isAdmin && dashboardView === DASHBOARD_VIEWS.CUSTOMERS && (
                     <button
                       onClick={() => setIsNewClientModalOpen(true)}
-                      className="flex items-center gap-2 text-xs font-medium bg-neutral-200 dark:bg-white/10 hover:bg-neutral-300 dark:hover:bg-white/20 text-neutral-700 dark:text-white px-3 py-1.5 rounded-lg transition-colors"
+                      className="flex items-center gap-2 text-[12px] tracking-[-0.24px] bg-white dark:bg-white/10 hover:bg-gray-100 dark:hover:bg-white/20 text-gray-700 dark:text-white px-3 py-1.5 rounded-full transition-colors"
                     >
-                      <Plus size={12} /> Invite Client
+                      <Icon name="plus-01" size={12} /> Invite Client
                     </button>
                   )}
-                  <div className="flex bg-neutral-100 dark:bg-neutral-900 rounded-lg p-1 text-xs font-medium">
+                  <div className="flex bg-white dark:bg-black border border-white dark:border-black rounded-full p-1">
                     {userRole === 'team' && (
                       <div className="relative" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => { setFilterMenuOpen(!filterMenuOpen); setDisplayMenuOpen(false); }} className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all ${filterMenuOpen ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>
-                          <Filter size={12} /> Filters {activeFilterCount > 0 && <span className="bg-neutral-900 dark:bg-white/20 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px]">{activeFilterCount}</span>}
+                        <button onClick={() => { setFilterMenuOpen(!filterMenuOpen); setDisplayMenuOpen(false); }} className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-[12px] leading-[1.3] tracking-[-0.24px] ${filterMenuOpen ? 'bg-white dark:bg-white/10 text-gray-600 dark:text-white' : 'text-gray-500 dark:text-neutral-500 hover:text-gray-800 dark:hover:text-white'}`}>
+                          <Icon name="filter" size={12} /> Filters {activeFilterCount > 0 && <span className="bg-gray-800 dark:bg-white/20 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px]">{activeFilterCount}</span>}
                         </button>
                         {filterMenuOpen && <FilterMenu filters={advancedFilters} onUpdate={setAdvancedFilters} team={team} clients={clients} onClose={() => setFilterMenuOpen(false)} />}
                       </div>
                     )}
                     <div className="relative" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => { setDisplayMenuOpen(!displayMenuOpen); setFilterMenuOpen(false); }} className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all ${displayMenuOpen ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>
-                        <Settings size={12} /> Display
+                      <button onClick={() => { setDisplayMenuOpen(!displayMenuOpen); setFilterMenuOpen(false); }} className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-[12px] leading-[1.3] tracking-[-0.24px] ${displayMenuOpen ? 'bg-white dark:bg-white/10 text-gray-600 dark:text-white' : 'text-gray-500 dark:text-neutral-500 hover:text-gray-800 dark:hover:text-white'}`}>
+                        <Icon name="settings" size={12} /> Display
                       </button>
                       {displayMenuOpen && <DisplayMenu settings={displaySettings} onUpdate={setDisplaySettings} onClose={() => setDisplayMenuOpen(false)} isCustomer={userRole === 'customer'} />}
                     </div>
                   </div>
-                  <div className="w-px h-6 bg-neutral-200 dark:bg-neutral-800 mx-2"></div>
-                  <button onClick={() => { setNewTaskStatus('Backlog'); setIsNewTaskModalOpen(true); }} className="bg-neutral-200 dark:bg-white/10 hover:bg-neutral-300 dark:hover:bg-white/20 text-neutral-700 dark:text-white rounded-full p-2 transition-all active:scale-95"><Plus size={16} /></button>
+                  <button onClick={() => { setNewTaskStatus('Backlog'); setIsNewTaskModalOpen(true); }} className="bg-white dark:bg-black hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-white rounded-full w-8 h-8 flex items-center justify-center transition-all active:scale-95"><Icon name="plus-01" size={16} /></button>
               </div>
             </div>
         )}
@@ -804,18 +802,18 @@ export default function App() {
       {isNotificationsOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)} />
-          <div className="fixed top-4 right-4 w-96 bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-2xl z-50 animate-scale-in">
-            <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-              <h3 className="text-neutral-900 dark:text-white font-bold text-sm">Notifications</h3>
-              <button onClick={() => setIsNotificationsOpen(false)} className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white">
-                <X size={16} />
+          <div className="fixed top-4 right-4 w-96 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl z-50 animate-scale-in">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+              <h3 className="text-gray-800 dark:text-white font-bold text-[12px]">Notifications</h3>
+              <button onClick={() => setIsNotificationsOpen(false)} className="text-gray-500 hover:text-gray-800 dark:hover:text-white">
+                <Icon name="x-01" size={16} />
               </button>
             </div>
             <div className="max-h-96 overflow-y-auto custom-scrollbar">
-              <div className="p-6 text-center text-neutral-600">
-                <Bell size={48} className="mx-auto mb-4 opacity-20" />
-                <p className="text-sm">No new notifications</p>
-                <p className="text-xs mt-2 text-neutral-700">You're all caught up!</p>
+              <div className="p-6 text-center text-gray-600">
+                <Icon name="bell-01" size={48} className="mx-auto mb-4 opacity-20" />
+                <p className="text-[12px]">No new notifications</p>
+                <p className="text-[10px] mt-2 text-gray-500">You're all caught up!</p>
               </div>
             </div>
           </div>

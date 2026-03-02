@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Icon } from './Icon';
 import logoSmall from '../assets/Logo Small.png';
 import loginBg from '../assets/Login page right side image.png';
 import { canSendReset, getRecentAttempts, MAX_ATTEMPTS, COOLDOWN_MS } from '../utils/resetRateLimiter';
@@ -122,7 +122,7 @@ export const AuthPage = () => {
         <div className="w-full lg:w-2/5 h-full bg-black flex flex-col px-8 sm:px-12 lg:px-10 xl:px-16 pt-8 pb-0 overflow-y-auto">
           <div className="flex-1 flex flex-col justify-center max-w-sm w-full mx-auto py-8 auth-view-enter">
             <img src={logoSmall} alt="Dafolle" className="h-5 w-fit mb-8 auth-stagger auth-stagger-1" />
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight auth-stagger auth-stagger-2" style={{ fontFamily: "'Lastik', serif" }}>
+            <h1 className="font-lastik text-h5-brand sm:text-h4-brand text-white mb-2 leading-tight auth-stagger auth-stagger-2">
               Reset password
             </h1>
             <p className="text-neutral-500 text-sm mb-8 auth-stagger auth-stagger-3">
@@ -132,13 +132,13 @@ export const AuthPage = () => {
             <form onSubmit={handleForgotPassword} className="space-y-5 auth-stagger auth-stagger-4">
               {error && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-3">
-                  <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                  <Icon name="alert-circle" size={18} className="text-red-500 shrink-0 mt-0.5" />
                   <p className="text-red-400 text-sm">{error}</p>
                 </div>
               )}
               {message && (
                 <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 flex items-start gap-3">
-                  <AlertCircle size={18} className="text-green-500 shrink-0 mt-0.5" />
+                  <Icon name="alert-circle" size={18} className="text-green-500 shrink-0 mt-0.5" />
                   <p className="text-green-400 text-sm">{message}</p>
                 </div>
               )}
@@ -210,7 +210,7 @@ export const AuthPage = () => {
         {/* Form content */}
         <div key={viewKey} className="flex-1 flex flex-col justify-center max-w-sm w-full mx-auto py-6 auth-view-enter">
           <img src={logoSmall} alt="Dafolle" className="h-5 w-fit mb-20 auth-stagger auth-stagger-1" />
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight auth-stagger auth-stagger-2" style={{ fontFamily: "'Lastik', serif" }}>
+          <h1 className="font-lastik text-h5-brand sm:text-h4-brand text-white mb-2 leading-tight auth-stagger auth-stagger-2">
             {isLogin ? 'Enter the matrix' : 'Join the matrix'}
           </h1>
           <p className="text-[#BFBBB5] text-sm mb-8 auth-stagger auth-stagger-3">
@@ -223,7 +223,7 @@ export const AuthPage = () => {
             {/* Error Message */}
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-3">
-                <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                <Icon name="alert-circle" size={18} className="text-red-500 shrink-0 mt-0.5" />
                 <p className="text-red-400 text-sm">{error}</p>
               </div>
             )}
@@ -231,7 +231,7 @@ export const AuthPage = () => {
             {/* Success Message */}
             {message && (
               <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 flex items-start gap-3">
-                <AlertCircle size={18} className="text-green-500 shrink-0 mt-0.5" />
+                <Icon name="alert-circle" size={18} className="text-green-500 shrink-0 mt-0.5" />
                 <p className="text-green-400 text-sm">{message}</p>
               </div>
             )}
@@ -281,7 +281,7 @@ export const AuthPage = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? <Icon name="eye-closed" size={18} /> : <Icon name="eye-open" size={18} />}
                 </button>
               </div>
             </div>
@@ -457,7 +457,7 @@ export const ForgotPasswordPage = () => {
       <div className="w-full lg:w-2/5 h-full bg-black flex flex-col px-8 sm:px-12 lg:px-10 xl:px-16 pt-8 pb-0 overflow-y-auto">
         <div className="flex-1 flex flex-col justify-center max-w-sm w-full mx-auto py-8">
           <img src={logoSmall} alt="Dafolle" className="h-5 w-fit mb-8 auth-stagger auth-stagger-1" />
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight auth-stagger auth-stagger-2" style={{ fontFamily: "'Lastik', serif" }}>
+          <h1 className="font-lastik text-h5-brand sm:text-h4-brand text-white mb-2 leading-tight auth-stagger auth-stagger-2">
             Reset password
           </h1>
           <p className="text-neutral-400 text-sm mb-8 auth-stagger auth-stagger-3">
@@ -467,13 +467,13 @@ export const ForgotPasswordPage = () => {
           <form onSubmit={handleSubmit} className="space-y-5 auth-stagger auth-stagger-4">
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-3">
-                <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                <Icon name="alert-circle" size={18} className="text-red-500 shrink-0 mt-0.5" />
                 <p className="text-red-400 text-sm">{error}</p>
               </div>
             )}
             {message && (
               <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 flex items-start gap-3">
-                <AlertCircle size={18} className="text-green-500 shrink-0 mt-0.5" />
+                <Icon name="alert-circle" size={18} className="text-green-500 shrink-0 mt-0.5" />
                 <p className="text-green-400 text-sm">{message}</p>
               </div>
             )}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import EmojiPicker from 'emoji-picker-react';
-import { Smile, Plus } from 'lucide-react';
+import { Icon } from './Icon';
 
 /**
  * CommentReactions - Display and add emoji reactions to comments
@@ -70,7 +70,7 @@ const CommentReactions = ({ commentId, reactions = [], currentUserId, onAddReact
           className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
           title="Add reaction"
         >
-          {showPicker ? <Plus className="w-3 h-3 rotate-45 transition-transform" /> : <Smile className="w-3 h-3" />}
+          {showPicker ? <Icon name="plus-01" className="w-3 h-3 rotate-45 transition-transform" /> : <Icon name="smiley-happy" className="w-3 h-3" />}
         </button>
 
         {/* Emoji Picker */}

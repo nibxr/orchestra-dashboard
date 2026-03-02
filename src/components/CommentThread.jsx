@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Reply, Edit2, Trash2, MapPin, Check, MoreHorizontal } from 'lucide-react';
+import { Icon } from './Icon';
 import { Avatar } from './Shared';
 import CommentReactions from './CommentReactions';
 import { AttachmentList } from './AttachmentUploader';
@@ -112,13 +112,13 @@ const CommentThread = ({
 
               {comment.is_resolved && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 flex items-center gap-1">
-                  <Check className="w-3 h-3" />
+                  <Icon name="check-01" size={12} />
                   Resolved
                 </span>
               )}
 
               {comment.position_x != null && comment.position_y != null && (
-                <MapPin className="w-3 h-3 text-neutral-400" title="Positioned comment" />
+                <Icon name="marker-01" size={12} className="text-neutral-400" title="Positioned comment" />
               )}
 
               <span className="text-xs text-neutral-500 dark:text-neutral-400">
@@ -152,7 +152,7 @@ const CommentThread = ({
                   onClick={(e) => { e.stopPropagation(); handleReply(); }}
                   className="text-xs text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white flex items-center gap-1 transition-colors"
                 >
-                  <Reply className="w-3 h-3" />
+                  <Icon name="arrow-curve-left-up" size={12} />
                   Reply
                 </button>
               )}
@@ -163,7 +163,7 @@ const CommentThread = ({
                     onClick={(e) => { e.stopPropagation(); handleEdit(); }}
                     className="text-xs text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white flex items-center gap-1 transition-colors"
                   >
-                    <Edit2 className="w-3 h-3" />
+                    <Icon name="pencil-01" size={12} />
                     Edit
                   </button>
 
@@ -171,7 +171,7 @@ const CommentThread = ({
                     onClick={(e) => { e.stopPropagation(); handleDelete(); }}
                     className="text-xs text-neutral-600 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1 transition-colors"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Icon name="trash-01" size={12} />
                     Delete
                   </button>
                 </>
@@ -182,7 +182,7 @@ const CommentThread = ({
                   onClick={(e) => { e.stopPropagation(); handleResolve(); }}
                   className="text-xs text-neutral-600 dark:text-neutral-400 hover:text-green-600 dark:hover:text-green-400 flex items-center gap-1 transition-colors"
                 >
-                  <Check className="w-3 h-3" />
+                  <Icon name="check-01" size={12} />
                   Resolve
                 </button>
               )}
@@ -192,7 +192,7 @@ const CommentThread = ({
                   onClick={(e) => { e.stopPropagation(); handleResolve(); }}
                   className="text-xs text-green-600 dark:text-green-400 hover:text-neutral-600 dark:hover:text-neutral-400 flex items-center gap-1 transition-colors"
                 >
-                  <Check className="w-3 h-3" />
+                  <Icon name="check-01" size={12} />
                   Unresolve
                 </button>
               )}
@@ -212,7 +212,7 @@ const CommentThread = ({
                   onClick={() => setShowReplies(!showReplies)}
                   className="text-xs text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white ml-9 mb-2 flex items-center gap-1"
                 >
-                  <MoreHorizontal className="w-3 h-3" />
+                  <Icon name="dot-horizontal" size={12} />
                   {showReplies ? 'Hide' : 'Show'} {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
                 </button>
               )}

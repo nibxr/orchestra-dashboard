@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Star, Clock, FileText, Link as LinkIcon, Video, MessageSquare, ChevronRight, Check, Loader2 } from 'lucide-react';
+import { Icon } from './Icon';
 import { supabase } from '../supabaseClient';
 import { useToast } from './Toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,7 +44,8 @@ const StarRating = ({ value, onChange, label }) => {
                         onMouseLeave={() => setHovered(0)}
                         className="p-0.5 transition-transform hover:scale-110"
                     >
-                        <Star
+                        <Icon
+                            name="star-01"
                             size={24}
                             className={`transition-colors ${
                                 star <= (hovered || value)
@@ -196,13 +197,13 @@ export const DeliverablesForm = ({ isOpen, onClose, task, onSave }) => {
                         <p className="text-sm text-neutral-500 mt-0.5">{task?.title}</p>
                     </div>
                     <button onClick={onClose} className="text-neutral-400 hover:text-white p-1">
-                        <X size={20} />
+                        <Icon name="x-01" size={20} />
                     </button>
                 </div>
 
                 {loading ? (
                     <div className="flex-1 flex items-center justify-center py-12">
-                        <Loader2 className="animate-spin text-neutral-500" size={32} />
+                        <Icon name="loader-01" size={32} className="animate-spin text-neutral-500" />
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar">
@@ -237,7 +238,7 @@ export const DeliverablesForm = ({ isOpen, onClose, task, onSave }) => {
                             {/* Time Spent */}
                             <div className="space-y-2">
                                 <label className="text-sm text-neutral-400 flex items-center gap-2">
-                                    <Clock size={14} />
+                                    <Icon name="clock-01" size={14} />
                                     Time Spent on Deliverable *
                                 </label>
                                 <div className="flex flex-wrap gap-2">
@@ -277,7 +278,7 @@ export const DeliverablesForm = ({ isOpen, onClose, task, onSave }) => {
                             {/* Task Type */}
                             <div className="space-y-2">
                                 <label className="text-sm text-neutral-400 flex items-center gap-2">
-                                    <FileText size={14} />
+                                    <Icon name="file-01" size={14} />
                                     Task Type *
                                 </label>
                                 <select
@@ -350,7 +351,7 @@ export const DeliverablesForm = ({ isOpen, onClose, task, onSave }) => {
                                             : 'bg-neutral-900 border-neutral-700'
                                     }`}
                                 >
-                                    {formData.sent_feedback_form && <Check size={14} />}
+                                    {formData.sent_feedback_form && <Icon name="check-01" size={14} />}
                                 </button>
                                 <label className="text-sm text-neutral-300">
                                     I will send the feedback form to the client
@@ -360,7 +361,7 @@ export const DeliverablesForm = ({ isOpen, onClose, task, onSave }) => {
                             {/* Links Section */}
                             <div className="space-y-4">
                                 <h3 className="text-sm font-medium text-white flex items-center gap-2">
-                                    <LinkIcon size={14} />
+                                    <Icon name="link" size={14} />
                                     Links & Resources
                                 </h3>
 
@@ -403,7 +404,7 @@ export const DeliverablesForm = ({ isOpen, onClose, task, onSave }) => {
                             {/* Notes Section */}
                             <div className="space-y-4">
                                 <h3 className="text-sm font-medium text-white flex items-center gap-2">
-                                    <MessageSquare size={14} />
+                                    <Icon name="message-square" size={14} />
                                     Notes
                                 </h3>
 
@@ -449,12 +450,12 @@ export const DeliverablesForm = ({ isOpen, onClose, task, onSave }) => {
                             >
                                 {saving ? (
                                     <>
-                                        <Loader2 className="animate-spin" size={14} />
+                                        <Icon name="loader-01" size={14} className="animate-spin" />
                                         Saving...
                                     </>
                                 ) : (
                                     <>
-                                        <Check size={14} />
+                                        <Icon name="check-01" size={14} />
                                         Save Deliverables
                                     </>
                                 )}

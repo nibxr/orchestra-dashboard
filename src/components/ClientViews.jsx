@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileText, ExternalLink, Package, Check, ChevronUp, ChevronDown, Calendar, ArrowUpRight, Plus, X, Loader2, Link as LinkIcon, Trash2, Video, Clock, ArrowRight } from 'lucide-react';
+import { Icon } from './Icon';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -99,14 +99,14 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
       <div className="max-w-5xl mx-auto px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Plans</h1>
+          <h1 className="font-lastik text-h6-brand text-neutral-900 dark:text-white">Plans</h1>
           <div className="flex items-center gap-3">
             <button
               onClick={handleManageBilling}
               disabled={billingLoading}
               className="flex items-center gap-2 px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {billingLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+              {billingLoading ? <Icon name="loader-01" size={14} className="animate-spin" /> : null}
               Manage Billing
             </button>
           </div>
@@ -118,7 +118,7 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
           <div className="border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 mb-12">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{currentPlan.plan_name}</h2>
+                <h2 className="font-lastik text-h6-brand text-neutral-900 dark:text-white">{currentPlan.plan_name}</h2>
                 {(() => {
                   const status = clientMembership?.status;
                   const statusConfig = {
@@ -134,7 +134,7 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
                 })()}
               </div>
               <button onClick={() => setShowIncluded(!showIncluded)} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">
-                {showIncluded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                {showIncluded ? <Icon name="chevron-up" size={20} /> : <Icon name="chevron-down" size={20} />}
               </button>
             </div>
 
@@ -146,7 +146,7 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
                   <div className="space-y-3">
                     {planFeatures.map((feature, i) => (
                       <div key={i} className="flex items-center gap-3 text-sm text-neutral-600 dark:text-neutral-400">
-                        <Check size={16} className="text-neutral-400 dark:text-neutral-500 shrink-0" />
+                        <Icon name="check-01" size={16} className="text-neutral-400 dark:text-neutral-500 shrink-0" />
                         {feature}
                       </div>
                     ))}
@@ -157,7 +157,7 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
 
             {clientMembership?.created_at && (
               <div className="mt-6 flex items-center gap-2 text-xs text-neutral-400">
-                <Calendar size={14} />
+                <Icon name="calendar-01" size={14} />
                 Member since {new Date(clientMembership.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
               </div>
             )}
@@ -165,7 +165,7 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
         )}
 
         {/* Available Plans */}
-        <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-6">Our available plans</h2>
+        <h2 className="font-lastik text-h6-brand text-neutral-900 dark:text-white mb-6">Our available plans</h2>
 
         {/* Billing Period Toggle */}
         <div className="flex bg-neutral-100 dark:bg-neutral-900 rounded-full p-1 w-fit mb-8">
@@ -194,7 +194,7 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
                     Your Plan
                   </div>
                 )}
-                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">{plan.plan_name}</h3>
+                <h3 className="font-lastik text-h6-brand text-neutral-900 dark:text-white mb-2">{plan.plan_name}</h3>
                 <p className="text-sm text-neutral-500 mb-6 min-h-[60px]">{plan.description || `${tasksAtOnce} tâche${tasksAtOnce > 1 ? 's' : ''} à la fois, ${sla} par tâche.`}</p>
 
                 <div className="mb-6">
@@ -214,7 +214,7 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
                     'Product Design',
                   ].map((feature, i) => (
                     <div key={i} className="flex items-center gap-3 text-sm text-neutral-600 dark:text-neutral-400">
-                      <Check size={16} className="text-neutral-400 dark:text-neutral-500 shrink-0" />
+                      <Icon name="check-01" size={16} className="text-neutral-400 dark:text-neutral-500 shrink-0" />
                       {feature}
                     </div>
                   ))}
@@ -233,7 +233,7 @@ export const ClientPlansView = ({ availablePlans, planLimits, clientMembership }
                       className="w-full py-2.5 text-sm font-medium rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90 transition-opacity disabled:opacity-50"
                     >
                       {checkoutLoading === plan.id ? (
-                        <Loader2 size={16} className="animate-spin mx-auto" />
+                        <Icon name="loader-01" size={16} className="animate-spin mx-auto" />
                       ) : (
                         'Select Plan'
                       )}
@@ -330,12 +330,12 @@ export const ClientDocumentsView = ({ membershipId }) => {
     <div className="flex-1 overflow-y-auto custom-scrollbar">
       <div className="max-w-3xl mx-auto px-8 py-8">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Documents</h1>
+          <h1 className="font-lastik text-h6-brand text-neutral-900 dark:text-white">Documents</h1>
           <button
             onClick={() => setShowAddForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
           >
-            <Plus size={16} />
+            <Icon name="plus-01" size={16} />
             Add Document
           </button>
         </div>
@@ -347,7 +347,7 @@ export const ClientDocumentsView = ({ membershipId }) => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">New Document</h3>
               <button onClick={() => { setShowAddForm(false); setNewDoc({ title: '', document_type: '', file_url: '', notes: '' }); }} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
-                <X size={16} />
+                <Icon name="x-01" size={16} />
               </button>
             </div>
             <div className="space-y-4">
@@ -377,7 +377,7 @@ export const ClientDocumentsView = ({ membershipId }) => {
               <div>
                 <label className="block text-xs font-medium text-neutral-500 mb-1.5">URL / Link</label>
                 <div className="relative">
-                  <LinkIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                  <Icon name="link" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
                   <input
                     type="url"
                     value={newDoc.file_url}
@@ -409,7 +409,7 @@ export const ClientDocumentsView = ({ membershipId }) => {
                   disabled={!newDoc.title.trim() || saving}
                   className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  {saving ? <Loader2 size={14} className="animate-spin" /> : 'Add Document'}
+                  {saving ? <Icon name="loader-01" size={14} className="animate-spin" /> : 'Add Document'}
                 </button>
               </div>
             </div>
@@ -418,7 +418,7 @@ export const ClientDocumentsView = ({ membershipId }) => {
 
         {documents.length === 0 && !showAddForm ? (
           <div className="text-center py-16">
-            <FileText size={48} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-700" />
+            <Icon name="file-01" size={48} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-700" />
             <p className="text-neutral-500 text-sm">No documents yet</p>
             <p className="text-neutral-400 text-xs mt-1">Add documents and resources for your team</p>
           </div>
@@ -430,7 +430,7 @@ export const ClientDocumentsView = ({ membershipId }) => {
                 className="flex items-center gap-4 p-4 border border-neutral-200 dark:border-neutral-800 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors group"
               >
                 <div className="w-10 h-10 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center shrink-0">
-                  <FileText size={18} className="text-neutral-500" />
+                  <Icon name="file-01" size={18} className="text-neutral-500" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-medium text-neutral-900 dark:text-white truncate">{doc.title}</h3>
@@ -450,14 +450,14 @@ export const ClientDocumentsView = ({ membershipId }) => {
                       rel="noopener noreferrer"
                       className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
                     >
-                      <ExternalLink size={16} />
+                      <Icon name="link-external" size={16} />
                     </a>
                   )}
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteDocument(doc.id); }}
                     className="text-neutral-400 hover:text-red-500 transition-colors"
                   >
-                    <Trash2 size={16} />
+                    <Icon name="trash-01" size={16} />
                   </button>
                 </div>
               </div>
@@ -570,7 +570,7 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar">
       <div className="max-w-3xl mx-auto px-8 py-8">
-        <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Deliverables</h1>
+        <h1 className="font-lastik text-h6-brand text-neutral-900 dark:text-white mb-2">Deliverables</h1>
         <p className="text-sm text-neutral-500 mb-6">{doneCount + reviewCount} delivered tasks</p>
 
         {/* Filter Tabs */}
@@ -592,7 +592,7 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
 
         {deliverableTasks.length === 0 ? (
           <div className="text-center py-16">
-            <Package size={48} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-700" />
+            <Icon name="package-01" size={48} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-700" />
             <p className="text-neutral-500 text-sm">No deliverables yet</p>
             <p className="text-neutral-400 text-xs mt-1">Completed tasks will appear here</p>
           </div>
@@ -627,7 +627,7 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
       {loadingDeliverable && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white dark:bg-[#161616] rounded-xl p-6 flex items-center gap-3 border border-neutral-200 dark:border-neutral-800 shadow-xl">
-            <Loader2 size={20} className="animate-spin text-neutral-500" />
+            <Icon name="loader-01" size={20} className="animate-spin text-neutral-500" />
             <span className="text-sm text-neutral-600 dark:text-neutral-400">Loading deliverable...</span>
           </div>
         </div>
@@ -671,7 +671,7 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
                   onClick={closePopup}
                   className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 shrink-0"
                 >
-                  <X size={18} />
+                  <Icon name="x-01" size={18} />
                 </button>
               </div>
             </div>
@@ -692,7 +692,7 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
                   {getDateOfTask(deliverableData) && (
                     <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-100 dark:border-neutral-800">
                       <div className="flex items-center gap-1.5 mb-1">
-                        <Calendar size={12} className="text-neutral-400" />
+                        <Icon name="calendar-01" size={12} className="text-neutral-400" />
                         <span className="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Start date</span>
                       </div>
                       <p className="text-sm text-neutral-900 dark:text-white">{formatDateShort(getDateOfTask(deliverableData))}</p>
@@ -701,7 +701,7 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
                   {getDeliveryDate(deliverableData) && (
                     <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-100 dark:border-neutral-800">
                       <div className="flex items-center gap-1.5 mb-1">
-                        <Check size={12} className="text-neutral-400" />
+                        <Icon name="check-01" size={12} className="text-neutral-400" />
                         <span className="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Delivery date</span>
                       </div>
                       <p className="text-sm text-neutral-900 dark:text-white">{formatDateShort(getDeliveryDate(deliverableData))}</p>
@@ -731,13 +731,13 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
                         className="flex items-center gap-3 p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors group"
                       >
                         <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
-                          <LinkIcon size={16} className="text-purple-600 dark:text-purple-400" />
+                          <Icon name="link" size={16} className="text-purple-600 dark:text-purple-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-neutral-900 dark:text-white">Deliverable</p>
                           <p className="text-xs text-neutral-400 truncate">{getDeliverableLink(deliverableData)}</p>
                         </div>
-                        <ExternalLink size={14} className="text-neutral-400 group-hover:text-neutral-600 dark:group-hover:text-neutral-300 shrink-0" />
+                        <Icon name="link-external" size={14} className="text-neutral-400 group-hover:text-neutral-600 dark:group-hover:text-neutral-300 shrink-0" />
                       </a>
                     )}
                     {getVideoLink(deliverableData) && (
@@ -748,13 +748,13 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
                         className="flex items-center gap-3 p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors group"
                       >
                         <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                          <Video size={16} className="text-blue-600 dark:text-blue-400" />
+                          <Icon name="video-on" size={16} className="text-blue-600 dark:text-blue-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-neutral-900 dark:text-white">Video Recording</p>
                           <p className="text-xs text-neutral-400 truncate">{getVideoLink(deliverableData)}</p>
                         </div>
-                        <ExternalLink size={14} className="text-neutral-400 group-hover:text-neutral-600 dark:group-hover:text-neutral-300 shrink-0" />
+                        <Icon name="link-external" size={14} className="text-neutral-400 group-hover:text-neutral-600 dark:group-hover:text-neutral-300 shrink-0" />
                       </a>
                     )}
                   </div>
@@ -785,7 +785,7 @@ export const ClientDeliverablesView = ({ tasks, onSelectTask }) => {
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-neutral-900 dark:bg-white dark:text-neutral-900 rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors"
               >
                 Open task
-                <ArrowRight size={14} />
+                <Icon name="arrow-right" size={14} />
               </button>
             </div>
           </div>

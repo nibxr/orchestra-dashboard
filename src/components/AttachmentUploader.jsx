@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, File, Image, Video, Loader2 } from 'lucide-react';
+import { Icon } from './Icon';
 import { uploadCommentAttachment, validateFile, formatFileSize, isImageFile, isVideoFile } from '../utils/fileUploadService';
 
 /**
@@ -74,12 +74,12 @@ const AttachmentUploader = ({ commentId, taskId, uploadedById, onUploadComplete 
   const getFileIcon = (fileName) => {
     const ext = fileName.split('.').pop().toLowerCase();
     if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) {
-      return <Image className="w-4 h-4" />;
+      return <Icon name="image" size={16} />;
     }
     if (['mp4', 'mov', 'avi', 'webm'].includes(ext)) {
-      return <Video className="w-4 h-4" />;
+      return <Icon name="video-on" size={16} />;
     }
-    return <File className="w-4 h-4" />;
+    return <Icon name="file" size={16} />;
   };
 
   return (
@@ -97,7 +97,7 @@ const AttachmentUploader = ({ commentId, taskId, uploadedById, onUploadComplete 
         `}
       >
         <input {...getInputProps()} />
-        <Upload className="w-6 h-6 mx-auto mb-2 text-neutral-400" />
+        <Icon name="upload-01" size={24} className="mx-auto mb-2 text-neutral-400" />
         {isDragActive ? (
           <p className="text-sm text-blue-600 dark:text-blue-400">Drop files here...</p>
         ) : (
@@ -118,9 +118,9 @@ const AttachmentUploader = ({ commentId, taskId, uploadedById, onUploadComplete 
             >
               {/* File Icon */}
               <div className="text-neutral-500">
-                {progress.status === 'uploading' && <Loader2 className="w-4 h-4 animate-spin" />}
+                {progress.status === 'uploading' && <Icon name="loader-01" size={16} className="animate-spin" />}
                 {progress.status === 'complete' && getFileIcon(progress.name)}
-                {progress.status === 'error' && <X className="w-4 h-4 text-red-500" />}
+                {progress.status === 'error' && <Icon name="x-01" size={16} className="text-red-500" />}
               </div>
 
               {/* File Info */}
@@ -178,9 +178,9 @@ export const AttachmentList = ({ attachments = [], onDelete, canDelete = false }
                   className="w-full h-full object-cover"
                 />
               ) : isVideo ? (
-                <Video className="w-6 h-6 text-neutral-400" />
+                <Icon name="video-on" size={24} className="text-neutral-400" />
               ) : (
-                <File className="w-6 h-6 text-neutral-400" />
+                <Icon name="file" size={24} className="text-neutral-400" />
               )}
             </div>
 
@@ -206,7 +206,7 @@ export const AttachmentList = ({ attachments = [], onDelete, canDelete = false }
                 className="flex-shrink-0 p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 hover:text-red-600 transition-colors"
                 title="Delete attachment"
               >
-                <X className="w-4 h-4" />
+                <Icon name="x-01" size={16} />
               </button>
             )}
           </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bold, Italic, Underline, Code } from 'lucide-react';
+import { Icon } from './Icon';
 
 /**
  * Text formatting toolbar for adding markdown/HTML formatting to text
@@ -19,7 +19,7 @@ export const TextFormattingToolbar = ({ onFormat }) => {
         className="text-neutral-500 hover:text-white transition-colors"
         title="Text formatting"
       >
-        <Bold size={16} />
+        <Icon name="bold-01" size={16} />
       </button>
     );
   }
@@ -31,28 +31,28 @@ export const TextFormattingToolbar = ({ onFormat }) => {
         className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
         title="Bold"
       >
-        <Bold size={16} />
+        <Icon name="bold-01" size={16} />
       </button>
       <button
         onClick={() => formatText('italic')}
         className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
         title="Italic"
       >
-        <Italic size={16} />
+        <Icon name="italics-01" size={16} />
       </button>
       <button
         onClick={() => formatText('underline')}
         className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
         title="Underline"
       >
-        <Underline size={16} />
+        <Icon name="underline-01" size={16} />
       </button>
       <button
         onClick={() => formatText('code')}
         className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
         title="Code"
       >
-        <Code size={16} />
+        <Icon name="code-01" size={16} />
       </button>
       <div className="w-px h-6 bg-neutral-700 mx-1" />
       <button

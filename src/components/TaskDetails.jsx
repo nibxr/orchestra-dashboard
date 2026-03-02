@@ -1,18 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  X, Circle, User, Calendar, Plus, MoreHorizontal,
-  Paperclip, Smile, Mic, Briefcase,
-  Clock, CheckCircle2, Link as LinkIcon, ArrowUpRight, ToggleLeft,
-  Trash2, Archive, Copy, Edit3, Maximize2, Star, FileText, AlertTriangle,
-  Cat, UtensilsCrossed, Car, PartyPopper, Music, Flag
-} from 'lucide-react';
+import { Icon } from './Icon';
 
 // Emoji data organized by category
 const emojiCategories = {
-  recent: { icon: Clock, label: 'Recent', emojis: ['😀', '👍', '❤️', '🎉', '✅', '🔥', '💯', '🚀'] },
+  recent: { iconName: 'clock-01', label: 'Recent', emojis: ['😀', '👍', '❤️', '🎉', '✅', '🔥', '💯', '🚀'] },
   smileys: {
-    icon: Smile,
+    iconName: 'smiley-happy',
     label: 'Smileys & People',
     emojis: [
       '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂',
@@ -24,7 +18,7 @@ const emojiCategories = {
     ]
   },
   animals: {
-    icon: Cat,
+    iconName: 'smiley-happy',
     label: 'Animals & Nature',
     emojis: [
       '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
@@ -33,7 +27,7 @@ const emojiCategories = {
     ]
   },
   food: {
-    icon: UtensilsCrossed,
+    iconName: 'dash',
     label: 'Food & Drink',
     emojis: [
       '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍒', '🍑',
@@ -41,7 +35,7 @@ const emojiCategories = {
     ]
   },
   activities: {
-    icon: PartyPopper,
+    iconName: 'star-02',
     label: 'Activities',
     emojis: [
       '⚽', '🏀', '🏈', '⚾', '🎾', '🎮', '🎯', '🎲', '🎨', '🎭',
@@ -49,7 +43,7 @@ const emojiCategories = {
     ]
   },
   symbols: {
-    icon: Flag,
+    iconName: 'favourite',
     label: 'Symbols',
     emojis: [
       '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔', '❣️',
@@ -654,7 +648,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                 onClick={() => setMoreMenuOpen(!moreMenuOpen)}
                                 className="text-neutral-400 hover:text-white transition-colors"
                             >
-                                <MoreHorizontal size={18}/>
+                                <Icon name="dot-horizontal" size={18}/>
                             </button>
                             {moreMenuOpen && (
                                 <>
@@ -667,14 +661,14 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                             onClick={() => {handleDuplicateTask(); setMoreMenuOpen(false);}}
                                             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 transition-colors"
                                         >
-                                            <Copy size={16} />
+                                            <Icon name="copy-right" size={16} />
                                             <span>Duplicate</span>
                                         </button>
                                         <button
                                             onClick={() => {handleArchiveTask(); setMoreMenuOpen(false);}}
                                             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 transition-colors"
                                         >
-                                            <Archive size={16} />
+                                            <Icon name="box" size={16} />
                                             <span>Archive</span>
                                         </button>
                                         <div className="h-px bg-neutral-800" />
@@ -682,7 +676,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                             onClick={() => {handleDeleteTask(); setMoreMenuOpen(false);}}
                                             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-neutral-800 transition-colors"
                                         >
-                                            <Trash2 size={16} />
+                                            <Icon name="trash-01" size={16} />
                                             <span>Delete</span>
                                         </button>
                                     </div>
@@ -690,7 +684,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                             )}
                         </div>
                         )}
-                        <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors"><X size={18}/></button>
+                        <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors"><Icon name="x-01" size={18}/></button>
                     </div>
                 </div>
 
@@ -705,9 +699,9 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 mb-6 text-sm text-neutral-400 hover:text-white transition-colors group"
                             >
-                                <Maximize2 size={16} className="group-hover:scale-110 transition-transform" />
+                                <Icon name="maximise-01" size={16} className="group-hover:scale-110 transition-transform" />
                                 <span>Open full task</span>
-                                <ArrowUpRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Icon name="arrow-up-right" size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                             </a>
                         )}
 
@@ -728,18 +722,18 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                         }
                                     }}
                                     autoFocus
-                                    className="w-full text-4xl font-bold text-white bg-transparent border border-neutral-700 rounded-lg p-3 focus:outline-none focus:border-neutral-500 resize-none leading-tight"
+                                    className="w-full font-lastik text-h4-brand text-white bg-transparent border border-neutral-700 rounded-lg p-3 focus:outline-none focus:border-neutral-500 resize-none leading-tight"
                                     rows={2}
                                 />
                             </div>
                         ) : (
                             <div className="group mb-8 flex items-start gap-3">
-                                <h1 className="text-4xl font-bold text-white leading-tight flex-1">{task.title}</h1>
+                                <h1 className="font-lastik text-h4-brand text-white leading-tight flex-1">{task.title}</h1>
                                 <button
                                     onClick={() => setIsEditingTitle(true)}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity text-neutral-500 hover:text-white p-2 rounded"
                                 >
-                                    <Edit3 size={18} />
+                                    <Icon name="pencil-01" size={18} />
                                 </button>
                             </div>
                         )}
@@ -749,7 +743,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                             {/* Client */}
                             <div className="flex items-center py-1.5 group">
                                 <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
-                                    <Briefcase size={14} /> Customer
+                                    <Icon name="bag-01" size={14} /> Customer
                                 </div>
                                 <div className="flex-1 text-neutral-300 text-sm">
                                     <span className="text-neutral-500">{task.clientName || 'Internal'}</span>
@@ -759,11 +753,11 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                             {/* Status */}
                             <div className="flex items-center py-1.5 group">
                                 <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
-                                    <Circle size={14} /> Status
+                                    <Icon name="circle" size={14} /> Status
                                 </div>
                                 <div className="flex-1 text-neutral-300 text-sm">
                                     <div className="flex items-center gap-2">
-                                        <Circle size={12} className="text-neutral-500 stroke-dashed" /> {task.status}
+                                        <Icon name="circle" size={12} className="text-neutral-500 stroke-dashed" /> {task.status}
                                     </div>
                                 </div>
                             </div>
@@ -772,7 +766,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                             {!isCustomer && (
                             <MultiSelectUsers
                                 label="Created By"
-                                icon={User}
+                                iconName="user-profile-01"
                                 values={[createdById, coCreatorId].filter(Boolean)}
                                 options={teamOptions}
                                 onChange={handleUpdateCreatedByMulti}
@@ -785,13 +779,13 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                             {/* Assigned To / Lead Designer - Interactive */}
                             {isCustomer ? (
                                 <div className="flex items-center py-1.5 px-2 group">
-                                    <div className="flex items-center gap-2 text-neutral-500 w-32"><Star size={14} /><span className="text-sm">Designer</span></div>
+                                    <div className="flex items-center gap-2 text-neutral-500 w-32"><Icon name="star-01" size={14} /><span className="text-sm">Designer</span></div>
                                     <span className="text-sm text-neutral-600 dark:text-neutral-300">{task.assigneeName || 'Unassigned'}</span>
                                 </div>
                             ) : (
                             <CustomSelect
                                 label="Designer"
-                                icon={Star}
+                                iconName="star-01"
                                 value={task.assigned_to_id}
                                 options={teamOptions}
                                 onChange={handleUpdateAssignee}
@@ -805,7 +799,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                             {!isCustomer && (
                             <CustomSelect
                                 label="Helper"
-                                icon={User}
+                                iconName="user-profile-01"
                                 value={task.helper_id}
                                 options={teamOptions}
                                 onChange={handleUpdateHelper}
@@ -818,7 +812,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                             {/* Due Date - shows manual due date or auto-calculated */}
                             <div className="flex items-center py-1.5 group">
                                 <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
-                                    <Calendar size={14} /> Due Date
+                                    <Icon name="calendar-01" size={14} /> Due Date
                                 </div>
                                 <div className="flex-1 text-neutral-300 text-sm">
                                     {(() => {
@@ -837,7 +831,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                                     isDueSoon ? 'text-orange-400 bg-orange-500/10' :
                                                     'text-neutral-400'
                                                 }`}>
-                                                    {isOverdue && <AlertTriangle size={12} />}
+                                                    {isOverdue && <Icon name="alert-triangle" size={12} />}
                                                     {dueDateInfo.text || new Date(effectiveDueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                                                 </span>
                                             );
@@ -852,7 +846,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                             {!isCustomer && !hasVersions && (
                                 <div className="flex items-center py-1.5 group">
                                     <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
-                                        <LinkIcon size={14} /> Design Link
+                                        <Icon name="link" size={14} /> Design Link
                                     </div>
                                     <div className="flex-1">
                                         {isAddingDesignLink ? (
@@ -894,7 +888,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                                 onClick={() => setIsAddingDesignLink(true)}
                                                 className="text-sm text-neutral-500 hover:text-lime-400 flex items-center gap-1 transition-colors"
                                             >
-                                                <Plus size={14} /> Add design link
+                                                <Icon name="plus-01" size={14} /> Add design link
                                             </button>
                                         )}
                                     </div>
@@ -958,7 +952,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                         }}
                                         className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-neutral-500 hover:text-white p-2 rounded"
                                     >
-                                        <Edit3 size={16} />
+                                        <Icon name="pencil-01" size={16} />
                                     </button>
                                 </div>
                             </div>
@@ -969,7 +963,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                             <div className="mb-8 border border-neutral-800 rounded-xl overflow-hidden">
                                 <div className="px-5 py-3 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                                    <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Concept Images</span>
+                                    <span className="text-body-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Concept Images</span>
                                 </div>
                                 <div className="p-4 grid grid-cols-2 gap-3">
                                     {task.properties.ai_images.map((img, i) => (
@@ -990,7 +984,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                             <div className="mb-12 border border-neutral-800 rounded-xl overflow-hidden">
                                 <div className="px-5 py-3 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-                                    <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Brief Assistant — Q&A</span>
+                                    <span className="text-body-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Brief Assistant — Q&A</span>
                                 </div>
                                 <div className="px-5 py-4 space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
                                     {task.properties.ai_conversation.map((msg, i) => (
@@ -1133,14 +1127,14 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                                                     className="text-neutral-500 hover:text-white p-1 rounded bg-[#0f0f0f]"
                                                                     title="Edit comment"
                                                                 >
-                                                                    <Edit3 size={14} />
+                                                                    <Icon name="pencil-01" size={14} />
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleDeleteComment(c.id)}
                                                                     className="text-neutral-500 hover:text-red-400 p-1 rounded bg-[#0f0f0f]"
                                                                     title="Delete comment"
                                                                 >
-                                                                    <Trash2 size={14} />
+                                                                    <Icon name="trash-01" size={14} />
                                                                 </button>
                                                             </div>
                                                         )}
@@ -1168,7 +1162,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                                             hasDeliverable ? 'bg-lime-500/10' : 'bg-neutral-800'
                                         }`}>
-                                            <FileText size={20} className={hasDeliverable ? 'text-lime-400' : 'text-neutral-400'} />
+                                            <Icon name="file-01" size={20} className={hasDeliverable ? 'text-lime-400' : 'text-neutral-400'} />
                                         </div>
                                         <div className="text-left">
                                             <span className="text-sm font-medium text-white">Deliverables Form</span>
@@ -1219,7 +1213,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                         className={`p-1.5 rounded transition-colors ${showEmojiPicker ? 'text-white bg-neutral-700' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
                                         title="Add emoji"
                                     >
-                                        <Smile size={16} />
+                                        <Icon name="smiley-happy" size={16} />
                                     </button>
                                     {showEmojiPicker && (
                                         <>
@@ -1241,7 +1235,7 @@ export const TaskDetails = ({ task, onClose, onUpdate, team, isFullPage = false,
                                                             }`}
                                                             title={category.label}
                                                         >
-                                                            <category.icon size={16} />
+                                                            <Icon name={category.iconName} size={16} />
                                                         </button>
                                                     ))}
                                                 </div>

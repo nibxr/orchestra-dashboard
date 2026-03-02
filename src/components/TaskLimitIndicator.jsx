@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, CheckCircle, Zap } from 'lucide-react';
+import { Icon } from './Icon';
 
 /**
  * Task Limit Indicator Component
@@ -20,9 +20,9 @@ export const TaskLimitIndicator = ({ currentActive, maxTasks, compact = false })
                 title={`${currentActive} of ${maxTasks} active tasks`}
             >
                 {isAtLimit ? (
-                    <AlertTriangle size={10} />
+                    <Icon name="alert-triangle" size={10} />
                 ) : (
-                    <Zap size={10} />
+                    <Icon name="lightning-01" size={10} />
                 )}
                 <span>{currentActive}/{maxTasks}</span>
             </div>
@@ -52,12 +52,12 @@ export const TaskLimitIndicator = ({ currentActive, maxTasks, compact = false })
             <div className="flex items-center gap-2 text-xs">
                 {isAtLimit ? (
                     <>
-                        <AlertTriangle size={12} className="text-orange-400" />
+                        <Icon name="alert-triangle" size={12} className="text-orange-400" />
                         <span className="text-orange-400">Task limit reached</span>
                     </>
                 ) : (
                     <>
-                        <CheckCircle size={12} className="text-lime-400" />
+                        <Icon name="check-contained" size={12} className="text-lime-400" />
                         <span className="text-neutral-400">
                             {maxTasks - currentActive} slot{maxTasks - currentActive !== 1 ? 's' : ''} available
                         </span>

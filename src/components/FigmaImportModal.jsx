@@ -1,18 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  X,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
-  Image,
-  Key,
-  Link2,
-  ChevronRight,
-  Check,
-  RefreshCw,
-  Settings,
-  ExternalLink
-} from 'lucide-react';
+import { Icon } from './Icon';
 import {
   extractFigmaFileKey,
   getFigmaFile,
@@ -258,7 +245,7 @@ const FigmaImportModal = ({
             onClick={onClose}
             className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
           >
-            <X size={18} />
+            <Icon name="x-01" size={18} />
           </button>
         </div>
 
@@ -293,7 +280,7 @@ const FigmaImportModal = ({
                     rel="noopener noreferrer"
                     className="text-neutral-600 dark:text-neutral-300 hover:underline"
                   >
-                    Get your token <ExternalLink size={10} className="inline" />
+                    Get your token <Icon name="link-external" size={10} className="inline" />
                   </a>
                 </p>
                 <input
@@ -317,7 +304,7 @@ const FigmaImportModal = ({
 
               {tokenError && (
                 <div className="flex items-center gap-2 text-red-500 dark:text-red-400 text-xs">
-                  <AlertCircle size={14} />
+                  <Icon name="alert-circle" size={14} />
                   {tokenError}
                 </div>
               )}
@@ -336,14 +323,14 @@ const FigmaImportModal = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between text-xs text-neutral-500 mb-1">
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={12} className="text-emerald-500" />
+                  <Icon name="check-contained" size={12} className="text-emerald-500" />
                   <span>Connected to Figma</span>
                 </div>
                 <button
                   onClick={() => setStep('token')}
                   className="flex items-center gap-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
                 >
-                  <Settings size={12} />
+                  <Icon name="settings" size={12} />
                   Change token
                 </button>
               </div>
@@ -363,7 +350,7 @@ const FigmaImportModal = ({
 
               {urlError && (
                 <div className="flex items-center gap-2 text-red-500 dark:text-red-400 text-xs">
-                  <AlertCircle size={14} />
+                  <Icon name="alert-circle" size={14} />
                   {urlError}
                 </div>
               )}
@@ -379,13 +366,13 @@ const FigmaImportModal = ({
               >
                 {loadingFrames ? (
                   <>
-                    <Loader2 size={14} className="animate-spin" />
+                    <Icon name="loader-01" size={14} className="animate-spin" />
                     Fetching frames...
                   </>
                 ) : (
                   <>
                     Fetch Frames
-                    <ChevronRight size={14} />
+                    <Icon name="chevron-right" size={14} />
                   </>
                 )}
               </button>
@@ -441,10 +428,10 @@ const FigmaImportModal = ({
                               : 'border-neutral-300 dark:border-neutral-600'
                           }`}>
                             {selectedFrames.has(frame.id) && (
-                              <Check size={12} className="text-white dark:text-black" />
+                              <Icon name="check-01" size={12} className="text-white dark:text-black" />
                             )}
                           </div>
-                          <Image size={14} className="text-neutral-400 dark:text-neutral-500" />
+                          <Icon name="image" size={14} className="text-neutral-400 dark:text-neutral-500" />
                           <span className="flex-1 text-left text-sm truncate">{frame.name}</span>
                           {frame.width && frame.height && (
                             <span className="text-[10px] text-neutral-400 dark:text-neutral-600">
@@ -459,7 +446,7 @@ const FigmaImportModal = ({
 
                 {frames.length === 0 && (
                   <div className="text-center py-8 text-neutral-400">
-                    <Image size={28} className="mx-auto mb-2 opacity-40" />
+                    <Icon name="image" size={28} className="mx-auto mb-2 opacity-40" />
                     <p className="text-sm">No frames found in this file</p>
                     <p className="text-xs text-neutral-400 dark:text-neutral-600">Make sure your file contains top-level frames</p>
                   </div>
@@ -468,7 +455,7 @@ const FigmaImportModal = ({
 
               {importError && (
                 <div className="flex items-center gap-2 text-red-500 dark:text-red-400 text-xs">
-                  <AlertCircle size={14} />
+                  <Icon name="alert-circle" size={14} />
                   {importError}
                 </div>
               )}
@@ -503,7 +490,7 @@ const FigmaImportModal = ({
           {/* Step 4: Importing */}
           {step === 'importing' && (
             <div className="py-8 text-center">
-              <Loader2 size={32} className="animate-spin text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
+              <Icon name="loader-01" size={32} className="animate-spin text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
               <h3 className="text-sm font-medium text-neutral-900 dark:text-white mb-1">
                 {importProgress?.message || 'Importing frames...'}
               </h3>

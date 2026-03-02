@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink } from 'lucide-react';
+import { Icon } from './Icon';
 
 /**
  * Detects and renders embedded content from URLs
@@ -182,7 +182,7 @@ export const EmbedRenderer = ({ url, className = '' }) => {
           className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm underline"
         >
           {embed.url}
-          <ExternalLink size={14} />
+          <Icon name="link-external" size={14} />
         </a>
       );
 
@@ -270,7 +270,7 @@ export const EmbedLinkButton = ({ onInsert }) => {
         className="text-neutral-500 hover:text-white transition-colors"
         title="Add link or embed"
       >
-        <ExternalLink size={16} />
+        <Icon name="link-external" size={16} />
       </button>
     );
   }

@@ -107,6 +107,49 @@ export const getHoursRemaining = (dueDate) => {
 };
 
 /**
+ * Format a due date as a short relative time string for Kanban cards
+ * e.g., "In 12 hours", "In 2 days", "3h overdue", "5d overdue"
+ * @param {string|Date} dueDate - The due date
+ * @param {string} status - Task status
+ * @returns {string|null} Relative time string
+ */
+export const formatRelativeTime = (dueDate, status) => {
+    if (!dueDate) return null;
+
+    const now = new Date();
+    const due = new Date(dueDate);
+    const diffMs = due - now;
+    const diffHours = diffMs / (1000 * 60 * 60);
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+    const completedStatuses = ['Done', 'Completed', 'Delivered'];
+    const isCompleted = completedStatuses.some(s =>
+        status?.toLowerCase().includes(s.toLowerCase())
+    );
+
+    if (isCompleted) {
+        return due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    if (diffMs < 0) {
+        // Overdue
+        const absHours = Math.abs(diffHours);
+        if (absHours < 1) return 'Just now';
+        if (absHours < 24) return `${Math.floor(absHours)}h overdue`;
+        return `${Math.floor(Math.abs(diffDays))}d overdue`;
+    }
+
+    // Future
+    if (diffHours < 1) {
+        const mins = Math.floor(diffMs / (1000 * 60));
+        return `In ${mins}m`;
+    }
+    if (diffHours < 24) return `In ${Math.floor(diffHours)} hours`;
+    if (diffDays < 7) return `In ${Math.floor(diffDays)} days`;
+    return due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+/**
  * Calculate business days between two dates (excluding weekends)
  * @param {Date} start - Start date
  * @param {Date} end - End date

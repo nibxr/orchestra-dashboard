@@ -1,11 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft, Globe, Tag, User, Calendar, Building2, Check, X,
-  Bold, Italic, Strikethrough, Underline, List, ListOrdered,
-  CheckSquare, Paperclip, Type, Smile, MoreHorizontal, Copy,
-  Trash2, ChevronRight, Code2, Loader2
-} from 'lucide-react';
+import { Icon } from './Icon';
 import { CustomSelect, MultiSelectUsers } from './CustomUI';
 import { createVersion } from '../utils/versionService';
 import FigmaImportModal from './FigmaImportModal';
@@ -241,6 +236,9 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
     contactsCount: clientContacts.length
   });
 
+  // Parse properties if stored as string
+  const taskProperties = typeof task.properties === 'string' ? JSON.parse(task.properties) : (task.properties || {});
+
   // Log task data for debugging
   console.log('VersionlessTaskView - task:', {
     id: task.id,
@@ -249,7 +247,9 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
     assigned_to_id: task.assigned_to_id,
     created_by_team_id: task.created_by_team_id,
     dueDate: task.dueDate,
-    properties: task.properties
+    properties: taskProperties,
+    hasAiImages: !!(taskProperties?.ai_images?.length),
+    hasAiConversation: !!(taskProperties?.ai_conversation?.length),
   });
 
   // Update handlers
@@ -838,20 +838,20 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
           onClick={() => goBack('/')}
           className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
         >
-          <ArrowLeft size={20} />
+          <Icon name="arrow-left" size={20} />
         </button>
-        <h1 className="ml-4 text-lg font-medium text-neutral-900 dark:text-white truncate">{task.title}</h1>
+        <h1 className="ml-4 text-lg font-lastik text-neutral-900 dark:text-white truncate">{task.title}</h1>
       </div>
 
       {/* Main Layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="overflow-y-auto custom-scrollbar bg-[#0f0f0f] theme-bg-primary shrink-0" style={{ width: taskSidebarWidth }}>
+        <div className="overflow-y-auto custom-scrollbar bg-white dark:bg-[#0f0f0f] theme-bg-primary shrink-0" style={{ width: taskSidebarWidth }}>
           <div className="p-4 space-y-1">
             {/* Status */}
             <CustomSelect
               label="Status"
-              icon={Tag}
+              iconName="tag"
               value={task.status || null}
               options={statusOptions}
               onChange={handleStatusChange}
@@ -861,17 +861,17 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             {/* Assignee */}
             {isCustomer ? (
               <div className="flex items-center py-1.5 px-2">
-                <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
-                  <User size={14} /> Assignee
+                <div className="w-32 text-neutral-400 dark:text-neutral-500 flex items-center gap-2 text-sm">
+                  <Icon name="user-profile-01" size={14} /> Assignee
                 </div>
-                <div className="flex-1 text-neutral-300 text-sm text-right">
-                  {assigneeName !== 'Unassigned' ? assigneeName : <span className="text-neutral-600">Unassigned</span>}
+                <div className="flex-1 text-neutral-700 dark:text-neutral-300 text-sm text-right">
+                  {assigneeName !== 'Unassigned' ? assigneeName : <span className="text-neutral-400 dark:text-neutral-600">Unassigned</span>}
                 </div>
               </div>
             ) : (
               <CustomSelect
                 label="Assignee"
-                icon={User}
+                iconName="user-profile-01"
                 value={task.assigned_to_id}
                 options={teamOptions}
                 onChange={handleAssigneeChange}
@@ -885,7 +885,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             {!isCustomer && (
               <CustomSelect
                 label="Helper"
-                icon={User}
+                iconName="user-profile-01"
                 value={task.helper_id}
                 options={teamOptions}
                 onChange={handleHelperChange}
@@ -899,7 +899,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             {!isCustomer && (
               <MultiSelectUsers
                 label="Created By"
-                icon={User}
+                iconName="user-profile-01"
                 values={[createdByTeamId, coCreatorId].filter(Boolean)}
                 options={teamOptions}
                 onChange={handleCreatorMultiChange}
@@ -910,9 +910,9 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             )}
 
             {/* Due Date */}
-            <div className="flex items-center py-1.5 px-2 hover:bg-neutral-800/50 rounded cursor-pointer group">
-              <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
-                <Calendar size={14} /> Due Date
+            <div className="flex items-center py-1.5 px-2 hover:bg-neutral-100 dark:hover:bg-neutral-800/50 rounded cursor-pointer group">
+              <div className="w-32 text-neutral-400 dark:text-neutral-500 flex items-center gap-2 text-sm">
+                <Icon name="calendar-01" size={14} /> Due Date
               </div>
               {isEditingDueDate ? (
                 <input
@@ -928,11 +928,11 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                     }
                   }}
                   autoFocus
-                  className="flex-1 bg-transparent text-neutral-300 text-sm text-right focus:outline-none"
+                  className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-sm text-right focus:outline-none"
                 />
               ) : (
                 <div
-                  className="flex-1 text-neutral-300 text-sm text-right"
+                  className="flex-1 text-neutral-700 dark:text-neutral-300 text-sm text-right"
                   onClick={() => setIsEditingDueDate(true)}
                 >
                   {task.dueDate || task.properties?.dueDate ? (
@@ -942,7 +942,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                       year: 'numeric'
                     })
                   ) : (
-                    <span className="text-neutral-600">Empty</span>
+                    <span className="text-neutral-400 dark:text-neutral-600">Empty</span>
                   )}
                 </div>
               )}
@@ -950,18 +950,18 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
 
             {/* Client */}
             <div className="flex items-center py-1.5 px-2">
-              <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
-                <Building2 size={14} /> Client
+              <div className="w-32 text-neutral-400 dark:text-neutral-500 flex items-center gap-2 text-sm">
+                <Icon name="bank" size={14} /> Client
               </div>
-              <div className="flex-1 text-neutral-300 text-sm text-right">
-                {task.clientName || <span className="text-neutral-600">Internal</span>}
+              <div className="flex-1 text-neutral-700 dark:text-neutral-300 text-sm text-right">
+                {task.clientName || <span className="text-neutral-400 dark:text-neutral-600">Internal</span>}
               </div>
             </div>
 
             {/* Add Asset Section */}
             {!isCustomer && (
             <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 mt-4">
-              <h3 className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-3 px-2">Add asset</h3>
+              <h3 className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3 px-2">Add asset</h3>
 
               {/* Figma Button */}
               <button
@@ -983,7 +983,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                 onClick={() => setIsAddingEmbed(true)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-600 rounded-lg transition-colors text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white mb-2"
               >
-                <Code2 size={14} className="opacity-60" />
+                <Icon name="code-01" size={14} className="opacity-60" />
                 <span className="text-sm">Embed</span>
               </button>
 
@@ -992,7 +992,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                 onClick={() => setIsAddingWebsite(true)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-600 rounded-lg transition-colors text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white mb-2"
               >
-                <Globe size={14} className="opacity-60" />
+                <Icon name="globe" size={14} className="opacity-60" />
                 <span className="text-sm">Website</span>
               </button>
             </div>
@@ -1006,18 +1006,18 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
           className="w-1 cursor-col-resize shrink-0 group relative z-10 flex items-center justify-center"
         >
           <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
-          <div className={`w-px h-full transition-colors ${isDraggingSidebar ? 'bg-neutral-500' : 'bg-neutral-800 group-hover:bg-neutral-600'}`} />
+          <div className={`w-px h-full transition-colors ${isDraggingSidebar ? 'bg-neutral-500' : 'bg-neutral-200 dark:bg-neutral-800 group-hover:bg-neutral-400 dark:group-hover:bg-neutral-600'}`} />
         </div>
 
         {/* Main Content - Comments Section */}
-        <div className="flex-1 overflow-hidden flex flex-col bg-black theme-bg-secondary items-center py-6">
+        <div className="flex-1 overflow-hidden flex flex-col bg-neutral-100 dark:bg-black theme-bg-secondary items-center py-6">
           {/* Centered Content Box - 50% width */}
-          <div className="w-full max-w-[50%] flex flex-col overflow-hidden rounded-lg border border-neutral-800 bg-[#0f0f0f]">
+          <div className="w-full max-w-[50%] flex flex-col overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0f0f0f]">
             {/* Scrollable content area — title, description, AI sections */}
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4">
             {/* Description Section */}
             <div className="p-6">
-            <h2 className="text-lg font-semibold text-white mb-3">{task.title}</h2>
+            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">{task.title}</h2>
             {isEditingDescription ? (
               <div className="space-y-2">
                 {/* Formatting toolbar */}
@@ -1025,68 +1025,68 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                   <div className="flex items-center gap-1 pb-2">
                     <button
                       onClick={insertDescBold}
-                      className={`p-1 rounded transition-colors ${activeDescFormats.bold ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                      className={`p-1 rounded transition-colors ${activeDescFormats.bold ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                       title="Bold"
                     >
-                      <Bold size={14} />
+                      <Icon name="bold-01" size={14} />
                     </button>
                     <button
                       onClick={insertDescItalic}
-                      className={`p-1 rounded transition-colors ${activeDescFormats.italic ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                      className={`p-1 rounded transition-colors ${activeDescFormats.italic ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                       title="Italic"
                     >
-                      <Italic size={14} />
+                      <Icon name="italics-01" size={14} />
                     </button>
                     <button
                       onClick={insertDescStrikethrough}
-                      className={`p-1 rounded transition-colors ${activeDescFormats.strikeThrough ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                      className={`p-1 rounded transition-colors ${activeDescFormats.strikeThrough ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                       title="Strikethrough"
                     >
-                      <Strikethrough size={14} />
+                      <Icon name="type-strike-01" size={14} />
                     </button>
                     <button
                       onClick={insertDescUnderline}
-                      className={`p-1 rounded transition-colors ${activeDescFormats.underline ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                      className={`p-1 rounded transition-colors ${activeDescFormats.underline ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                       title="Underline"
                     >
-                      <Underline size={14} />
+                      <Icon name="underline-01" size={14} />
                     </button>
-                    <div className="w-px h-3 bg-neutral-700 mx-0.5" />
-                    <button onClick={insertDescBulletList} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Bullet list">
-                      <List size={14} />
+                    <div className="w-px h-3 bg-neutral-300 dark:bg-neutral-700 mx-0.5" />
+                    <button onClick={insertDescBulletList} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Bullet list">
+                      <Icon name="list" size={14} />
                     </button>
-                    <button onClick={insertDescNumberedList} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Numbered list">
-                      <ListOrdered size={14} />
+                    <button onClick={insertDescNumberedList} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Numbered list">
+                      <Icon name="list-numbers" size={14} />
                     </button>
-                    <button onClick={insertDescChecklist} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Checklist">
-                      <CheckSquare size={14} />
+                    <button onClick={insertDescChecklist} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Checklist">
+                      <Icon name="check-square-contained" size={14} />
                     </button>
                   </div>
                 )}
 
                 {/* Link input */}
                 {showDescLinkInput && (
-                  <div className="flex items-center gap-2 p-2 bg-neutral-900 rounded-lg">
+                  <div className="flex items-center gap-2 p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg">
                     <input
                       type="text"
                       value={descLinkText}
                       onChange={(e) => setDescLinkText(e.target.value)}
                       placeholder="Link text"
-                      className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                      className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-xs placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                     />
                     <input
                       type="text"
                       value={descLinkUrl}
                       onChange={(e) => setDescLinkUrl(e.target.value)}
                       placeholder="URL"
-                      className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                      className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-xs placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                       onKeyDown={(e) => { if (e.key === 'Enter') handleDescInsertLink(); }}
                     />
                     <button onClick={handleDescInsertLink} className="p-1 text-blue-500 hover:text-blue-400">
-                      <CheckSquare size={14} />
+                      <Icon name="check-square-contained" size={14} />
                     </button>
-                    <button onClick={() => { setShowDescLinkInput(false); setDescLinkUrl(''); setDescLinkText(''); }} className="p-1 text-neutral-500 hover:text-white">
-                      <X size={14} />
+                    <button onClick={() => { setShowDescLinkInput(false); setDescLinkUrl(''); setDescLinkText(''); }} className="p-1 text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white">
+                      <Icon name="x-01" size={14} />
                     </button>
                   </div>
                 )}
@@ -1101,7 +1101,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                   }}
                   contentEditable
                   data-placeholder="Add a description..."
-                  className="w-full bg-neutral-900 text-neutral-300 text-sm p-3 rounded border border-neutral-800 focus:outline-none focus:border-neutral-600 min-h-[100px] max-h-[200px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-600"
+                  className="w-full bg-neutral-50 dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-sm p-3 rounded border border-neutral-200 dark:border-neutral-800 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 min-h-[100px] max-h-[200px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-400 dark:empty:before:text-neutral-600"
                   onInput={(e) => setEditedDescription(e.currentTarget.innerHTML)}
                   onKeyDown={(e) => { if (e.key === 'Escape') handleCancelDescription(); }}
                 />
@@ -1111,26 +1111,26 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => { setShowDescLinkInput(!showDescLinkInput); setShowDescFormattingToolbar(false); setShowDescEmojiPicker(false); }}
-                      className={`p-1 rounded transition-colors ${showDescLinkInput ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                      className={`p-1 rounded transition-colors ${showDescLinkInput ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                       title="Add link"
                     >
-                      <Paperclip size={14} />
+                      <Icon name="paperclip" size={14} />
                     </button>
                     <button
                       onClick={() => { setShowDescFormattingToolbar(!showDescFormattingToolbar); setShowDescLinkInput(false); setShowDescEmojiPicker(false); }}
-                      className={`p-1 rounded transition-colors ${showDescFormattingToolbar ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                      className={`p-1 rounded transition-colors ${showDescFormattingToolbar ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                       title="Text formatting"
                     >
-                      <Type size={14} />
+                      <Icon name="type-01" size={14} />
                     </button>
                     <div className="relative">
                       <button
                         ref={descEmojiButtonRef}
                         onClick={() => { setShowDescEmojiPicker(!showDescEmojiPicker); setShowDescFormattingToolbar(false); setShowDescLinkInput(false); }}
-                        className={`p-1 rounded transition-colors ${showDescEmojiPicker ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                        className={`p-1 rounded transition-colors ${showDescEmojiPicker ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                         title="Add emoji"
                       >
-                        <Smile size={14} />
+                        <Icon name="smiley-happy" size={14} />
                       </button>
                       {showDescEmojiPicker && (
                         <>
@@ -1145,10 +1145,10 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={handleCancelDescription} className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white">
+                    <button onClick={handleCancelDescription} className="px-3 py-1.5 text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white">
                       Cancel
                     </button>
-                    <button onClick={handleSaveDescription} className="px-3 py-1.5 text-sm text-white hover:text-neutral-300">
+                    <button onClick={handleSaveDescription} className="px-3 py-1.5 text-sm text-neutral-900 dark:text-white hover:text-neutral-600 dark:hover:text-neutral-300">
                       Save
                     </button>
                   </div>
@@ -1160,38 +1160,40 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                   setEditedDescription(task.description || task.content || '');
                   setIsEditingDescription(true);
                 }}
-                className="text-neutral-300 text-sm cursor-pointer hover:bg-neutral-800/30 p-3 rounded min-h-[60px]"
+                className="text-neutral-700 dark:text-neutral-300 text-sm cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800/30 p-3 rounded min-h-[60px]"
                 dangerouslySetInnerHTML={{ __html: task.description || task.content || '<span class="text-neutral-600 italic">Click to add description...</span>' }}
               />
             )}
           </div>
 
           {/* AI-Generated Concept Images — visible to designers */}
-          {task.properties?.ai_images && task.properties.ai_images.length > 0 && (
-            <div className="mx-4 mt-4 border border-neutral-800 rounded-xl overflow-hidden flex flex-col">
-              <div className="px-4 py-2.5 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2 shrink-0">
+          {taskProperties?.ai_images && taskProperties.ai_images.length > 0 && (
+            <div className="mx-4 mt-4 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden flex flex-col">
+              <div className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800/40 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2 shrink-0">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Concept Images</span>
+                <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">AI Concept Images</span>
               </div>
-              <div className="p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar" style={{ maxHeight: task.properties.ai_images.length > 2 ? '420px' : undefined }}>
-                {task.properties.ai_images.map((img, i) => {
+              <div className="p-4 grid grid-cols-2 gap-3 overflow-y-auto custom-scrollbar" style={{ maxHeight: taskProperties.ai_images.length > 4 ? '420px' : undefined }}>
+                {taskProperties.ai_images.map((img, i) => {
                   const imgUrl = typeof img === 'string' ? img : img.url;
                   const imgRating = typeof img === 'object' ? img.rating : 0;
+                  if (!imgUrl) return null;
                   return (
                     <div key={i}>
                       <img
                         src={imgUrl}
                         alt={`AI concept ${i + 1}`}
-                        className="w-full rounded-lg border border-neutral-700 cursor-pointer hover:opacity-90 transition-opacity"
+                        className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer hover:opacity-90 transition-opacity"
                         onClick={() => window.open(imgUrl, '_blank')}
+                        onError={(e) => { e.target.style.display = 'none'; }}
                       />
                       {imgRating > 0 && (
                         <div className="flex items-center gap-0.5 mt-1.5">
-                          <span className="text-[10px] text-neutral-500 mr-1">Client rating:</span>
+                          <span className="text-[10px] text-neutral-400 dark:text-neutral-500 mr-1">Client rating:</span>
                           {[1, 2, 3, 4, 5].map(s => (
                             <svg key={s} width="12" height="12" viewBox="0 0 24 24" fill={s <= imgRating ? '#D08B00' : 'none'} stroke={s <= imgRating ? '#D08B00' : '#525252'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                           ))}
-                          <span className="text-[10px] text-neutral-500 ml-1">{imgRating}/5</span>
+                          <span className="text-[10px] text-neutral-400 dark:text-neutral-500 ml-1">{imgRating}/5</span>
                         </div>
                       )}
                     </div>
@@ -1202,39 +1204,42 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
           )}
 
           {/* AI Brief Conversation — visible to designers */}
-          {task.properties?.ai_conversation && task.properties.ai_conversation.length > 0 && (
-            <div className="mx-4 mt-4 border border-neutral-800 rounded-xl overflow-hidden flex flex-col" style={{ maxHeight: '350px' }}>
-              <div className="px-4 py-2.5 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2 shrink-0">
+          {taskProperties?.ai_conversation && taskProperties.ai_conversation.length > 0 && (
+            <div className="mx-4 mt-4 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden flex flex-col" style={{ maxHeight: '350px' }}>
+              <div className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800/40 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2 shrink-0">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Brief Assistant — Q&A</span>
+                <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">AI Brief Assistant — Q&A</span>
               </div>
               <div className="px-4 py-3 space-y-2.5 overflow-y-auto custom-scrollbar flex-1 min-h-0">
-                {task.properties.ai_conversation.map((msg, i) => (
+                {taskProperties.ai_conversation.map((msg, i) => {
+                  const hasImages = msg.images && msg.images.length > 0;
+                  const isImgMsg = msg.content?.startsWith('[IMG] ') || msg.content?.startsWith('🖼');
+                  return (
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] px-3 py-1.5 text-xs leading-relaxed whitespace-pre-wrap ${
+                    <div className={`${hasImages || isImgMsg ? 'max-w-[55%]' : 'max-w-[85%]'} px-3 py-1.5 text-xs leading-relaxed whitespace-pre-wrap ${
                       msg.role === 'user'
-                        ? 'bg-neutral-800 text-neutral-200 rounded-xl rounded-br-sm'
-                        : 'bg-neutral-800/50 text-neutral-400 rounded-xl rounded-bl-sm'
+                        ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-xl rounded-br-sm'
+                        : 'bg-neutral-50 dark:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 rounded-xl rounded-bl-sm'
                     }`}>
                       {msg.role === 'assistant' && <span className="text-[9px] text-[#D08B00] font-semibold block mb-0.5">AI</span>}
-                      {msg.role === 'user' && <span className="text-[9px] text-neutral-500 font-semibold block mb-0.5">Client</span>}
-                      {/* Display text — strip 🖼 prefix for cleaner look */}
-                      {msg.content?.startsWith('🖼 ')
-                        ? <span className="italic text-neutral-500">{msg.content.replace('🖼 ', '')}</span>
+                      {msg.role === 'user' && <span className="text-[9px] text-neutral-400 dark:text-neutral-500 font-semibold block mb-0.5">Client</span>}
+                      {/* Display text — strip [IMG] or legacy 🖼 prefix for cleaner look */}
+                      {isImgMsg
+                        ? <span className="italic text-neutral-400 dark:text-neutral-500">{msg.content.replace(/^\[IMG\] |^🖼 ?/, '')}</span>
                         : msg.content
                       }
                       {/* Inline images with ratings */}
-                      {msg.images && msg.images.length > 0 && (
+                      {hasImages && (
                         <div className="mt-2 space-y-1.5">
                           {msg.images.map((img, j) => (
-                            <img key={j} src={img} alt={`AI concept ${j + 1}`} className="w-full rounded-lg border border-neutral-700" />
+                            <img key={j} src={img} alt={`AI concept ${j + 1}`} className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700" onError={(e) => { e.target.style.display = 'none'; }} />
                           ))}
                           {msg.imageRating > 0 && (
                             <div className="flex items-center gap-0.5">
                               {[1,2,3,4,5].map(s => (
                                 <span key={s} className={`text-[10px] ${s <= msg.imageRating ? 'text-[#D08B00]' : 'text-neutral-700'}`}>★</span>
                               ))}
-                              <span className="text-[9px] text-neutral-500 ml-1">{msg.imageRating}/5</span>
+                              <span className="text-[9px] text-neutral-400 dark:text-neutral-500 ml-1">{msg.imageRating}/5</span>
                             </div>
                           )}
                         </div>
@@ -1246,7 +1251,8 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1254,13 +1260,13 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
           {/* End scrollable content area */}
 
           {/* Comments/Notes tabs */}
-          <div className="shrink-0 flex items-center gap-6 px-4 pt-2 border-t border-neutral-800">
+          <div className="shrink-0 flex items-center gap-6 px-4 pt-2 border-t border-neutral-200 dark:border-neutral-800">
             <button
               onClick={() => setActiveTab('comments')}
               className={`text-sm font-bold pb-2 border-b-2 transition-colors ${
                 activeTab === 'comments'
-                  ? 'text-white border-white'
-                  : 'text-neutral-500 border-transparent hover:text-neutral-300'
+                  ? 'text-neutral-900 dark:text-white border-neutral-900 dark:border-white'
+                  : 'text-neutral-400 dark:text-neutral-500 border-transparent hover:text-neutral-600 dark:hover:text-neutral-300'
               }`}
             >
               Comments
@@ -1290,7 +1296,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                   <div key={dateKey}>
                     {/* Date separator */}
                     <div className="flex items-center justify-center mb-4">
-                      <div className="text-xs text-neutral-600 bg-neutral-900 px-3 py-1 rounded-full">
+                      <div className="text-xs text-neutral-400 dark:text-neutral-600 bg-neutral-100 dark:bg-neutral-900 px-3 py-1 rounded-full">
                         {dateLabel}
                       </div>
                     </div>
@@ -1323,7 +1329,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                               {authorAvatar ? (
                                 <img src={authorAvatar} alt={authorName} className="w-8 h-8 rounded-full" />
                               ) : (
-                                <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-white text-sm">
+                                <div className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-neutral-600 dark:text-white text-sm">
                                   {authorName[0]}
                                 </div>
                               )}
@@ -1334,8 +1340,8 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                               {/* Header */}
                               <div className="flex items-center justify-between h-6">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-white">{authorName}</span>
-                                  <span className="text-xs text-neutral-600">{formatTime(comment.created_at)}</span>
+                                  <span className="text-sm font-medium text-neutral-900 dark:text-white">{authorName}</span>
+                                  <span className="text-xs text-neutral-400 dark:text-neutral-600">{formatTime(comment.created_at)}</span>
                                 </div>
 
                                 {/* Hover actions */}
@@ -1344,7 +1350,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                                   {isOwnComment && (
                                     <button
                                       onClick={() => startEdit(comment)}
-                                      className="px-2 py-0.5 rounded text-xs text-neutral-500 hover:text-white hover:bg-neutral-800"
+                                      className="px-2 py-0.5 rounded text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                     >
                                       Edit
                                     </button>
@@ -1358,9 +1364,9 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                                         setShowCommentMenuForComment(null);
                                         setShowFullEmojiPickerForComment(null);
                                       }}
-                                      className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800"
+                                      className="p-1 rounded text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                     >
-                                      <Smile size={14} />
+                                      <Icon name="smiley-happy" size={14} />
                                     </button>
 
                                     {/* Quick Reaction Picker */}
@@ -1402,29 +1408,29 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                                         setShowReactionPickerForComment(null);
                                         setShowFullEmojiPickerForComment(null);
                                       }}
-                                      className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800"
+                                      className="p-1 rounded text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                     >
-                                      <MoreHorizontal size={14} />
+                                      <Icon name="dot-horizontal" size={14} />
                                     </button>
 
                                     {/* Dropdown menu */}
                                     {showCommentMenuForComment === comment.id && (
                                       <>
                                         <div className="fixed inset-0 z-40" onClick={closeAllHoverMenus} />
-                                        <div className="absolute right-0 top-full mt-1 w-44 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
+                                        <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
                                           <button
                                             onClick={() => handleCopyCommentLink(comment.id)}
-                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                           >
-                                            <Copy size={14} />
+                                            <Icon name="copy-right" size={14} />
                                             Copy link
                                           </button>
                                           {isOwnComment && (
                                             <button
                                               onClick={() => handleDeleteCommentClick(comment.id)}
-                                              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-neutral-800"
+                                              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                             >
-                                              <Trash2 size={14} />
+                                              <Icon name="trash-01" size={14} />
                                               Delete comment
                                             </button>
                                           )}
@@ -1442,54 +1448,54 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                                   {/* Formatting toolbar */}
                                   {showEditFormattingToolbar && (
                                     <div className="flex items-center gap-1 pb-2">
-                                      <button onClick={() => insertBold(false)} className={`p-1 rounded transition-colors ${activeEditFormats.bold ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Bold">
-                                        <Bold size={14} />
+                                      <button onClick={() => insertBold(false)} className={`p-1 rounded transition-colors ${activeEditFormats.bold ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`} title="Bold">
+                                        <Icon name="bold-01" size={14} />
                                       </button>
-                                      <button onClick={() => insertItalic(false)} className={`p-1 rounded transition-colors ${activeEditFormats.italic ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Italic">
-                                        <Italic size={14} />
+                                      <button onClick={() => insertItalic(false)} className={`p-1 rounded transition-colors ${activeEditFormats.italic ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`} title="Italic">
+                                        <Icon name="italics-01" size={14} />
                                       </button>
-                                      <button onClick={() => insertStrikethrough(false)} className={`p-1 rounded transition-colors ${activeEditFormats.strikeThrough ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Strikethrough">
-                                        <Strikethrough size={14} />
+                                      <button onClick={() => insertStrikethrough(false)} className={`p-1 rounded transition-colors ${activeEditFormats.strikeThrough ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`} title="Strikethrough">
+                                        <Icon name="type-strike-01" size={14} />
                                       </button>
-                                      <button onClick={() => insertUnderline(false)} className={`p-1 rounded transition-colors ${activeEditFormats.underline ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Underline">
-                                        <Underline size={14} />
+                                      <button onClick={() => insertUnderline(false)} className={`p-1 rounded transition-colors ${activeEditFormats.underline ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`} title="Underline">
+                                        <Icon name="underline-01" size={14} />
                                       </button>
-                                      <div className="w-px h-3 bg-neutral-700 mx-0.5" />
-                                      <button onClick={() => insertBulletList(false)} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Bullet list">
-                                        <List size={14} />
+                                      <div className="w-px h-3 bg-neutral-300 dark:bg-neutral-700 mx-0.5" />
+                                      <button onClick={() => insertBulletList(false)} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Bullet list">
+                                        <Icon name="list" size={14} />
                                       </button>
-                                      <button onClick={() => insertNumberedList(false)} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Numbered list">
-                                        <ListOrdered size={14} />
+                                      <button onClick={() => insertNumberedList(false)} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Numbered list">
+                                        <Icon name="list-numbers" size={14} />
                                       </button>
-                                      <button onClick={() => insertChecklist(false)} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Checklist">
-                                        <CheckSquare size={14} />
+                                      <button onClick={() => insertChecklist(false)} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Checklist">
+                                        <Icon name="check-square-contained" size={14} />
                                       </button>
                                     </div>
                                   )}
 
                                   {/* Link input */}
                                   {showEditLinkInput && (
-                                    <div className="flex items-center gap-2 p-2 bg-neutral-900 rounded-lg">
+                                    <div className="flex items-center gap-2 p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg">
                                       <input
                                         type="text"
                                         value={editLinkText}
                                         onChange={(e) => setEditLinkText(e.target.value)}
                                         placeholder="Link text"
-                                        className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                                        className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-xs placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                                       />
                                       <input
                                         type="text"
                                         value={editLinkUrl}
                                         onChange={(e) => setEditLinkUrl(e.target.value)}
                                         placeholder="URL"
-                                        className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                                        className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-xs placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                                         onKeyDown={(e) => { if (e.key === 'Enter') handleInsertLink(false); }}
                                       />
                                       <button onClick={() => handleInsertLink(false)} className="p-1 text-blue-500 hover:text-blue-400">
-                                        <CheckSquare size={14} />
+                                        <Icon name="check-square-contained" size={14} />
                                       </button>
-                                      <button onClick={() => { setShowEditLinkInput(false); setEditLinkUrl(''); setEditLinkText(''); }} className="p-1 text-neutral-500 hover:text-white">
-                                        <X size={14} />
+                                      <button onClick={() => { setShowEditLinkInput(false); setEditLinkUrl(''); setEditLinkText(''); }} className="p-1 text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white">
+                                        <Icon name="x-01" size={14} />
                                       </button>
                                     </div>
                                   )}
@@ -1498,7 +1504,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                                   <div
                                     ref={editCommentEditorRef}
                                     contentEditable
-                                    className="w-full bg-transparent text-neutral-300 text-sm focus:outline-none min-h-[40px] max-h-[100px] overflow-y-auto"
+                                    className="w-full bg-transparent text-neutral-700 dark:text-neutral-300 text-sm focus:outline-none min-h-[40px] max-h-[100px] overflow-y-auto"
                                     onKeyDown={(e) => { if (e.key === 'Escape') cancelEdit(); }}
                                     onInput={(e) => setEditedContent(e.currentTarget.innerHTML)}
                                   />
@@ -1508,26 +1514,26 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                                     <div className="flex items-center gap-1">
                                       <button
                                         onClick={() => { setShowEditLinkInput(!showEditLinkInput); setShowEditFormattingToolbar(false); setShowEditEmojiPicker(false); }}
-                                        className={`p-1 rounded transition-colors ${showEditLinkInput ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                        className={`p-1 rounded transition-colors ${showEditLinkInput ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                                         title="Add link"
                                       >
-                                        <Paperclip size={14} />
+                                        <Icon name="paperclip" size={14} />
                                       </button>
                                       <button
                                         onClick={() => { setShowEditFormattingToolbar(!showEditFormattingToolbar); setShowEditLinkInput(false); setShowEditEmojiPicker(false); }}
-                                        className={`p-1 rounded transition-colors ${showEditFormattingToolbar ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                        className={`p-1 rounded transition-colors ${showEditFormattingToolbar ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                                         title="Text formatting"
                                       >
-                                        <Type size={14} />
+                                        <Icon name="type-01" size={14} />
                                       </button>
                                       <div className="relative">
                                         <button
                                           ref={editEmojiButtonRef}
                                           onClick={() => { setShowEditEmojiPicker(!showEditEmojiPicker); setShowEditFormattingToolbar(false); setShowEditLinkInput(false); }}
-                                          className={`p-1 rounded transition-colors ${showEditEmojiPicker ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                          className={`p-1 rounded transition-colors ${showEditEmojiPicker ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                                           title="Add emoji"
                                         >
-                                          <Smile size={14} />
+                                          <Icon name="smiley-happy" size={14} />
                                         </button>
                                         {showEditEmojiPicker && (
                                           <>
@@ -1542,10 +1548,10 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                                       </div>
                                     </div>
                                     <div className="flex gap-2">
-                                      <button onClick={cancelEdit} className="text-xs text-neutral-400 hover:text-white">
+                                      <button onClick={cancelEdit} className="text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white">
                                         Cancel
                                       </button>
-                                      <button onClick={() => saveEdit(comment.id)} className="text-xs text-white hover:text-neutral-300">
+                                      <button onClick={() => saveEdit(comment.id)} className="text-xs text-neutral-900 dark:text-white hover:text-neutral-600 dark:hover:text-neutral-300">
                                         Save
                                       </button>
                                     </div>
@@ -1555,7 +1561,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                                 // VIEW MODE
                                 <>
                                   <div
-                                    className="text-sm text-neutral-300"
+                                    className="text-sm text-neutral-700 dark:text-neutral-300"
                                     dangerouslySetInnerHTML={{ __html: comment.content }}
                                   />
 
@@ -1568,8 +1574,8 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                                           onClick={() => handleReactionClick(comment.id, reaction.emoji)}
                                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${
                                             reaction.hasCurrentUser
-                                              ? 'bg-transparent border border-white/60 text-white'
-                                              : 'bg-transparent border border-neutral-600 text-neutral-400 hover:border-neutral-500'
+                                              ? 'bg-transparent border border-neutral-900/60 dark:border-white/60 text-neutral-900 dark:text-white'
+                                              : 'bg-transparent border border-neutral-300 dark:border-neutral-600 text-neutral-500 dark:text-neutral-400 hover:border-neutral-400 dark:hover:border-neutral-500'
                                           }`}
                                           title={`${reaction.count} reaction${reaction.count > 1 ? 's' : ''}`}
                                         >
@@ -1600,75 +1606,75 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                 <div className="flex items-center gap-1 pb-2">
                   <button
                     onClick={() => insertBold(true)}
-                    className={`p-1.5 rounded transition-colors ${activeFormats.bold ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                    className={`p-1.5 rounded transition-colors ${activeFormats.bold ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                     title="Bold"
                   >
-                    <Bold size={16} />
+                    <Icon name="bold-01" size={16} />
                   </button>
                   <button
                     onClick={() => insertItalic(true)}
-                    className={`p-1.5 rounded transition-colors ${activeFormats.italic ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                    className={`p-1.5 rounded transition-colors ${activeFormats.italic ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                     title="Italic"
                   >
-                    <Italic size={16} />
+                    <Icon name="italics-01" size={16} />
                   </button>
                   <button
                     onClick={() => insertStrikethrough(true)}
-                    className={`p-1.5 rounded transition-colors ${activeFormats.strikeThrough ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                    className={`p-1.5 rounded transition-colors ${activeFormats.strikeThrough ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                     title="Strikethrough"
                   >
-                    <Strikethrough size={16} />
+                    <Icon name="type-strike-01" size={16} />
                   </button>
                   <button
                     onClick={() => insertUnderline(true)}
-                    className={`p-1.5 rounded transition-colors ${activeFormats.underline ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                    className={`p-1.5 rounded transition-colors ${activeFormats.underline ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                     title="Underline"
                   >
-                    <Underline size={16} />
+                    <Icon name="underline-01" size={16} />
                   </button>
-                  <div className="w-px h-4 bg-neutral-700 mx-1" />
-                  <button onClick={() => insertBulletList(true)} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Bullet list">
-                    <List size={16} />
+                  <div className="w-px h-4 bg-neutral-300 dark:bg-neutral-700 mx-1" />
+                  <button onClick={() => insertBulletList(true)} className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Bullet list">
+                    <Icon name="list" size={16} />
                   </button>
-                  <button onClick={() => insertNumberedList(true)} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Numbered list">
-                    <ListOrdered size={16} />
+                  <button onClick={() => insertNumberedList(true)} className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Numbered list">
+                    <Icon name="list-numbers" size={16} />
                   </button>
-                  <button onClick={() => insertChecklist(true)} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Checklist">
-                    <CheckSquare size={16} />
+                  <button onClick={() => insertChecklist(true)} className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Checklist">
+                    <Icon name="check-square-contained" size={16} />
                   </button>
                 </div>
               )}
 
               {/* Link input */}
               {showLinkInput && (
-                <div className="flex items-center gap-2 p-2 bg-neutral-900 rounded-lg">
+                <div className="flex items-center gap-2 p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg">
                   <input
                     type="text"
                     value={linkText}
                     onChange={(e) => setLinkText(e.target.value)}
                     placeholder="Link text (optional)"
-                    className="flex-1 bg-transparent text-neutral-300 text-sm placeholder-neutral-600 focus:outline-none"
+                    className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                   />
                   <input
                     type="text"
                     value={linkUrl}
                     onChange={(e) => setLinkUrl(e.target.value)}
                     placeholder="URL"
-                    className="flex-1 bg-transparent text-neutral-300 text-sm placeholder-neutral-600 focus:outline-none"
+                    className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                     onKeyDown={(e) => { if (e.key === 'Enter') handleInsertLink(true); }}
                   />
                   <button onClick={() => handleInsertLink(true)} className="p-1 text-blue-500 hover:text-blue-400">
-                    <CheckSquare size={16} />
+                    <Icon name="check-square-contained" size={16} />
                   </button>
-                  <button onClick={() => { setShowLinkInput(false); setLinkUrl(''); setLinkText(''); }} className="p-1 text-neutral-500 hover:text-white">
-                    <X size={16} />
+                  <button onClick={() => { setShowLinkInput(false); setLinkUrl(''); setLinkText(''); }} className="p-1 text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white">
+                    <Icon name="x-01" size={16} />
                   </button>
                 </div>
               )}
 
               {/* Notes label */}
               {activeTab === 'notes' && (
-                <div className="text-xs text-neutral-500 mb-1">🔒 Only visible to team members</div>
+                <div className="text-xs text-neutral-400 dark:text-neutral-500 mb-1">🔒 Only visible to team members</div>
               )}
 
               {/* Message editor */}
@@ -1676,7 +1682,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                 ref={newCommentEditorRef}
                 contentEditable
                 data-placeholder={activeTab === 'notes' ? "Add a private note..." : "Leave a message..."}
-                className="w-full bg-transparent text-neutral-300 text-sm focus:outline-none min-h-[20px] max-h-[120px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-600"
+                className="w-full bg-transparent text-neutral-700 dark:text-neutral-300 text-sm focus:outline-none min-h-[20px] max-h-[120px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-400 dark:empty:before:text-neutral-600"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -1691,26 +1697,26 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => { setShowLinkInput(!showLinkInput); setShowFormattingToolbar(false); setShowNewCommentEmojiPicker(false); }}
-                    className={`p-1.5 rounded transition-colors ${showLinkInput ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                    className={`p-1.5 rounded transition-colors ${showLinkInput ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                     title="Add link"
                   >
-                    <Paperclip size={16} />
+                    <Icon name="paperclip" size={16} />
                   </button>
                   <button
                     onClick={() => { setShowFormattingToolbar(!showFormattingToolbar); setShowLinkInput(false); setShowNewCommentEmojiPicker(false); }}
-                    className={`p-1.5 rounded transition-colors ${showFormattingToolbar ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                    className={`p-1.5 rounded transition-colors ${showFormattingToolbar ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                     title="Text formatting"
                   >
-                    <Type size={16} />
+                    <Icon name="type-01" size={16} />
                   </button>
                   <div className="relative">
                     <button
                       ref={newCommentEmojiButtonRef}
                       onClick={() => { setShowNewCommentEmojiPicker(!showNewCommentEmojiPicker); setShowFormattingToolbar(false); setShowLinkInput(false); }}
-                      className={`p-1.5 rounded transition-colors ${showNewCommentEmojiPicker ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                      className={`p-1.5 rounded transition-colors ${showNewCommentEmojiPicker ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                       title="Add emoji"
                     >
-                      <Smile size={16} />
+                      <Icon name="smiley-happy" size={16} />
                     </button>
                     {showNewCommentEmojiPicker && (
                       <>
@@ -1727,7 +1733,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                 <button
                   onClick={handleSendCommentWrapper}
                   disabled={!newComment.trim() || newComment === '<br>'}
-                  className={`transition-colors ${newComment.trim() && newComment !== '<br>' ? 'text-neutral-400 hover:text-white' : 'text-neutral-700 cursor-not-allowed'}`}
+                  className={`transition-colors ${newComment.trim() && newComment !== '<br>' ? 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white' : 'text-neutral-300 dark:text-neutral-700 cursor-not-allowed'}`}
                 >
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M2 10l16-8-8 16-2-6-6-2z" />
@@ -1754,7 +1760,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-                  <Globe size={18} className="text-neutral-500 dark:text-neutral-400" />
+                  <Icon name="globe" size={18} className="text-neutral-500 dark:text-neutral-400" />
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Add Website</h2>
@@ -1765,7 +1771,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                 onClick={() => { setIsAddingWebsite(false); setWebsiteUrl(''); }}
                 className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
               >
-                <X size={18} />
+                <Icon name="x-01" size={18} />
               </button>
             </div>
             <div className="p-5 space-y-4">
@@ -1792,7 +1798,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                     : 'bg-neutral-900 dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200'
                 }`}
               >
-                {isCreatingVersion ? <><Loader2 size={14} className="animate-spin" /> Adding...</> : 'Add Website'}
+                {isCreatingVersion ? <><Icon name="loader-01" size={14} className="animate-spin" /> Adding...</> : 'Add Website'}
               </button>
             </div>
           </div>
@@ -1812,7 +1818,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-                  <Code2 size={18} className="text-neutral-500 dark:text-neutral-400" />
+                  <Icon name="code-01" size={18} className="text-neutral-500 dark:text-neutral-400" />
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Add Embed</h2>
@@ -1823,7 +1829,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                 onClick={() => { setIsAddingEmbed(false); setEmbedUrl(''); }}
                 className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
               >
-                <X size={18} />
+                <Icon name="x-01" size={18} />
               </button>
             </div>
             <div className="p-5 space-y-4">
@@ -1850,7 +1856,7 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
                     : 'bg-neutral-900 dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200'
                 }`}
               >
-                {isCreatingVersion ? <><Loader2 size={14} className="animate-spin" /> Adding...</> : 'Add Embed'}
+                {isCreatingVersion ? <><Icon name="loader-01" size={14} className="animate-spin" /> Adding...</> : 'Add Embed'}
               </button>
             </div>
           </div>
@@ -1871,16 +1877,16 @@ export const VersionlessTaskView = ({ task, team, onUpdateTask, onVersionCreated
       {showDeleteConfirmModal && (
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={cancelDeleteComment} />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#1a1a1a] border border-neutral-800 rounded-xl shadow-2xl z-50 w-80 overflow-hidden">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-2xl z-50 w-80 overflow-hidden">
             <div className="p-4">
-              <h3 className="text-lg font-semibold text-white mb-2">Delete Comment</h3>
-              <p className="text-sm text-neutral-400 mb-4">
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">Delete Comment</h3>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
                 Are you sure you want to delete this comment? This action cannot be undone.
               </p>
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={cancelDeleteComment}
-                  className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
+                  className="px-4 py-2 text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
                 >
                   Cancel
                 </button>

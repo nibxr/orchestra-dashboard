@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ChevronDown, ChevronRight, Search, LayoutGrid, List as ListIcon, User, Briefcase } from 'lucide-react';
+import { Icon } from './Icon';
 
 // --- RADIO CIRCLE INDICATOR (shared between both menus) ---
 const RadioCircle = ({ active, className = '' }) => (
@@ -47,13 +47,13 @@ export const DisplayMenu = ({ settings, onUpdate, onClose, isCustomer = false })
                 onClick={() => setView('kanban')}
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-medium transition-all ${settings.view === 'kanban' ? 'bg-neutral-200 dark:bg-neutral-800 text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-600 dark:text-neutral-300'}`}
             >
-                <LayoutGrid size={14} /> Board
+                <Icon name="layout-grid-01" size={14} /> Board
             </button>
             <button
                 onClick={() => setView('list')}
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-medium transition-all ${settings.view === 'list' ? 'bg-neutral-200 dark:bg-neutral-800 text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-600 dark:text-neutral-300'}`}
             >
-                <ListIcon size={14} /> List
+                <Icon name="list" size={14} /> List
             </button>
         </div>
 
@@ -156,7 +156,7 @@ export const FilterMenu = ({ filters, onUpdate, team, clients, onClose }) => {
             onClick={(e) => e.stopPropagation()}
         >
              <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2 shrink-0">
-                <Search size={14} className="text-neutral-500" />
+                <Icon name="search-01" size={14} className="text-neutral-500" />
                 <input
                   type="text"
                   placeholder="Search"
@@ -172,8 +172,8 @@ export const FilterMenu = ({ filters, onUpdate, team, clients, onClose }) => {
                    onClick={() => setAssigneeOpen(!assigneeOpen)}
                    className="w-full px-2 py-1.5 text-xs font-medium text-neutral-500 uppercase tracking-wider flex items-center gap-2 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors rounded-lg"
                  >
-                     <ChevronDown size={12} className={`transition-transform duration-200 ${assigneeOpen ? '' : '-rotate-90'}`} />
-                     <User size={12} /> Assignee
+                     <Icon name="chevron-down" size={12} className={`transition-transform duration-200 ${assigneeOpen ? '' : '-rotate-90'}`} />
+                     <Icon name="user-profile-01" size={12} /> Assignee
                  </button>
                  {assigneeOpen && (
                    <div className="space-y-0.5 pb-2">
@@ -205,8 +205,8 @@ export const FilterMenu = ({ filters, onUpdate, team, clients, onClose }) => {
                    onClick={() => setClientOpen(!clientOpen)}
                    className="w-full px-2 py-1.5 text-xs font-medium text-neutral-500 uppercase tracking-wider flex items-center gap-2 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors rounded-lg"
                  >
-                     <ChevronDown size={12} className={`transition-transform duration-200 ${clientOpen ? '' : '-rotate-90'}`} />
-                     <Briefcase size={12} /> Client
+                     <Icon name="chevron-down" size={12} className={`transition-transform duration-200 ${clientOpen ? '' : '-rotate-90'}`} />
+                     <Icon name="bag-01" size={12} /> Client
                  </button>
                  {clientOpen && (
                    <div className="space-y-0.5 pb-2">

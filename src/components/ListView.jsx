@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Calendar, User, Briefcase, Circle, Hash } from 'lucide-react';
+import { Icon } from './Icon';
 import { STATUS_CONFIG } from '../utils/constants';
 import { Avatar } from './Shared';
 
@@ -14,8 +14,8 @@ export const ListView = ({ tasks, setActiveTask, displaySettings }) => {
     return (
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
             <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white dark:bg-[#0f0f0f] overflow-hidden">
-                <table className="w-full text-left text-sm border-collapse">
-                    <thead className="bg-neutral-50 dark:bg-[#141414] text-neutral-500 font-medium text-xs uppercase tracking-wider border-b border-neutral-200 dark:border-neutral-800 sticky top-0 z-10">
+                <table className="w-full text-left text-body-md border-collapse">
+                    <thead className="bg-neutral-50 dark:bg-[#141414] text-neutral-500 font-medium text-body-sm uppercase tracking-wider border-b border-neutral-200 dark:border-neutral-800 sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-3 font-medium w-[40%]">Title</th>
                             <th className="px-6 py-3 font-medium">Status</th>
@@ -41,7 +41,7 @@ export const ListView = ({ tasks, setActiveTask, displaySettings }) => {
                                         </span>
                                         {task.commentCount > 0 && (
                                             <div className="flex items-center gap-1 text-neutral-600 text-xs">
-                                                <MessageSquare size={10} /> {task.commentCount}
+                                                <Icon name="message-square" size={10} /> {task.commentCount}
                                             </div>
                                         )}
                                     </div>
@@ -56,7 +56,7 @@ export const ListView = ({ tasks, setActiveTask, displaySettings }) => {
                                 {showClient && (
                                     <td className="px-6 py-3">
                                         <div className="flex items-center gap-2 text-neutral-400">
-                                            <Briefcase size={12} />
+                                            <Icon name="bag-01" size={12} />
                                             <span className="truncate max-w-[150px]">{task.clientName || 'Internal'}</span>
                                         </div>
                                     </td>

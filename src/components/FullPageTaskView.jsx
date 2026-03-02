@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X, ArrowLeft } from 'lucide-react';
+import { Icon } from './Icon';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { TaskDetails } from './TaskDetails';
@@ -157,13 +157,10 @@ export const FullPageTaskView = () => {
             <div className="w-12 h-12 border-2 border-neutral-900 dark:border-neutral-500 border-t-transparent dark:border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
           </div>
           <div className="text-center space-y-2">
-            <p
-              className="text-neutral-400 dark:text-neutral-600 tracking-[0.2em] uppercase"
-              style={{ fontWeight: 200, fontSize: '14px', letterSpacing: '0.2em' }}
-            >
+            <p className="font-lastik text-body-md font-normal text-neutral-400 dark:text-neutral-600 tracking-[0.2em] uppercase">
               Loading
             </p>
-            <p className="text-sm text-neutral-500 dark:text-neutral-500 font-medium">
+            <p className="text-body-md text-neutral-500 dark:text-neutral-500 font-medium">
               {task?.title || 'Opening task...'}
             </p>
           </div>
@@ -181,7 +178,7 @@ export const FullPageTaskView = () => {
             onClick={() => navigate('/')}
             className="text-neutral-900 dark:text-white hover:text-neutral-600 dark:hover:text-neutral-300 flex items-center gap-2 mx-auto"
           >
-            <ArrowLeft size={16} />
+            <Icon name="arrow-left" size={16} />
             Back to Dashboard
           </button>
         </div>

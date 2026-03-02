@@ -1,33 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-    LayoutGrid,
-    Users,
-    CheckCircle2,
-    Clock,
-    AlertCircle,
-    ArrowUpRight,
-    TrendingUp,
-    Calendar as CalendarIcon,
-    Search,
-    Filter,
-    MoreVertical,
-    Plus,
-    CreditCard,
-    DollarSign,
-    Download,
-    Building2,
-    Database,
-    ExternalLink,
-    X,
-    Wallet,
-    Calendar, // Added missing import
-    Pause,
-    Play,
-    XCircle,
-    RefreshCw,
-    Loader2,
-    Shield,
-} from 'lucide-react';
+import { Icon } from './Icon';
 import { supabase } from '../supabaseClient';
 import { useToast } from './Toast';
 import { manageSubscription, redirectToCustomerPortal } from '../utils/stripeService';
@@ -202,8 +174,8 @@ export const AnalyticsView = ({ tasks = [], clients = [], team = [], agreements 
   // ══════════════════════════════════════════
   const StatCard = ({ label, value, sub, color = 'text-neutral-900 dark:text-white' }) => (
     <div className="bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
-      <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2">{label}</div>
-      <div className={`text-2xl font-bold font-mono ${color}`}>{value}</div>
+      <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-2">{label}</div>
+      <div className={`text-h6-brand font-lastik ${color}`}>{value}</div>
       {sub && <div className="text-[11px] text-neutral-400 mt-1">{sub}</div>}
     </div>
   );
@@ -214,7 +186,7 @@ export const AnalyticsView = ({ tasks = [], clients = [], team = [], agreements 
 
         {/* ───── REVENUE ───── */}
         <section>
-          <h2 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-4">Revenue</h2>
+          <h2 className="text-body-xs font-semibold text-neutral-400 uppercase tracking-widest mb-4">Revenue</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard label="Monthly Recurring Revenue" value={fmtEur(totalMRR)} sub={`${activeCount} active clients`} color="text-emerald-600 dark:text-emerald-400" />
             <StatCard label="Paused MRR" value={fmtEur(pausedMRR)} sub={`${pausedCount} paused clients`} color="text-amber-600 dark:text-amber-400" />
@@ -225,7 +197,7 @@ export const AnalyticsView = ({ tasks = [], clients = [], team = [], agreements 
           {/* MRR by Plan */}
           {mrrByPlanSorted.length > 0 && (
             <div className="mt-4 bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
-              <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-4">MRR by Plan</div>
+              <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">MRR by Plan</div>
               <div className="space-y-3">
                 {mrrByPlanSorted.map(([plan, mrr]) => (
                   <div key={plan} className="flex items-center gap-4">
@@ -249,7 +221,7 @@ export const AnalyticsView = ({ tasks = [], clients = [], team = [], agreements 
 
         {/* ───── OPERATIONS ───── */}
         <section>
-          <h2 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-4">Operations</h2>
+          <h2 className="text-body-xs font-semibold text-neutral-400 uppercase tracking-widest mb-4">Operations</h2>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
             <StatCard label="Total Tasks" value={totalTasks} sub={`${tasksLast7d} active last 7d`} />
             <StatCard label="Completion Rate" value={`${completionRate}%`} sub={`${doneTasks.length} completed`} color={Number(completionRate) > 60 ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-900 dark:text-white'} />
@@ -260,7 +232,7 @@ export const AnalyticsView = ({ tasks = [], clients = [], team = [], agreements 
 
           {/* Task Pipeline */}
           <div className="bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
-            <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-4">Task Pipeline</div>
+            <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">Task Pipeline</div>
             <div className="flex gap-2 h-8 rounded-lg overflow-hidden">
               {taskStatusMap.filter(s => s.count > 0).map(s => (
                 <div
@@ -291,7 +263,7 @@ export const AnalyticsView = ({ tasks = [], clients = [], team = [], agreements 
 
         {/* ───── TEAM ───── */}
         <section>
-          <h2 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-4">Team</h2>
+          <h2 className="text-body-xs font-semibold text-neutral-400 uppercase tracking-widest mb-4">Team</h2>
           <div className="bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
             <table className="w-full text-xs">
               <thead className="bg-neutral-50 dark:bg-[#0f0f0f] border-b border-neutral-200 dark:border-neutral-800">
@@ -352,7 +324,7 @@ export const AnalyticsView = ({ tasks = [], clients = [], team = [], agreements 
 
         {/* ───── CLIENT HEALTH ───── */}
         <section>
-          <h2 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-4">Client Health</h2>
+          <h2 className="text-body-xs font-semibold text-neutral-400 uppercase tracking-widest mb-4">Client Health</h2>
           <div className="bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
             <table className="w-full text-xs">
               <thead className="bg-neutral-50 dark:bg-[#0f0f0f] border-b border-neutral-200 dark:border-neutral-800">
@@ -414,7 +386,7 @@ export const AnalyticsView = ({ tasks = [], clients = [], team = [], agreements 
 
         {/* ───── CLIENT STATUS BREAKDOWN ───── */}
         <section>
-          <h2 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-4">Client Status Breakdown</h2>
+          <h2 className="text-body-xs font-semibold text-neutral-400 uppercase tracking-widest mb-4">Client Status Breakdown</h2>
           <div className="bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {Object.entries(statusDist).sort((a, b) => b[1] - a[1]).map(([status, count]) => {
@@ -623,29 +595,29 @@ export const PaymentsView = () => {
               <div className="grid grid-cols-4 gap-4 mb-6">
                   <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl px-5 py-4">
                       <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider">Total MRR</span>
-                          <TrendingUp size={14} className="text-emerald-500" />
+                          <span className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider">Total MRR</span>
+                          <Icon name="trend-up-01" size={14} className="text-emerald-500" />
                       </div>
                       <div className="text-2xl font-semibold text-neutral-900 dark:text-white font-mono">{fmtEuros(totalMRR)}</div>
                   </div>
                   <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl px-5 py-4">
                       <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider">Active</span>
-                          <Users size={14} className="text-emerald-500" />
+                          <span className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider">Active</span>
+                          <Icon name="users-profiles-01" size={14} className="text-emerald-500" />
                       </div>
                       <div className="text-2xl font-semibold text-neutral-900 dark:text-white">{activeClients.length}</div>
                   </div>
                   <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl px-5 py-4">
                       <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider">Paused</span>
-                          <Pause size={14} className="text-amber-500" />
+                          <span className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider">Paused</span>
+                          <Icon name="pause-01" size={14} className="text-amber-500" />
                       </div>
                       <div className="text-2xl font-semibold text-neutral-900 dark:text-white">{pausedClients.length}</div>
                   </div>
                   <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl px-5 py-4">
                       <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider">Total Clients</span>
-                          <Building2 size={14} className="text-neutral-400" />
+                          <span className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider">Total Clients</span>
+                          <Icon name="bank" size={14} className="text-neutral-400" />
                       </div>
                       <div className="text-2xl font-semibold text-neutral-900 dark:text-white">{clients.length}</div>
                   </div>
@@ -657,7 +629,7 @@ export const PaymentsView = () => {
                       {/* Search + Filter */}
                       <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 space-y-2">
                           <div className="relative">
-                              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                              <Icon name="search-01" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
                               <input
                                   type="text"
                                   placeholder="Search..."
@@ -667,7 +639,7 @@ export const PaymentsView = () => {
                               />
                               {searchQuery && (
                                   <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
-                                      <X size={12} />
+                                      <Icon name="x-01" size={12} />
                                   </button>
                               )}
                           </div>
@@ -686,7 +658,7 @@ export const PaymentsView = () => {
                       {/* Client List */}
                       <div className="flex-1 overflow-y-auto custom-scrollbar">
                           {loading ? (
-                              <div className="p-8 flex justify-center"><Loader2 size={20} className="animate-spin text-neutral-400" /></div>
+                              <div className="p-8 flex justify-center"><Icon name="loader-01" size={20} className="animate-spin text-neutral-400" /></div>
                           ) : filteredClients.length === 0 ? (
                               <div className="p-6 text-center text-neutral-500 text-xs">
                                   {searchQuery || statusFilter !== 'all' ? 'No clients match filters' : 'No clients yet'}
@@ -731,7 +703,7 @@ export const PaymentsView = () => {
                   <div className="flex-1 bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden flex flex-col min-w-0">
                       {!selectedClient ? (
                           <div className="flex-1 flex flex-col items-center justify-center text-neutral-500">
-                              <Wallet size={48} className="mb-4 opacity-10" />
+                              <Icon name="card-01" size={48} className="mb-4 opacity-10" />
                               <p className="text-sm">Select a client to view billing details</p>
                               <p className="text-xs text-neutral-400 mt-1">View subscriptions, invoices, and manage billing</p>
                           </div>
@@ -744,7 +716,7 @@ export const PaymentsView = () => {
                                           {selectedClient.client_name?.[0]?.toUpperCase() || '?'}
                                       </div>
                                       <div>
-                                          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{selectedClient.client_name}</h2>
+                                          <h2 className="text-body-lg font-semibold text-neutral-900 dark:text-white">{selectedClient.client_name}</h2>
                                           <div className="flex items-center gap-2 mt-0.5">
                                               {selectedClient.plan_name && <span className="text-xs text-neutral-500">{selectedClient.plan_name}</span>}
                                               {selectedClient.stripe_customer_id && (
@@ -757,7 +729,7 @@ export const PaymentsView = () => {
                                       onClick={handleOpenPortal}
                                       className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-colors"
                                   >
-                                      <ExternalLink size={12} /> Stripe Portal
+                                      <Icon name="link-external" size={12} /> Stripe Portal
                                   </button>
                               </div>
 
@@ -775,7 +747,7 @@ export const PaymentsView = () => {
                                       <div className="grid grid-cols-2 gap-4">
                                           {/* Next Payment */}
                                           <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-4">
-                                              <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-1">Next Payment</div>
+                                              <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">Next Payment</div>
                                               <div className="text-xl font-bold text-neutral-900 dark:text-white font-mono">
                                                   {financials.upcomingInvoice ? fmtCents(financials.upcomingInvoice.amountDue, financials.upcomingInvoice.currency) : '—'}
                                               </div>
@@ -788,7 +760,7 @@ export const PaymentsView = () => {
 
                                           {/* Plan & MRR */}
                                           <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-4">
-                                              <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-1">Plan</div>
+                                              <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">Plan</div>
                                               <div className="text-lg font-bold text-neutral-900 dark:text-white truncate">
                                                   {financials.plan?.name || selectedClient.plan_name || 'Custom'}
                                               </div>
@@ -803,8 +775,8 @@ export const PaymentsView = () => {
                                       {/* Subscription Management Actions */}
                                       <div className="bg-neutral-50 dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-xl p-4">
                                           <div className="flex items-center gap-2 mb-3">
-                                              <Shield size={12} className="text-neutral-400" />
-                                              <span className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider">Manage Subscription</span>
+                                              <Icon name="shield-01" size={12} className="text-neutral-400" />
+                                              <span className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider">Manage Subscription</span>
                                               {!hasStripeSub && (
                                                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-400 ml-auto">Local only</span>
                                               )}
@@ -816,7 +788,7 @@ export const PaymentsView = () => {
                                                       disabled={!!subAction}
                                                       className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 hover:border-amber-500/40 hover:bg-amber-500/5 transition-colors disabled:opacity-50"
                                                   >
-                                                      {subAction === 'pause' ? <Loader2 size={12} className="animate-spin text-amber-500" /> : <Pause size={12} className="text-amber-500" />}
+                                                      {subAction === 'pause' ? <Icon name="loader-01" size={12} className="animate-spin text-amber-500" /> : <Icon name="pause-01" size={12} className="text-amber-500" />}
                                                       Pause Billing
                                                   </button>
                                               )}
@@ -826,7 +798,7 @@ export const PaymentsView = () => {
                                                       disabled={!!subAction}
                                                       className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-colors disabled:opacity-50"
                                                   >
-                                                      {subAction === 'resume' ? <Loader2 size={12} className="animate-spin text-emerald-500" /> : <Play size={12} className="text-emerald-500" />}
+                                                      {subAction === 'resume' ? <Icon name="loader-01" size={12} className="animate-spin text-emerald-500" /> : <Icon name="play-01" size={12} className="text-emerald-500" />}
                                                       Resume Billing
                                                   </button>
                                               )}
@@ -836,7 +808,7 @@ export const PaymentsView = () => {
                                                       disabled={!!subAction}
                                                       className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 hover:border-red-500/40 hover:bg-red-500/5 transition-colors disabled:opacity-50"
                                                   >
-                                                      {subAction === 'cancel' ? <Loader2 size={12} className="animate-spin text-red-500" /> : <XCircle size={12} className="text-red-500" />}
+                                                      {subAction === 'cancel' ? <Icon name="loader-01" size={12} className="animate-spin text-red-500" /> : <Icon name="x-circle-contained" size={12} className="text-red-500" />}
                                                       Cancel at Period End
                                                   </button>
                                               )}
@@ -846,7 +818,7 @@ export const PaymentsView = () => {
                                                       disabled={!!subAction}
                                                       className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 hover:border-blue-500/40 hover:bg-blue-500/5 transition-colors disabled:opacity-50"
                                                   >
-                                                      {subAction === 'reactivate' ? <Loader2 size={12} className="animate-spin text-blue-500" /> : <RefreshCw size={12} className="text-blue-500" />}
+                                                      {subAction === 'reactivate' ? <Icon name="loader-01" size={12} className="animate-spin text-blue-500" /> : <Icon name="refresh-01" size={12} className="text-blue-500" />}
                                                       Reactivate
                                                   </button>
                                               )}
@@ -908,7 +880,7 @@ export const PaymentsView = () => {
                                                                               className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                                                                               title="View invoice"
                                                                           >
-                                                                              <ExternalLink size={12} />
+                                                                              <Icon name="link-external" size={12} />
                                                                           </a>
                                                                       )}
                                                                       {invoice.pdfUrl && (
@@ -919,7 +891,7 @@ export const PaymentsView = () => {
                                                                               className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                                                                               title="Download PDF"
                                                                           >
-                                                                              <Download size={12} />
+                                                                              <Icon name="download" size={12} />
                                                                           </a>
                                                                       )}
                                                                   </div>
@@ -940,7 +912,7 @@ export const PaymentsView = () => {
                                   </div>
                               ) : (
                                   <div className="flex-1 flex flex-col items-center justify-center text-neutral-500 py-20">
-                                      <AlertCircle size={32} className="mb-3 opacity-20" />
+                                      <Icon name="alert-circle" size={32} className="mb-3 opacity-20" />
                                       <p className="text-sm">Unable to load financial data</p>
                                       <p className="text-xs text-neutral-400 mt-1">
                                           {selectedClient.stripe_customer_id ? 'There may be an issue with the Stripe connection' : 'No Stripe customer ID linked'}
@@ -1099,7 +1071,7 @@ const ClientDetails = ({ client, onClose, onOpenPortal, isAdmin }) => {
                     rel="noopener noreferrer"
                     className="text-xs text-neutral-900 dark:text-white font-medium hover:underline flex items-center gap-1.5 max-w-[220px] truncate"
                 >
-                    View file <ExternalLink size={10} className="shrink-0" />
+                    View file <Icon name="link-external" size={10} className="shrink-0" />
                 </a>
             ) : (
                 <span className={`text-xs text-neutral-900 dark:text-white font-medium ${isLong ? '' : 'text-right max-w-[220px] truncate'} ${isMono ? 'font-mono text-neutral-400' : ''}`}>
@@ -1111,7 +1083,7 @@ const ClientDetails = ({ client, onClose, onOpenPortal, isAdmin }) => {
 
     const DetailSection = ({ title, rows }) => (
         <div className="px-6 py-4">
-            <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-2">{title}</div>
+            <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-2">{title}</div>
             <div className="space-y-0">
                 {rows.map((row, i) => (
                     <React.Fragment key={row.label}>
@@ -1137,10 +1109,10 @@ const ClientDetails = ({ client, onClose, onOpenPortal, isAdmin }) => {
                             onClick={() => onOpenPortal(client)}
                             className="text-[10px] font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white uppercase tracking-wider flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                         >
-                            Portal <ExternalLink size={10} />
+                            Portal <Icon name="link-external" size={10} />
                         </button>
                         <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800">
-                            <X size={16}/>
+                            <Icon name="x-01" size={16}/>
                         </button>
                     </div>
                 </div>
@@ -1154,7 +1126,7 @@ const ClientDetails = ({ client, onClose, onOpenPortal, isAdmin }) => {
                                 {client.client_name ? client.client_name[0].toUpperCase() : '?'}
                             </div>
                             <div className="min-w-0 flex-1">
-                                <h1 className="text-lg font-semibold text-neutral-900 dark:text-white truncate">{client.client_name}</h1>
+                                <h1 className="text-body-lg font-semibold text-neutral-900 dark:text-white truncate">{client.client_name}</h1>
                                 <div className="flex items-center gap-2 mt-1.5">
                                     {client.status && (
                                         <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium ${getStatusStyle(client.status)}`}>
@@ -1176,11 +1148,11 @@ const ClientDetails = ({ client, onClose, onOpenPortal, isAdmin }) => {
                     <div className="px-6 py-5">
                         <div className="grid grid-cols-2 gap-3">
                             <div className="bg-neutral-50 dark:bg-[#141414] rounded-lg p-3.5">
-                                <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-1">MRR</div>
+                                <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">MRR</div>
                                 <div className="text-base font-semibold text-neutral-900 dark:text-white font-mono">{formatCurrency(client.custom_price_ht)}</div>
                             </div>
                             <div className="bg-neutral-50 dark:bg-[#141414] rounded-lg p-3.5">
-                                <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-1">Plan</div>
+                                <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">Plan</div>
                                 <div className="text-base font-semibold text-neutral-900 dark:text-white">{client.plan_name || 'Custom'}</div>
                             </div>
                         </div>
@@ -1202,7 +1174,7 @@ const ClientDetails = ({ client, onClose, onOpenPortal, isAdmin }) => {
                     {isAdmin && (
                         <div className="px-6 py-4">
                             <div className="flex items-center gap-2 mb-3">
-                                <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider">Manage</div>
+                                <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider">Manage</div>
                                 {!hasStripeSub && !loadingFinancials && (
                                     <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-400">Local only</span>
                                 )}
@@ -1235,7 +1207,7 @@ const ClientDetails = ({ client, onClose, onOpenPortal, isAdmin }) => {
                                                 disabled={!!subAction}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-amber-500/40 hover:bg-amber-500/5 transition-colors disabled:opacity-50"
                                             >
-                                                {subAction === 'pause' ? <Loader2 size={11} className="animate-spin text-amber-500" /> : <Pause size={11} className="text-amber-500" />}
+                                                {subAction === 'pause' ? <Icon name="loader-01" size={11} className="animate-spin text-amber-500" /> : <Icon name="pause-01" size={11} className="text-amber-500" />}
                                                 Pause
                                             </button>
                                         )}
@@ -1245,7 +1217,7 @@ const ClientDetails = ({ client, onClose, onOpenPortal, isAdmin }) => {
                                                 disabled={!!subAction}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-colors disabled:opacity-50"
                                             >
-                                                {subAction === 'resume' ? <Loader2 size={11} className="animate-spin text-emerald-500" /> : <Play size={11} className="text-emerald-500" />}
+                                                {subAction === 'resume' ? <Icon name="loader-01" size={11} className="animate-spin text-emerald-500" /> : <Icon name="play-01" size={11} className="text-emerald-500" />}
                                                 Resume
                                             </button>
                                         )}
@@ -1255,7 +1227,7 @@ const ClientDetails = ({ client, onClose, onOpenPortal, isAdmin }) => {
                                                 disabled={!!subAction}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-red-500/40 hover:bg-red-500/5 transition-colors disabled:opacity-50"
                                             >
-                                                {subAction === 'cancel' ? <Loader2 size={11} className="animate-spin text-red-500" /> : <XCircle size={11} className="text-red-500" />}
+                                                {subAction === 'cancel' ? <Icon name="loader-01" size={11} className="animate-spin text-red-500" /> : <Icon name="x-circle-contained" size={11} className="text-red-500" />}
                                                 Cancel
                                             </button>
                                         )}
@@ -1265,7 +1237,7 @@ const ClientDetails = ({ client, onClose, onOpenPortal, isAdmin }) => {
                                                 disabled={!!subAction}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-blue-500/40 hover:bg-blue-500/5 transition-colors disabled:opacity-50"
                                             >
-                                                {subAction === 'reactivate' ? <Loader2 size={11} className="animate-spin text-blue-500" /> : <RefreshCw size={11} className="text-blue-500" />}
+                                                {subAction === 'reactivate' ? <Icon name="loader-01" size={11} className="animate-spin text-blue-500" /> : <Icon name="refresh-01" size={11} className="text-blue-500" />}
                                                 Reactivate
                                             </button>
                                         )}
@@ -1342,7 +1314,7 @@ const NewClientModal = ({ isOpen, onClose, onClientAdded }) => {
                         <h2 className="text-lg font-bold text-neutral-900 dark:text-white">New Client</h2>
                         <p className="text-neutral-500 text-xs mt-0.5">Add a new company to your agency.</p>
                     </div>
-                    <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"><X size={20}/></button>
+                    <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"><Icon name="x-01" size={20}/></button>
                 </div>
                 
                 <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -1350,7 +1322,7 @@ const NewClientModal = ({ isOpen, onClose, onClientAdded }) => {
                     <div className="space-y-2">
                         <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1">Company Name</label>
                         <div className="relative group">
-                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-neutral-900 dark:group-focus-within:text-neutral-900 dark:text-white transition-colors" size={18} />
+                            <Icon name="bank" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-neutral-900 dark:group-focus-within:text-neutral-900 dark:text-white transition-colors" />
                             <input 
                                 type="text" 
                                 required
@@ -1399,7 +1371,7 @@ const NewClientModal = ({ isOpen, onClose, onClientAdded }) => {
                         <div className="space-y-2">
                             <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1">Monthly Revenue (€)</label>
                             <div className="relative group">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-emerald-500 transition-colors" size={16} />
+                                <Icon name="currency-dollar" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-emerald-500 transition-colors" />
                                 <input 
                                     type="number" 
                                     required
@@ -1416,7 +1388,7 @@ const NewClientModal = ({ isOpen, onClose, onClientAdded }) => {
                          <div className="space-y-2">
                             <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide ml-1">Start Date</label>
                             <div className="relative group">
-                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-neutral-900 dark:group-focus-within:text-neutral-900 dark:text-white transition-colors" size={16} />
+                                <Icon name="calendar-01" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-neutral-900 dark:group-focus-within:text-neutral-900 dark:text-white transition-colors" />
                                 <input 
                                     type="date" 
                                     required
@@ -1432,7 +1404,7 @@ const NewClientModal = ({ isOpen, onClose, onClientAdded }) => {
                     <div className="space-y-2 pt-2 border-t border-neutral-200 dark:border-neutral-800/50">
                         <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide ml-1">Stripe Customer ID (Optional)</label>
                         <div className="relative group">
-                            <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-neutral-500 dark:group-focus-within:text-neutral-400 transition-colors" size={16} />
+                            <Icon name="card-01" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-neutral-500 dark:group-focus-within:text-neutral-400 transition-colors" />
                             <input 
                                 type="text" 
                                 placeholder="cus_..."
@@ -1557,15 +1529,15 @@ export const CustomersView = ({ agreements: initialAgreements, onOpenPortal, isA
         {/* Stats Row */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl px-5 py-4">
-            <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-1">Total MRR</div>
+            <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">Total MRR</div>
             <div className="text-2xl font-semibold text-neutral-900 dark:text-white font-mono">{formatCurrency(totalMRR)}</div>
           </div>
           <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl px-5 py-4">
-            <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-1">Active</div>
+            <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">Active</div>
             <div className="text-2xl font-semibold text-neutral-900 dark:text-white">{activeCount}</div>
           </div>
           <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl px-5 py-4">
-            <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider mb-1">Paused</div>
+            <div className="text-body-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">Paused</div>
             <div className="text-2xl font-semibold text-neutral-900 dark:text-white">{pausedCount}</div>
           </div>
         </div>
@@ -1587,7 +1559,7 @@ export const CustomersView = ({ agreements: initialAgreements, onOpenPortal, isA
             </div>
             {/* Search */}
             <div className="flex items-center gap-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg px-3 py-1.5 w-56 focus-within:ring-1 focus-within:ring-neutral-300 dark:focus-within:ring-neutral-700 transition-all">
-              <Search size={13} className="text-neutral-400 shrink-0" />
+              <Icon name="search-01" size={13} className="text-neutral-400 shrink-0" />
               <input
                 type="text"
                 placeholder="Search..."
@@ -1597,7 +1569,7 @@ export const CustomersView = ({ agreements: initialAgreements, onOpenPortal, isA
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
-                  <X size={12} />
+                  <Icon name="x-01" size={12} />
                 </button>
               )}
             </div>
@@ -1610,7 +1582,7 @@ export const CustomersView = ({ agreements: initialAgreements, onOpenPortal, isA
         {/* Table */}
         <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-[1fr_100px_100px_120px_120px] gap-4 px-5 py-3 border-b border-neutral-200 dark:border-neutral-800 text-[10px] font-medium text-neutral-400 uppercase tracking-wider">
+          <div className="grid grid-cols-[1fr_100px_100px_120px_120px] gap-4 px-5 py-3 border-b border-neutral-200 dark:border-neutral-800 text-body-xs font-medium text-neutral-400 uppercase tracking-wider">
             <div>Company</div>
             <div>Status</div>
             <div>MRR</div>
@@ -1622,7 +1594,7 @@ export const CustomersView = ({ agreements: initialAgreements, onOpenPortal, isA
           <div>
             {filteredAndSorted.length === 0 ? (
               <div className="px-5 py-16 text-center">
-                <Users size={32} className="mx-auto mb-3 text-neutral-300 dark:text-neutral-700" />
+                <Icon name="users-profiles-01" size={32} className="mx-auto mb-3 text-neutral-300 dark:text-neutral-700" />
                 <p className="text-sm text-neutral-400">
                   {searchQuery || statusFilter !== 'all' ? 'No clients match your filters' : 'No clients yet'}
                 </p>

@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Upload, Building2, Globe, Mail, Palette, Save,
-  UserPlus, MoreHorizontal, Trash2, Check, X,
-  Columns, Plus, GripVertical, ArrowUp, ArrowDown,
-  CreditCard, Layout, Zap,
-  Link as LinkIcon, User, Lock, LogOut, AlertCircle,
-} from 'lucide-react';
+import { Icon } from './Icon';
 import { supabase } from '../supabaseClient';
 import { STATUS_CONFIG } from '../utils/constants';
 import { useAuth } from '../contexts/AuthContext';
@@ -201,8 +195,8 @@ export const ProfileSettingsView = () => {
         <div className="max-w-2xl mx-auto p-8 animate-fade-in pb-24">
             {/* Page Header */}
             <div className="mb-8">
-                <h1 className="text-xl font-semibold text-neutral-900 dark:text-white mb-1">Profile</h1>
-                <p className="text-sm text-neutral-400">Manage your personal account settings.</p>
+                <h1 className="font-lastik text-h6-brand text-neutral-900 dark:text-white mb-1">Profile</h1>
+                <p className="text-body-md text-neutral-400">Manage your personal account settings.</p>
             </div>
 
             {/* Avatar & Identity Section */}
@@ -219,7 +213,7 @@ export const ProfileSettingsView = () => {
                             {avatarUploading ? (
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                             ) : (
-                                <Upload size={16} className="text-white" />
+                                <Icon name="upload-01" size={16} className="text-white" />
                             )}
                             <input
                                 type="file"
@@ -303,7 +297,7 @@ export const ProfileSettingsView = () => {
                         {loading ? (
                             <div className="w-3.5 h-3.5 border-2 border-white/30 dark:border-black/30 border-t-white dark:border-t-black rounded-full animate-spin"></div>
                         ) : (
-                            <Save size={14} />
+                            <Icon name="save-01" size={14} />
                         )}
                         Save Changes
                     </button>
@@ -363,12 +357,12 @@ export const ProfileSettingsView = () => {
                         </div>
                         {passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
                             <p className="text-[11px] text-red-500 flex items-center gap-1">
-                                <X size={12} /> Passwords don&apos;t match
+                                <Icon name="x-01" size={12} /> Passwords don&apos;t match
                             </p>
                         )}
                         {passwordData.confirmPassword && passwordData.newPassword === passwordData.confirmPassword && passwordData.newPassword.length >= 6 && (
                             <p className="text-[11px] text-emerald-500 flex items-center gap-1">
-                                <Check size={12} /> Passwords match
+                                <Icon name="check-01" size={12} /> Passwords match
                             </p>
                         )}
                     </div>
@@ -383,7 +377,7 @@ export const ProfileSettingsView = () => {
                         {passwordLoading ? (
                             <div className="w-3.5 h-3.5 border-2 border-white/30 dark:border-black/30 border-t-white dark:border-t-black rounded-full animate-spin"></div>
                         ) : (
-                            <Lock size={14} />
+                            <Icon name="lock-01" size={14} />
                         )}
                         Update Password
                     </button>
@@ -401,7 +395,7 @@ export const ProfileSettingsView = () => {
                         onClick={handleSignOut}
                         className="flex items-center gap-2 px-4 py-2 text-red-500 border border-red-500/20 rounded-lg text-xs font-semibold hover:bg-red-500/10 transition-all active:scale-[0.97]"
                     >
-                        <LogOut size={14} />
+                        <Icon name="logout-01" size={14} />
                         Sign Out
                     </button>
                 </div>
@@ -469,7 +463,7 @@ export const AgencySettingsView = () => {
     return (
         <div className="max-w-4xl mx-auto p-8 animate-fade-in pb-24">
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white mb-2">Agency Settings</h1>
+                <h1 className="font-lastik text-h6-brand text-white mb-2">Agency Settings</h1>
                 <p className="text-neutral-500 text-sm">Manage your agency's branding and public profile.</p>
             </div>
 
@@ -484,10 +478,10 @@ export const AgencySettingsView = () => {
                         {formData.logoUrl ? (
                             <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-cover" />
                         ) : (
-                            <Building2 className="text-neutral-700" size={32} />
+                            <Icon name="bank" size={32} className="text-neutral-700" />
                         )}
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Upload className="text-white" size={20} />
+                            <Icon name="upload-01" size={20} className="text-white" />
                         </div>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -550,7 +544,7 @@ export const AgencySettingsView = () => {
             </div>
             <div className="flex justify-end pt-4 border-t border-neutral-800">
                  <button id="save-btn" onClick={handleSave} disabled={loading} className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-all active:scale-95 disabled:opacity-50">
-                    {loading ? <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div> : <Save size={16} />} Save Changes
+                    {loading ? <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div> : <Icon name="save-01" size={16} />} Save Changes
                  </button>
             </div>
         </div>
@@ -634,14 +628,14 @@ export const TeamSettingsView = ({ team }) => {
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-xl font-semibold text-neutral-900 dark:text-white mb-1">Team</h1>
+                    <h1 className="font-lastik text-h6-brand text-neutral-900 dark:text-white mb-1">Team</h1>
                     <p className="text-sm text-neutral-400">Manage your team members and roles.</p>
                 </div>
                 <button
                     onClick={() => setIsInviteOpen(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all active:scale-[0.97]"
                 >
-                    <UserPlus size={14} /> Invite
+                    <Icon name="user-profile-01" size={14} /> Invite
                 </button>
             </div>
 
@@ -654,7 +648,7 @@ export const TeamSettingsView = ({ team }) => {
             <div className="bg-white dark:bg-[#0f0f0f] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden divide-y divide-neutral-100 dark:divide-neutral-800/50">
                 {visibleMembers.length === 0 ? (
                     <div className="py-16 text-center">
-                        <User size={32} className="mx-auto mb-3 text-neutral-300 dark:text-neutral-700" />
+                        <Icon name="user-profile-01" size={32} className="mx-auto mb-3 text-neutral-300 dark:text-neutral-700" />
                         <p className="text-sm text-neutral-400">No team members yet</p>
                     </div>
                 ) : (
@@ -731,7 +725,7 @@ export const TeamSettingsView = ({ team }) => {
                         <div className="px-6 py-4 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center">
                             <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Invite Team Member</h3>
                             <button onClick={() => setIsInviteOpen(false)} className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors p-1">
-                                <X size={16} />
+                                <Icon name="x-01" size={16} />
                             </button>
                         </div>
                         <form onSubmit={handleInvite} className="p-6 space-y-5">
@@ -777,7 +771,7 @@ export const TeamSettingsView = ({ team }) => {
                                 {loading ? (
                                     <div className="w-4 h-4 border-2 border-white/30 dark:border-black/30 border-t-white dark:border-t-black rounded-full animate-spin"></div>
                                 ) : (
-                                    <UserPlus size={14} />
+                                    <Icon name="user-profile-01" size={14} />
                                 )}
                                 {loading ? 'Inviting...' : 'Send Invite'}
                             </button>
@@ -848,7 +842,7 @@ export const WorkflowSettingsView = () => {
         <div className="max-w-4xl mx-auto p-8 animate-fade-in pb-24">
             <div className="mb-8 flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-white mb-2">Workflow</h1>
+                    <h1 className="font-lastik text-h6-brand text-white mb-2">Workflow</h1>
                     <p className="text-neutral-500 text-sm">Configure your 4 core workflow stages.</p>
                 </div>
                 {/* Removed "Add Status" button to enforce the strict 4-status rule */}
@@ -859,8 +853,8 @@ export const WorkflowSettingsView = () => {
                     <div key={status.id + index} className="bg-[#141414] border border-neutral-800 rounded-xl overflow-hidden transition-all">
                         <div className="flex items-center gap-4 p-4 group hover:bg-[#1a1a1a] cursor-pointer" onClick={() => setExpandedId(expandedId === status.id ? null : status.id)}>
                              <div className="flex flex-col gap-1 text-neutral-600" onClick={e => e.stopPropagation()}>
-                                <button onClick={() => moveStatus(index, 'up')} disabled={index === 0} className="hover:text-white disabled:opacity-20"><ArrowUp size={14}/></button>
-                                <button onClick={() => moveStatus(index, 'down')} disabled={index === statuses.length - 1} className="hover:text-white disabled:opacity-20"><ArrowDown size={14}/></button>
+                                <button onClick={() => moveStatus(index, 'up')} disabled={index === 0} className="hover:text-white disabled:opacity-20"><Icon name="chevron-up" size={14}/></button>
+                                <button onClick={() => moveStatus(index, 'down')} disabled={index === statuses.length - 1} className="hover:text-white disabled:opacity-20"><Icon name="chevron-down" size={14}/></button>
                             </div>
                             <div className="w-8 h-8 rounded-lg border border-neutral-700 flex items-center justify-center" style={{ color: status.color.replace('text-', '') }}>
                                 <div className="w-4 h-4 rounded-full bg-current opacity-80"></div>
@@ -882,7 +876,7 @@ export const WorkflowSettingsView = () => {
                                     </div>
                                 </div>
                                 <div className="space-y-4">
-                                    <label className="text-xs font-bold text-neutral-500 uppercase mb-2 block flex items-center gap-2"><Zap size={14} className="text-amber-500"/> Automations</label>
+                                    <label className="text-xs font-bold text-neutral-500 uppercase mb-2 block flex items-center gap-2"><Icon name="lightning-01" size={14} className="text-amber-500"/> Automations</label>
                                     <div className="bg-[#1a1a1a] border border-neutral-800 rounded-lg p-4 space-y-3">
                                         <div className="flex items-center justify-between">
                                             <div className="text-sm text-white">Notify Client</div>
@@ -958,13 +952,13 @@ export const ClientPortalSettingsView = () => {
     return (
         <div className="max-w-4xl mx-auto p-8 animate-fade-in pb-24">
              <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white mb-2">Client Portal</h1>
+                <h1 className="font-lastik text-h6-brand text-white mb-2">Client Portal</h1>
                 <p className="text-neutral-500 text-sm">Customize what your clients see when they log in.</p>
             </div>
 
             <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 mb-6 flex gap-8">
                 <div className="flex-1 space-y-6">
-                    <h3 className="font-bold text-white text-sm flex items-center gap-2"><Layout size={16}/> Login Screen</h3>
+                    <h3 className="font-bold text-white text-sm flex items-center gap-2"><Icon name="layout-grid-01" size={16}/> Login Screen</h3>
                     <div className="space-y-2">
                         <label className="text-xs font-medium text-neutral-400 uppercase">Portal Name</label>
                         <input type="text" className="w-full bg-[#0f0f0f] border border-neutral-800 rounded-lg p-2.5 text-white text-sm outline-none focus:border-neutral-600" value={settings.portalName} onChange={e => setSettings({...settings, portalName: e.target.value})} />
@@ -999,7 +993,7 @@ export const ClientPortalSettingsView = () => {
             </div>
 
             <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 mb-6">
-                <h3 className="font-bold text-white mb-4 text-sm flex items-center gap-2"><Zap size={16}/> Features & Links</h3>
+                <h3 className="font-bold text-white mb-4 text-sm flex items-center gap-2"><Icon name="lightning-01" size={16}/> Features & Links</h3>
                 <div className="grid grid-cols-2 gap-8">
                     <div className="space-y-4">
                          <div className="flex items-center justify-between p-3 bg-[#0f0f0f] rounded-lg border border-neutral-800">
@@ -1019,8 +1013,8 @@ export const ClientPortalSettingsView = () => {
                         <div className="space-y-2">
                             {settings.links.map((link, i) => (
                                 <div key={i} className="flex items-center justify-between p-2 bg-[#0f0f0f] border border-neutral-800 rounded text-sm">
-                                    <div className="flex items-center gap-2 text-white"><LinkIcon size={12} className="text-neutral-500"/> {link.label}</div>
-                                    <button onClick={() => setSettings({...settings, links: settings.links.filter((_, idx) => idx !== i)})} className="text-neutral-600 hover:text-red-500"><X size={12}/></button>
+                                    <div className="flex items-center gap-2 text-white"><Icon name="link" size={12} className="text-neutral-500"/> {link.label}</div>
+                                    <button onClick={() => setSettings({...settings, links: settings.links.filter((_, idx) => idx !== i)})} className="text-neutral-600 hover:text-red-500"><Icon name="x-01" size={12}/></button>
                                 </div>
                             ))}
                             {settings.links.length === 0 && <div className="text-neutral-600 text-xs italic">No custom links added.</div>}
@@ -1176,7 +1170,7 @@ export const PlansSettingsView = () => {
         <div className="max-w-6xl mx-auto p-8 animate-fade-in pb-24">
             <div className="mb-8 flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-white mb-2">Plans & Add-ons</h1>
+                    <h1 className="font-lastik text-h6-brand text-white mb-2">Plans & Add-ons</h1>
                     <p className="text-neutral-500 text-sm">Configure your subscription plans.</p>
                 </div>
                 <button
@@ -1192,7 +1186,7 @@ export const PlansSettingsView = () => {
                     }}
                     className="px-4 py-2 bg-white text-black rounded-lg text-sm font-bold hover:bg-neutral-200 transition-colors flex items-center gap-2"
                 >
-                    <Plus size={16} />
+                    <Icon name="plus-01" size={16} />
                     Create Plan
                 </button>
             </div>
@@ -1215,19 +1209,19 @@ export const PlansSettingsView = () => {
                         <ul className="space-y-2 mb-6 flex-1">
                             {plan.tasks_at_once && (
                                 <li className="flex items-center gap-2 text-sm text-neutral-400">
-                                    <Check size={12} className="text-lime-500"/>
+                                    <Icon name="check-01" size={12} className="text-lime-500"/>
                                     {plan.tasks_at_once} task{plan.tasks_at_once > 1 ? 's' : ''} at once
                                 </li>
                             )}
                             {plan.delivery_sla_business_days && (
                                 <li className="flex items-center gap-2 text-sm text-neutral-400">
-                                    <Check size={12} className="text-lime-500"/>
+                                    <Icon name="check-01" size={12} className="text-lime-500"/>
                                     {plan.delivery_sla_business_days} day delivery
                                 </li>
                             )}
                             {plan.status === 'clean' && (
                                 <li className="flex items-center gap-2 text-sm text-neutral-400">
-                                    <Check size={12} className="text-lime-500"/>
+                                    <Icon name="check-01" size={12} className="text-lime-500"/>
                                     Active plan
                                 </li>
                             )}
@@ -1392,13 +1386,13 @@ export const ClientTeamSettingsView = () => {
     return (
         <div className="max-w-3xl mx-auto p-8 animate-fade-in pb-24">
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Your Team</h1>
+                <h1 className="font-lastik text-h6-brand text-neutral-900 dark:text-white mb-2">Your Team</h1>
                 <p className="text-neutral-500 text-sm">Team members with access to your workspace</p>
             </div>
 
             {contacts.length === 0 ? (
                 <div className="text-center py-16">
-                    <User size={48} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-700" />
+                    <Icon name="user-profile-01" size={48} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-700" />
                     <p className="text-neutral-500 text-sm">No team members found</p>
                 </div>
             ) : (

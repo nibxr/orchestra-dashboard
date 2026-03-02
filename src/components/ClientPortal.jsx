@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, FileText, CreditCard, LogOut, Clock, CheckCircle2, ArrowRight, Download, Folder, List as ListIcon, ArrowUpRight, Plus, X, AlertCircle, Calendar, Zap, Settings } from 'lucide-react';
+import { Icon } from './Icon';
 // Correct relative paths based on standard src/ structure
 import { supabase } from '../supabaseClient';
 import { STATUS_CONFIG } from '../utils/constants';
@@ -274,13 +274,13 @@ export const ClientPortal = ({ client, onExit }) => {
 
                 <div className="p-4 space-y-1">
                     <button onClick={() => setView('home')} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'home' ? 'bg-white/10 text-white' : 'text-neutral-400 hover:text-white'}`}>
-                        <LayoutGrid size={18} /> Home
+                        <Icon name="layout-grid-01" size={18} /> Home
                     </button>
                     <button onClick={() => setView('tasks')} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'tasks' ? 'bg-white/10 text-white' : 'text-neutral-400 hover:text-white'}`}>
-                        <FileText size={18} /> Requests
+                        <Icon name="file-01" size={18} /> Requests
                     </button>
                     <button onClick={() => setView('invoices')} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'invoices' ? 'bg-white/10 text-white' : 'text-neutral-400 hover:text-white'}`}>
-                        <CreditCard size={18} /> Billing
+                        <Icon name="card-01" size={18} /> Billing
                     </button>
                 </div>
 
@@ -295,7 +295,7 @@ export const ClientPortal = ({ client, onExit }) => {
                         </div>
                      </div>
                      <button onClick={onExit} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
-                        <LogOut size={14} /> Exit Portal View
+                        <Icon name="logout-01" size={14} /> Exit Portal View
                      </button>
                 </div>
             </div>
@@ -320,7 +320,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-xl bg-neutral-900 flex items-center justify-center text-white">
-                                                <Folder size={24} style={{color: brandColor}} />
+                                                <Icon name="folder" size={24} style={{color: brandColor}} />
                                             </div>
                                             <div>
                                                 <h3 className="text-white font-bold text-lg">{planLimits?.planName || client.offer_type || 'Design Retainer'}</h3>
@@ -342,7 +342,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                             }}
                                             className="px-4 py-2 bg-white text-black text-sm font-bold rounded-lg hover:bg-neutral-200 transition-colors flex items-center gap-2"
                                         >
-                                            <Settings size={14} />
+                                            <Icon name="settings" size={14} />
                                             Manage Billing
                                         </button>
                                     </div>
@@ -351,7 +351,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                     {planLimits && (
                                         <div className="pt-4 mt-4 border-t border-neutral-800 grid grid-cols-2 gap-4">
                                             <div className="flex items-center gap-3 p-3 bg-neutral-900/50 rounded-lg">
-                                                <Zap size={18} className="text-lime-400" />
+                                                <Icon name="lightning-01" size={18} className="text-lime-400" />
                                                 <div>
                                                     <div className="text-xs text-neutral-500">Active Tasks</div>
                                                     <div className="text-sm font-medium text-white">
@@ -360,7 +360,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-3 p-3 bg-neutral-900/50 rounded-lg">
-                                                <Clock size={18} className="text-blue-400" />
+                                                <Icon name="clock-01" size={18} className="text-blue-400" />
                                                 <div>
                                                     <div className="text-xs text-neutral-500">Turnaround</div>
                                                     <div className="text-sm font-medium text-white">
@@ -378,7 +378,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                 <div className="flex items-center justify-between mb-4">
                                     <h2 className="text-lg font-bold text-white">Recent Requests</h2>
                                     <button onClick={() => setView('tasks')} className="text-sm text-neutral-500 hover:text-white flex items-center gap-1">
-                                        View all <ArrowRight size={14} />
+                                        View all <Icon name="arrow-right" size={14} />
                                     </button>
                                 </div>
                                 <div className="space-y-3">
@@ -386,7 +386,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                         <div key={task.id} className="flex items-center justify-between p-4 bg-[#141414] border border-neutral-800 rounded-xl hover:bg-[#1a1a1a] transition-colors">
                                             <div className="flex items-center gap-4">
                                                 <div className={`p-2 rounded-lg ${normalizeStatus(task.status) === 'Done' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-neutral-800 text-neutral-400'}`}>
-                                                    {normalizeStatus(task.status) === 'Done' ? <CheckCircle2 size={18}/> : <Clock size={18}/>}
+                                                    {normalizeStatus(task.status) === 'Done' ? <Icon name="check-contained" size={18}/> : <Icon name="clock-01" size={18}/>}
                                                 </div>
                                                 <div>
                                                     <div className="text-white font-medium text-sm">{task.title}</div>
@@ -411,21 +411,21 @@ export const ClientPortal = ({ client, onExit }) => {
                     {view === 'tasks' && (
                         <div className="flex flex-col h-full animate-fade-in">
                              <div className="flex items-center justify-between mb-6 shrink-0">
-                                 <h1 className="text-2xl font-bold text-white">Requests</h1>
+                                 <h1 className="font-lastik text-h6-brand text-white">Requests</h1>
                                  <div className="flex gap-3">
                                      <button
                                          onClick={() => setIsNewRequestOpen(true)}
                                          className="flex items-center gap-2 bg-lime-400 hover:bg-lime-500 text-black px-4 py-2 rounded-lg font-medium transition-colors"
                                      >
-                                         <Plus size={18} />
+                                         <Icon name="plus-01" size={18} />
                                          New Request
                                      </button>
                                      <div className="flex bg-[#141414] p-1 rounded-lg border border-neutral-800">
                                         <button onClick={() => setTaskViewMode('kanban')} className={`p-2 rounded transition-colors ${taskViewMode === 'kanban' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>
-                                            <LayoutGrid size={16} />
+                                            <Icon name="layout-grid-01" size={16} />
                                         </button>
                                         <button onClick={() => setTaskViewMode('list')} className={`p-2 rounded transition-colors ${taskViewMode === 'list' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-white'}`}>
-                                            <ListIcon size={16} />
+                                            <Icon name="list" size={16} />
                                         </button>
                                      </div>
                                  </div>
@@ -460,7 +460,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                                  onDrop={(e) => handleDrop(e, status)}
                                              >
                                                  <div className="flex items-center gap-2 mb-4 px-1">
-                                                     {React.createElement(STATUS_CONFIG[status].icon, { size: 14, className: STATUS_CONFIG[status].color.replace('text-', 'stroke-') })}
+                                                     <Icon name={STATUS_CONFIG[status].iconName} size={14} className={STATUS_CONFIG[status].color} />
                                                      <h3 className="text-neutral-300 text-sm font-medium">{status}</h3>
                                                      <span className="bg-neutral-800 text-neutral-500 px-1.5 py-0.5 rounded text-[10px]">
                                                          {tasks.filter(t => normalizeStatus(t.status) === status).length}
@@ -481,14 +481,14 @@ export const ClientPortal = ({ client, onExit }) => {
                                                              {task.description && <p className="text-xs text-neutral-500 line-clamp-2 mb-3">{task.description}</p>}
                                                              <div className="flex items-center justify-between pt-2 border-t border-neutral-800/50">
                                                                  <div className="text-[10px] text-neutral-600 flex items-center gap-1">
-                                                                     <Clock size={10} /> {new Date(task.updated_at).toLocaleDateString()}
+                                                                     <Icon name="clock-01" size={10} /> {new Date(task.updated_at).toLocaleDateString()}
                                                                  </div>
                                                              </div>
                                                          </div>
                                                      ))}
                                                      {tasks.filter(t => normalizeStatus(t.status) === status).length === 0 && (
                                                         <div className="border border-dashed border-neutral-800 rounded-lg h-24 flex flex-col items-center justify-center text-neutral-600 gap-2 opacity-50">
-                                                            <div className="p-2 bg-neutral-900 rounded-full"><ArrowUpRight size={12}/></div>
+                                                            <div className="p-2 bg-neutral-900 rounded-full"><Icon name="arrow-up-right" size={12}/></div>
                                                             <span className="text-xs font-medium">Empty</span>
                                                         </div>
                                                      )}
@@ -503,7 +503,7 @@ export const ClientPortal = ({ client, onExit }) => {
                     
                     {view === 'invoices' && (
                         <div className="animate-fade-in max-w-4xl mx-auto w-full">
-                            <h1 className="text-2xl font-bold text-white mb-6">Billing & Invoices</h1>
+                            <h1 className="font-lastik text-h6-brand text-white mb-6">Billing & Invoices</h1>
                             
                             {loadingFinancials ? (
                                 <div className="space-y-4">
@@ -513,7 +513,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                 </div>
                             ) : financialError ? (
                                 <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-center gap-3 text-red-400">
-                                    <AlertCircle size={20} />
+                                    <Icon name="alert-circle" size={20} />
                                     <span>{financialError}</span>
                                 </div>
                             ) : !financials ? (
@@ -529,7 +529,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                                     <div className={`w-2 h-2 rounded-full ${financials.subscription.active ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
                                                     <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Current Plan</span>
                                                 </div>
-                                                <div className="text-2xl font-bold text-white mb-1">
+                                                <div className="font-lastik text-h6-brand text-white mb-1">
                                                     {financials.subscription.plans[0]?.product_name || 'No Active Plan'}
                                                 </div>
                                                 <div className="text-sm text-neutral-500">
@@ -546,10 +546,10 @@ export const ClientPortal = ({ client, onExit }) => {
                                             <div className="bg-[#141414] border border-neutral-800 rounded-xl p-6 relative overflow-hidden">
                                                  <div className="relative z-10">
                                                     <div className="flex items-center gap-2 mb-4">
-                                                        <Calendar size={14} className="text-neutral-400"/>
+                                                        <Icon name="calendar-01" size={14} className="text-neutral-400"/>
                                                         <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Next Invoice</span>
                                                     </div>
-                                                    <div className="text-2xl font-bold text-white mb-1">
+                                                    <div className="font-lastik text-h6-brand text-white mb-1">
                                                         {formatCurrency(financials.upcoming_payment.amount_due, financials.upcoming_payment.currency)}
                                                     </div>
                                                     <div className="text-sm text-neutral-500">
@@ -568,7 +568,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                                 <div key={invoice.id} className="p-4 flex items-center justify-between group hover:bg-[#1a1a1a] transition-colors">
                                                     <div className="flex items-center gap-4">
                                                         <div className={`p-2 rounded-lg ${invoice.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>
-                                                            {invoice.status === 'paid' ? <CheckCircle2 size={18} /> : <Clock size={18} />}
+                                                            {invoice.status === 'paid' ? <Icon name="check-contained" size={18} /> : <Icon name="clock-01" size={18} />}
                                                         </div>
                                                         <div>
                                                             <div className="text-white font-medium text-sm flex items-center gap-2">
@@ -592,7 +592,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                                                 className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-800 rounded-lg transition-all"
                                                                 title="Download Invoice PDF"
                                                             >
-                                                                <Download size={16} />
+                                                                <Icon name="download" size={16} />
                                                             </a>
                                                         )}
                                                     </div>
@@ -614,12 +614,12 @@ export const ClientPortal = ({ client, onExit }) => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
                     <div className="bg-[#1a1a1a] border border-neutral-800 rounded-2xl w-full max-w-2xl animate-scale-in">
                         <div className="p-6 border-b border-neutral-800 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-white">Create New Request</h2>
+                            <h2 className="font-lastik text-h6-brand text-white">Create New Request</h2>
                             <button
                                 onClick={() => setIsNewRequestOpen(false)}
                                 className="text-neutral-500 hover:text-white transition-colors"
                             >
-                                <X size={20} />
+                                <Icon name="x-01" size={20} />
                             </button>
                         </div>
 
@@ -683,7 +683,7 @@ export const ClientPortal = ({ client, onExit }) => {
                             onClick={() => setActiveTask(null)}
                             className="text-neutral-500 hover:text-white transition-colors"
                         >
-                            <X size={20} />
+                            <Icon name="x-01" size={20} />
                         </button>
                     </div>
 
@@ -696,7 +696,7 @@ export const ClientPortal = ({ client, onExit }) => {
                                     {activeTask.status}
                                 </span>
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-2">{activeTask.title}</h3>
+                            <h3 className="font-lastik text-h6-brand text-white mb-2">{activeTask.title}</h3>
                             {activeTask.description && (
                                 <div className="text-neutral-400 text-sm whitespace-pre-wrap">{activeTask.description}</div>
                             )}

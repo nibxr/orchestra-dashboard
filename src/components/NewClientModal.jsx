@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Building2, Mail, User, Loader2, Check, Copy, Zap, Send } from 'lucide-react';
+import { Icon } from './Icon';
 import { supabase } from '../supabaseClient';
 import { useToast } from './Toast';
 
@@ -152,7 +152,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite, availablePlans = [],
         <div className="bg-white dark:bg-[#1a1a1a] rounded-xl w-full max-w-lg m-4 animate-scale-in" onClick={e => e.stopPropagation()}>
           <div className="p-8 text-center">
             <div className="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check size={28} className="text-emerald-500" />
+              <Icon name="check-01" size={28} className="text-emerald-500" />
             </div>
             <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">Client Created</h2>
             <p className="text-sm text-neutral-500 mb-6">
@@ -171,7 +171,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite, availablePlans = [],
                 className="shrink-0 p-2 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-lg transition-colors"
                 title="Copy link"
               >
-                <Copy size={14} className="text-neutral-500" />
+                <Icon name="copy-right" size={14} className="text-neutral-500" />
               </button>
             </div>
 
@@ -180,7 +180,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite, availablePlans = [],
                 href={`mailto:${formData.clientEmail}?subject=${encodeURIComponent(`Your ${formData.companyName} design dashboard is ready`)}&body=${encodeURIComponent(`Hi ${formData.clientName},\n\nYour Dafolle Studio dashboard is ready! Click the link below to set up your account and activate your subscription:\n\n${invitationResult.link}\n\nThis link will let you:\n- Create your login credentials\n- Subscribe to your selected plan via Stripe\n- Access your project dashboard\n\nLooking forward to working with you!\n\nBest,\nThe Dafolle Team`)}`}
                 className="flex items-center gap-2 px-5 py-2.5 bg-neutral-900 dark:bg-white text-white dark:text-black rounded-lg text-sm font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all"
               >
-                <Send size={14} />
+                <Icon name="send-01" size={14} />
                 Send Email
               </a>
               <button
@@ -206,7 +206,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite, availablePlans = [],
             onClick={handleClose}
             className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
           >
-            <X size={20} />
+            <Icon name="x-01" size={20} />
           </button>
         </div>
 
@@ -219,7 +219,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite, availablePlans = [],
                 <div>
                   <label className="text-xs text-neutral-500 font-medium mb-2 block">Company Name *</label>
                   <div className="relative">
-                    <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+                    <Icon name="bank" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
                     <input
                       type="text"
                       required
@@ -235,7 +235,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite, availablePlans = [],
                   <div>
                     <label className="text-xs text-neutral-500 font-medium mb-2 block">Contact Name *</label>
                     <div className="relative">
-                      <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+                      <Icon name="user-profile-01" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
                       <input
                         type="text"
                         required
@@ -249,7 +249,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite, availablePlans = [],
                   <div>
                     <label className="text-xs text-neutral-500 font-medium mb-2 block">Email Address *</label>
                     <div className="relative">
-                      <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+                      <Icon name="mail-01" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
                       <input
                         type="email"
                         required
@@ -269,7 +269,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite, availablePlans = [],
               <h3 className="text-sm font-medium text-neutral-900 dark:text-white mb-4">Select Plan</h3>
               {plans.length === 0 ? (
                 <div className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg p-6 text-center">
-                  <Zap size={24} className="mx-auto mb-2 text-neutral-400" />
+                  <Icon name="lightning-01" size={24} className="mx-auto mb-2 text-neutral-400" />
                   <p className="text-sm text-neutral-500">No plans with Stripe integration found.</p>
                   <p className="text-xs text-neutral-400 mt-1">Add <code className="bg-neutral-200 dark:bg-neutral-800 px-1 rounded">stripe_price_id</code> to your Plans table.</p>
                 </div>
@@ -309,7 +309,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite, availablePlans = [],
                       {selectedPlanId === plan.id && (
                         <div className="absolute top-3 right-3">
                           <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                            <Check size={12} className="text-white" />
+                            <Icon name="check-01" size={12} className="text-white" />
                           </div>
                         </div>
                       )}
@@ -336,7 +336,7 @@ export const NewClientModal = ({ isOpen, onClose, onInvite, availablePlans = [],
             >
               {loading ? (
                 <>
-                  <Loader2 size={14} className="animate-spin" />
+                  <Icon name="loader-01" size={14} className="animate-spin" />
                   Creating...
                 </>
               ) : (

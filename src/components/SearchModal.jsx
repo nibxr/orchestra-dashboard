@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Hash, User, Calendar, Briefcase } from 'lucide-react';
+import { Icon } from './Icon';
 import { Avatar } from './Shared';
 
 export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask, userRole }) => {
@@ -58,20 +58,20 @@ export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask, userRole }) 
       >
         {/* Search Input */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
-          <Search size={20} className="text-neutral-500" />
+          <Icon name="search-01" size={20} className="text-neutral-500" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={userRole === 'customer' ? "Search your requests by title, status, or ID..." : "Search tasks by title, client, assignee, or ID..."}
-            className="flex-1 bg-transparent text-neutral-900 dark:text-white text-base placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
+            className="flex-1 bg-transparent text-neutral-900 dark:text-white text-body-lg placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
           />
           <button
             onClick={onClose}
             className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded"
           >
-            <X size={18} />
+            <Icon name="x-01" size={18} />
           </button>
         </div>
 
@@ -79,14 +79,14 @@ export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask, userRole }) 
         <div className="max-h-96 overflow-y-auto custom-scrollbar">
           {query && results.length === 0 && (
             <div className="px-6 py-12 text-center text-neutral-500">
-              <Search size={48} className="mx-auto mb-4 opacity-30" />
+              <Icon name="search-01" size={48} className="mx-auto mb-4 opacity-30" />
               <p className="text-sm">No tasks found for "{query}"</p>
             </div>
           )}
 
           {!query && (
             <div className="px-6 py-12 text-center text-neutral-600">
-              <Search size={48} className="mx-auto mb-4 opacity-20" />
+              <Icon name="search-01" size={48} className="mx-auto mb-4 opacity-20" />
               <p className="text-sm">Start typing to search tasks...</p>
               <p className="text-xs mt-2 text-neutral-700">
                 Search by title, description, client, assignee, status, or ID
@@ -105,12 +105,12 @@ export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask, userRole }) 
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-neutral-900 dark:text-white font-medium text-sm group-hover:text-lime-400 transition-colors truncate">
+                        <h3 className="text-neutral-900 dark:text-white font-medium text-body-md group-hover:text-lime-400 transition-colors truncate">
                           {task.title}
                         </h3>
                         {task.orchestra_task_id && (
                           <span className="text-neutral-600 text-xs font-mono flex items-center gap-1 shrink-0">
-                            <Hash size={10} />
+                            <Icon name="hash-01" size={10} />
                             {task.orchestra_task_id.slice(-4)}
                           </span>
                         )}
@@ -119,19 +119,19 @@ export const SearchModal = ({ isOpen, onClose, tasks, onSelectTask, userRole }) 
                       <div className="flex items-center gap-3 text-xs text-neutral-500">
                         {task.clientName && (
                           <div className="flex items-center gap-1">
-                            <Briefcase size={12} />
+                            <Icon name="bag-01" size={12} />
                             <span>{task.clientName}</span>
                           </div>
                         )}
                         {task.assigneeName && (
                           <div className="flex items-center gap-1">
-                            <User size={12} />
+                            <Icon name="user-profile-01" size={12} />
                             <span>{task.assigneeName}</span>
                           </div>
                         )}
                         {task.dueDate && (
                           <div className="flex items-center gap-1">
-                            <Calendar size={12} />
+                            <Icon name="calendar-01" size={12} />
                             <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                           </div>
                         )}

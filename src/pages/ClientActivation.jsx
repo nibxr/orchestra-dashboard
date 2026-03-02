@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, Lock, ExternalLink, AlertCircle, Loader2, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Icon } from '../components/Icon';
 import { supabase } from '../supabaseClient';
 import { createCheckoutSession } from '../utils/stripeService';
 import { useToast } from '../components/Toast';
@@ -205,7 +205,7 @@ export const ClientActivation = () => {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <Loader2 size={24} className="text-[#D08B00] animate-spin mx-auto mb-4" />
+          <Icon name="loader-01" size={24} className="text-[#D08B00] animate-spin mx-auto mb-4" />
           <p className="text-neutral-500 text-sm">Loading your invitation...</p>
         </div>
       </div>
@@ -222,9 +222,9 @@ export const ClientActivation = () => {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-sm mx-auto px-6">
             <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-5">
-              <AlertCircle size={24} className="text-red-400" />
+              <Icon name="alert-circle" size={24} className="text-red-400" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2" style={{ fontFamily: "'Lastik', serif" }}>
+            <h2 className="font-lastik text-h6-brand text-white mb-2">
               Invalid Invitation
             </h2>
             <p className="text-neutral-500 text-sm mb-8">{invitationError}</p>
@@ -252,10 +252,10 @@ export const ClientActivation = () => {
           <div className="max-w-md mx-auto px-6 text-center auth-view-enter">
             {/* Success icon */}
             <div className="w-16 h-16 rounded-full bg-[#D08B00]/10 flex items-center justify-center mx-auto mb-6 auth-stagger auth-stagger-1">
-              <Check size={28} className="text-[#D08B00]" />
+              <Icon name="check-01" size={28} className="text-[#D08B00]" />
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3 auth-stagger auth-stagger-2" style={{ fontFamily: "'Lastik', serif" }}>
+            <h2 className="font-lastik text-h6-brand sm:text-h5-brand text-white mb-3 auth-stagger auth-stagger-2">
               You're all set
             </h2>
             <p className="text-neutral-500 text-sm mb-10 auth-stagger auth-stagger-3">
@@ -266,7 +266,7 @@ export const ClientActivation = () => {
             <div className="bg-[#2E2D2C40] border border-neutral-800 rounded-xl p-6 mb-8 text-left auth-stagger auth-stagger-4">
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-full bg-[#D08B00]/10 flex items-center justify-center shrink-0">
-                  <Mail size={18} className="text-[#D08B00]" />
+                  <Icon name="mail-01" size={18} className="text-[#D08B00]" />
                 </div>
                 <div>
                   <p className="text-white text-sm font-medium mb-1">Confirm your email</p>
@@ -287,7 +287,7 @@ export const ClientActivation = () => {
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 text-left">
                   <div className="w-5 h-5 rounded-full bg-neutral-800 flex items-center justify-center shrink-0">
-                    <Check size={10} className="text-neutral-400" />
+                    <Icon name="check-01" size={10} className="text-neutral-400" />
                   </div>
                   <span className="text-neutral-400 text-sm">{item}</span>
                 </div>
@@ -299,7 +299,7 @@ export const ClientActivation = () => {
               className="inline-flex items-center gap-2 text-sm text-[#D08B00] hover:text-[#E09B10] transition-colors auth-stagger auth-stagger-6"
             >
               Go to Sign In
-              <ArrowRight size={14} />
+              <Icon name="arrow-right" size={14} />
             </a>
           </div>
         </div>
@@ -324,7 +324,7 @@ export const ClientActivation = () => {
       <div className="flex-1 flex items-center justify-center pb-12">
         <div className="w-full max-w-sm mx-auto px-6 auth-view-enter">
           {/* Header */}
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2 auth-stagger auth-stagger-1" style={{ fontFamily: "'Lastik', serif" }}>
+          <h1 className="font-lastik text-h6-brand sm:text-h5-brand text-white mb-2 auth-stagger auth-stagger-1">
             Set up your account
           </h1>
           <p className="text-[#BFBBB5] text-sm mb-8 auth-stagger auth-stagger-2">
@@ -388,7 +388,7 @@ export const ClientActivation = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? <Icon name="eye-closed" size={18} /> : <Icon name="eye-open" size={18} />}
                 </button>
               </div>
             </div>
@@ -417,13 +417,13 @@ export const ClientActivation = () => {
             >
               {submitting ? (
                 <>
-                  <Loader2 size={16} className="animate-spin" />
+                  <Icon name="loader-01" size={16} className="animate-spin" />
                   Setting up...
                 </>
               ) : (
                 <>
                   Continue to Payment
-                  <ArrowRight size={16} />
+                  <Icon name="arrow-right" size={16} />
                 </>
               )}
             </button>
@@ -431,7 +431,7 @@ export const ClientActivation = () => {
 
           {/* Stripe note */}
           <p className="text-neutral-600 text-xs text-center mt-6 auth-stagger auth-stagger-5">
-            <Lock size={10} className="inline mr-1 -mt-0.5" />
+            <Icon name="lock-01" size={10} className="inline mr-1 -mt-0.5" />
             You'll be redirected to Stripe for secure payment
           </p>
         </div>

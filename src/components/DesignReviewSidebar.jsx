@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Plus, X, Send, Briefcase, User, Calendar, Circle } from 'lucide-react';
+import { Icon } from './Icon';
 import { Avatar } from './Shared';
 import CommentThread from './CommentThread';
 import AttachmentUploader from './AttachmentUploader';
@@ -142,7 +142,7 @@ const DesignReviewSidebar = ({
               <span className="text-neutral-900 dark:text-white font-medium truncate">
                 {currentVersion?.version_name || 'Select version'}
               </span>
-              <ChevronDown className="w-4 h-4 text-neutral-500 flex-shrink-0" />
+              <Icon name="chevron-down" size={16} className="text-neutral-500 flex-shrink-0" />
             </button>
 
             {showVersionMenu && (
@@ -179,7 +179,7 @@ const DesignReviewSidebar = ({
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors border-t border-neutral-200 dark:border-neutral-700"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Icon name="plus-01" size={16} />
                     Add version
                   </button>
                 </div>
@@ -206,7 +206,7 @@ const DesignReviewSidebar = ({
               {/* Customer */}
               <div className="flex items-center gap-3">
                 <div className="w-24 text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4" />
+                  <Icon name="bag-01" size={16} />
                   Customer
                 </div>
                 <div className="flex-1 text-sm text-neutral-900 dark:text-white">
@@ -217,7 +217,7 @@ const DesignReviewSidebar = ({
               {/* Status */}
               <div className="flex items-center gap-3">
                 <div className="w-24 text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
-                  <Circle className="w-4 h-4" />
+                  <Icon name="circle" size={16} />
                   Status
                 </div>
                 <div className="flex-1 text-sm text-neutral-900 dark:text-white">
@@ -228,7 +228,7 @@ const DesignReviewSidebar = ({
               {/* Assignee */}
               <div className="flex items-center gap-3">
                 <div className="w-24 text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
-                  <User className="w-4 h-4" />
+                  <Icon name="user-profile-01" size={16} />
                   Assignee
                 </div>
                 <div className="flex-1">
@@ -248,7 +248,7 @@ const DesignReviewSidebar = ({
               {/* Helper */}
               <div className="flex items-center gap-3">
                 <div className="w-24 text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
-                  <User className="w-4 h-4" />
+                  <Icon name="user-profile-01" size={16} />
                   Helper
                 </div>
                 <div className="flex-1">
@@ -268,7 +268,7 @@ const DesignReviewSidebar = ({
               {/* Created By */}
               <div className="flex items-center gap-3">
                 <div className="w-24 text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
-                  <User className="w-4 h-4" />
+                  <Icon name="user-profile-01" size={16} />
                   Created By
                 </div>
                 <div className="flex-1">
@@ -289,7 +289,7 @@ const DesignReviewSidebar = ({
               {task.delivered_at && (
                 <div className="flex items-center gap-3">
                   <div className="w-24 text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
+                    <Icon name="calendar-01" size={16} />
                     Due Date
                   </div>
                   <div className="flex-1 text-sm text-neutral-900 dark:text-white">
@@ -374,7 +374,7 @@ const DesignReviewSidebar = ({
                     disabled={!newComment.trim() || isSubmitting}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-black text-sm font-medium hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <Send className="w-4 h-4" />
+                    <Icon name="send-01" size={16} />
                     {isSubmitting ? 'Sending...' : 'Send'}
                   </button>
                 </div>
@@ -448,7 +448,7 @@ const DesignReviewSidebar = ({
                     disabled={!newComment.trim() || isSubmitting || !currentVersion}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <Send className="w-4 h-4" />
+                    <Icon name="send-01" size={16} />
                     {isSubmitting ? 'Sending...' : 'Send'}
                   </button>
                 </div>

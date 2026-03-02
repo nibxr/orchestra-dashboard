@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  Plus, X, Circle, User, Calendar,
-  AlignJustify, ToggleLeft, ToggleRight, Image as ImageIcon, Paperclip, Sparkles, Undo2
-} from 'lucide-react';
+import { Icon } from './Icon';
 import { Avatar } from './Shared';
 import { STATUS_CONFIG } from '../utils/constants';
 import { CustomSelect, MultiSelectUsers } from './CustomUI';
@@ -386,10 +383,10 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                <div className="flex flex-col" style={leftPanelStyle}>
                    <div className="flex-1 p-8 flex flex-col">
                        <div className="mb-6">
-                           <div className="text-xs text-neutral-500 mb-2 font-medium">New task</div>
+                           <div className="text-body-sm text-neutral-500 mb-2 font-medium">New task</div>
                            <input
                               placeholder="Enter a title for this task..."
-                              className="w-full bg-transparent text-4xl font-bold text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-700 focus:outline-none"
+                              className="w-full bg-transparent font-lastik text-h4-brand text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-700 focus:outline-none"
                               autoFocus
                               value={title}
                               onChange={e => setTitle(e.target.value)}
@@ -431,7 +428,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                                  className="flex items-center gap-2 text-neutral-500 cursor-pointer hover:text-neutral-600 dark:hover:text-neutral-600 dark:text-neutral-300 transition-colors select-none"
                                  onClick={() => setIsPrivate(!isPrivate)}
                              >
-                                 {isPrivate ? <ToggleRight size={20} className="text-neutral-900 dark:text-white" /> : <ToggleLeft size={20} />}
+                                 {isPrivate ? <Icon name="toggle-right" size={20} className="text-neutral-900 dark:text-white" /> : <Icon name="toogle-left" size={20} />}
                                  <span className="text-xs">Private</span>
                              </div>
                            )}
@@ -441,7 +438,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                                        onClick={enterAiMode}
                                        className="flex items-center gap-1.5 text-xs font-medium text-neutral-700 dark:text-white hover:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
                                    >
-                                       <Sparkles size={13} />
+                                       <Icon name="stars" size={13} />
                                        Enhance with AI
                                    </button>
                                )}
@@ -477,7 +474,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                                onClick={exitAiMode}
                                className="flex flex-col items-center gap-1.5 bg-neutral-900 dark:bg-white text-white dark:text-black px-1.5 py-2.5 rounded-full shadow-lg hover:bg-neutral-700 dark:hover:bg-neutral-200 transition-colors"
                            >
-                               <Undo2 size={11} />
+                               <Icon name="arrow-refresh-01" size={11} />
                                <span className="text-[10px] font-semibold leading-none" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>Details</span>
                            </button>
                        </div>
@@ -494,14 +491,14 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                    >
                        <div className="flex justify-between items-center mb-6">
                            <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Properties</div>
-                           <button onClick={onClose} className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"><X size={20} /></button>
+                           <button onClick={onClose} className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"><Icon name="x-01" size={20} /></button>
                        </div>
 
                        <div className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
                            {!isCustomer && (
                              <CustomSelect
                                  label="Customer"
-                                 icon={User}
+                                 iconName="user-profile-01"
                                  value={properties.clientId}
                                  options={clientOptions}
                                  onChange={v => {
@@ -515,7 +512,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
 
                            <CustomSelect
                                label="Status"
-                               icon={Circle}
+                               iconName="circle"
                                value={properties.status}
                                options={statusOptions}
                                onChange={v => setProperties({...properties, status: v})}
@@ -525,7 +522,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
                              <>
                                <MultiSelectUsers
                                    label="Created By"
-                                   icon={User}
+                                   iconName="user-profile-01"
                                    values={[properties.createdById, properties.coCreatorId].filter(Boolean)}
                                    options={assigneeOptions}
                                    onChange={(vals) => setProperties({
@@ -540,7 +537,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
 
                                <CustomSelect
                                    label="Assignee"
-                                   icon={User}
+                                   iconName="user-profile-01"
                                    value={properties.assigneeId}
                                    options={assigneeOptions}
                                    onChange={v => setProperties({...properties, assigneeId: v})}
@@ -550,7 +547,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
 
                                <CustomSelect
                                    label="Helper"
-                                   icon={User}
+                                   iconName="user-profile-01"
                                    value={properties.helperId}
                                    options={assigneeOptions}
                                    onChange={v => setProperties({...properties, helperId: v})}
@@ -562,7 +559,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
 
                            <div className="flex items-center justify-between group py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800/50 px-2 rounded transition-colors">
                                <div className="flex items-center gap-2 text-neutral-500 w-32">
-                                   <Calendar size={14} />
+                                   <Icon name="calendar-01" size={14} />
                                    <span className="text-sm">Due Date</span>
                                </div>
                                <input
@@ -575,7 +572,7 @@ export const NewTaskModal = ({ isOpen, onClose, onAddTask, clients = [], team = 
 
                            <CustomSelect
                                label="Type"
-                               icon={AlignJustify}
+                               iconName="list"
                                value={properties.type}
                                options={typeOptions}
                                onChange={v => setProperties({...properties, type: v})}

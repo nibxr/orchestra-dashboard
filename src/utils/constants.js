@@ -1,5 +1,3 @@
-import { Circle, Clock, AlertCircle, XCircle, CheckCircle2 } from 'lucide-react';
-
 export const APP_ID = 'orchestra-app';
 
 export const APP_MODES = {
@@ -32,9 +30,9 @@ export const SETTINGS_VIEWS = {
 
 // STRICT 4 STATUSES AS REQUESTED
 export const STATUS_CONFIG = {
-    'Backlog': { color: 'text-neutral-500', icon: Circle },
-    'Active Task': { color: 'text-blue-500', icon: Clock },     
-    'To Review': { color: 'text-amber-500', icon: AlertCircle }, 
-    'Done': { color: 'text-emerald-500', icon: CheckCircle2 },
-    'Cancelled': { color: 'text-red-500', icon: XCircle }        
+    'Backlog': { color: 'text-neutral-500', iconName: 'circle' },
+    'Active Task': { color: 'text-neutral-500', iconName: 'target-04' },
+    'To Review': { color: 'text-neutral-500', iconName: 'search-01' },
+    'Done': { color: 'text-neutral-500', iconName: 'check-contained' },
+    'Cancelled': { color: 'text-neutral-500', iconName: 'x-circle-contained' }
 };

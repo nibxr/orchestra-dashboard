@@ -1,6 +1,20 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Hand, ZoomIn, ZoomOut, Maximize2, User, Calendar, Tag, Building2, Filter, ChevronRight, ChevronLeft, ChevronDown, ExternalLink, Trash2, Smile, Link2, Type, MoreHorizontal, Bold, Italic, Strikethrough, Underline, List, ListOrdered, CheckSquare, Paperclip, X, Search, Clock, Cat, UtensilsCrossed, Car, Ban, PartyPopper, Music, Flag, Copy, Plus, Share2, Upload, ArrowLeft, Globe, Code2, Loader2 } from 'lucide-react';
+import { Icon } from './Icon';
+
+// Icon wrapper components for dynamic rendering (e.g. emoji category tabs, CustomSelect props)
+const ClockIcon = (props) => <Icon name="clock-01" {...props} />;
+const SmileIcon = (props) => <Icon name="smiley-happy" {...props} />;
+const CatIcon = (props) => <Icon name="smiley-happy" {...props} />;
+const UtensilsCrossedIcon = (props) => <Icon name="dash" {...props} />;
+const CarIcon = (props) => <Icon name="car" {...props} />;
+const PartyPopperIcon = (props) => <Icon name="star-02" {...props} />;
+const MusicIcon = (props) => <Icon name="volume-01" {...props} />;
+const FlagIcon = (props) => <Icon name="favourite" {...props} />;
+const TagIcon = (props) => <Icon name="tag" {...props} />;
+const UserIcon = (props) => <Icon name="user-profile-01" {...props} />;
+const CalendarIcon = (props) => <Icon name="calendar-01" {...props} />;
+const Building2Icon = (props) => <Icon name="bank" {...props} />;
 import { CustomSelect } from './CustomUI';
 import { STATUS_CONFIG } from '../utils/constants';
 import { supabase } from '../supabaseClient';
@@ -16,9 +30,9 @@ import { DeliverablesForm } from './DeliverablesForm';
 
 // Emoji data organized by category
 const emojiCategories = {
-  recent: { icon: Clock, label: 'Recent', emojis: ['😀', '👍', '❤️', '🎉', '✅', '🔥', '💯', '🚀'] },
+  recent: { icon: ClockIcon, label: 'Recent', emojis: ['😀', '👍', '❤️', '🎉', '✅', '🔥', '💯', '🚀'] },
   smileys: {
-    icon: Smile,
+    icon: SmileIcon,
     label: 'Smileys & People',
     emojis: [
       '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂',
@@ -35,7 +49,7 @@ const emojiCategories = {
     ]
   },
   animals: {
-    icon: Cat,
+    icon: CatIcon,
     label: 'Animals & Nature',
     emojis: [
       '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
@@ -45,7 +59,7 @@ const emojiCategories = {
     ]
   },
   food: {
-    icon: UtensilsCrossed,
+    icon: UtensilsCrossedIcon,
     label: 'Food & Drink',
     emojis: [
       '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒',
@@ -55,7 +69,7 @@ const emojiCategories = {
     ]
   },
   travel: {
-    icon: Car,
+    icon: CarIcon,
     label: 'Travel & Places',
     emojis: [
       '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐',
@@ -65,7 +79,7 @@ const emojiCategories = {
     ]
   },
   activities: {
-    icon: PartyPopper,
+    icon: PartyPopperIcon,
     label: 'Activities',
     emojis: [
       '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱',
@@ -75,7 +89,7 @@ const emojiCategories = {
     ]
   },
   objects: {
-    icon: Music,
+    icon: MusicIcon,
     label: 'Objects',
     emojis: [
       '⌚', '📱', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '💽', '💾',
@@ -85,7 +99,7 @@ const emojiCategories = {
     ]
   },
   symbols: {
-    icon: Flag,
+    icon: FlagIcon,
     label: 'Symbols',
     emojis: [
       '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
@@ -134,7 +148,7 @@ const EmojiPicker = ({ onSelect, onClose, position = 'auto', triggerRef }) => {
       <div className="p-3 border-b border-neutral-200">
         <div className="flex items-center gap-2">
           <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-neutral-100 rounded-lg">
-            <Search size={16} className="text-neutral-400" />
+            <Icon name="search-01" size={16} className="text-neutral-400" />
             <input
               type="text"
               value={searchQuery}
@@ -225,7 +239,7 @@ export const QuickReactionPicker = ({ onSelect, onOpenFull }) => {
         className="w-7 h-7 flex items-center justify-center text-neutral-400 hover:bg-neutral-100 rounded-full transition-colors"
         title="More emojis"
       >
-        <MoreHorizontal size={16} />
+        <Icon name="dot-horizontal" size={16} />
       </button>
     </div>
   );
@@ -734,7 +748,7 @@ export const ImprovedDesignReview = ({
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#0f0f0f]">
+    <div className="h-screen flex flex-col bg-white dark:bg-[#0f0f0f]">
       {/* Header */}
       <div className="h-14 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between px-6 bg-white dark:bg-[#0f0f0f] shrink-0 relative">
         <div className="flex items-center gap-4">
@@ -743,7 +757,7 @@ export const ImprovedDesignReview = ({
             onClick={() => navigate('/')}
             className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
           >
-            <ArrowLeft size={20} />
+            <Icon name="arrow-left" size={20} />
           </button>
           {/* Task Title - Editable */}
           {isEditingTitle ? (
@@ -760,11 +774,11 @@ export const ImprovedDesignReview = ({
                 }
               }}
               autoFocus
-              className="bg-transparent text-neutral-900 dark:text-white font-medium text-base px-2 py-1 border border-neutral-300 dark:border-neutral-700 rounded focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500"
+              className="bg-transparent text-neutral-900 dark:text-white font-lastik text-base px-2 py-1 border border-neutral-300 dark:border-neutral-700 rounded focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500"
             />
           ) : (
             <h1
-              className="text-neutral-900 dark:text-white font-medium cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800/50 px-2 py-1 rounded"
+              className="text-neutral-900 dark:text-white font-lastik cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800/50 px-2 py-1 rounded"
               onClick={() => setIsEditingTitle(true)}
             >
               {task.title}
@@ -779,7 +793,7 @@ export const ImprovedDesignReview = ({
                 className="flex items-center gap-1.5 bg-neutral-100 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-300 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors"
               >
                 <span>Version {currentVersion?.version_number || 1}</span>
-                <ChevronDown size={12} className={`transition-transform ${versionMenuOpen ? 'rotate-180' : ''}`} />
+                <Icon name="chevron-down" size={12} className={`transition-transform ${versionMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Version dropdown menu */}
@@ -825,7 +839,7 @@ export const ImprovedDesignReview = ({
                             className="opacity-0 group-hover:opacity-100 p-1 rounded text-neutral-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all"
                             title="Delete version"
                           >
-                            <Trash2 size={12} />
+                            <Icon name="trash-01" size={12} />
                           </button>
                           )}
                         </div>
@@ -858,7 +872,7 @@ export const ImprovedDesignReview = ({
                         }}
                         className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 rounded-lg transition-colors"
                       >
-                        <Code2 size={14} className="opacity-60" />
+                        <Icon name="code-01" size={14} className="opacity-60" />
                         Embed
                       </button>
                       <button
@@ -868,7 +882,7 @@ export const ImprovedDesignReview = ({
                         }}
                         className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 rounded-lg transition-colors"
                       >
-                        <Globe size={14} className="opacity-60" />
+                        <Icon name="globe" size={14} className="opacity-60" />
                         Website
                       </button>
                     </div>
@@ -885,25 +899,25 @@ export const ImprovedDesignReview = ({
         <div className="relative">
           <button
             onClick={() => setTaskMenuOpen(!taskMenuOpen)}
-            className="p-2 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+            className="p-2 rounded text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             title="Task options"
           >
-            <MoreHorizontal size={18} />
+            <Icon name="dot-horizontal" size={18} />
           </button>
 
           {taskMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setTaskMenuOpen(false)} />
-              <div className="absolute top-full right-0 mt-1 w-48 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
+              <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
                 <button
                   onClick={() => {
                     // Copy share link
                     navigator.clipboard.writeText(window.location.href);
                     setTaskMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-300 hover:bg-neutral-800"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                 >
-                  <Share2 size={16} />
+                  <Icon name="share" size={16} />
                   Copy share link
                 </button>
                 <button
@@ -911,20 +925,20 @@ export const ImprovedDesignReview = ({
                     handleViewInNewPage();
                     setTaskMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-300 hover:bg-neutral-800"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                 >
-                  <ExternalLink size={16} />
+                  <Icon name="link-external" size={16} />
                   View in new tab
                 </button>
-                <div className="border-t border-neutral-800">
+                <div className="border-t border-neutral-200 dark:border-neutral-800">
                   <button
                     onClick={() => {
                       handleDeleteTask();
                       setTaskMenuOpen(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-neutral-800"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                   >
-                    <Trash2 size={16} />
+                    <Icon name="trash-01" size={16} />
                     Delete task
                   </button>
                 </div>
@@ -944,54 +958,54 @@ export const ImprovedDesignReview = ({
           }}
         >
           {/* Canvas mode controls */}
-          <div className="flex items-center gap-1 border border-neutral-800 rounded-lg p-0.5">
+          <div className="flex items-center gap-1 border border-neutral-200 dark:border-neutral-800 rounded-lg p-0.5">
             <button
               onClick={() => setCanvasMode('comment')}
               className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
                 canvasMode === 'comment'
-                  ? 'bg-neutral-700 text-white'
-                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                  ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-white'
+                  : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
             >
-              <MessageCircle size={16} />
+              <Icon name="message-circle" size={16} />
               <span className="text-sm">Comment</span>
             </button>
             <button
               onClick={() => setCanvasMode('view')}
               className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
                 canvasMode === 'view'
-                  ? 'bg-neutral-700 text-white'
-                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                  ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-white'
+                  : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
             >
-              <Hand size={16} />
+              <Icon name="pointer-01" size={16} />
               <span className="text-sm">Move</span>
             </button>
           </div>
 
           {/* Zoom controls */}
-          <div className="flex items-center gap-1 border border-neutral-800 rounded-lg p-0.5">
+          <div className="flex items-center gap-1 border border-neutral-200 dark:border-neutral-800 rounded-lg p-0.5">
             <button
               onClick={() => handleZoom(-0.1)}
-              className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+              className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
               title="Zoom out"
             >
-              <ZoomOut size={16} />
+              <Icon name="zoom-out" size={16} />
             </button>
-            <span className="px-2 text-xs text-neutral-500 min-w-[45px] text-center">{Math.round(zoomLevel * 100)}%</span>
+            <span className="px-2 text-xs text-neutral-400 dark:text-neutral-500 min-w-[45px] text-center">{Math.round(zoomLevel * 100)}%</span>
             <button
               onClick={() => handleZoom(0.1)}
-              className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+              className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
               title="Zoom in"
             >
-              <ZoomIn size={16} />
+              <Icon name="zoom-in" size={16} />
             </button>
             <button
               onClick={() => setZoomLevel(1)}
-              className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+              className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
               title="Fit to screen"
             >
-              <Maximize2 size={16} />
+              <Icon name="maximise-01" size={16} />
             </button>
           </div>
         </div>
@@ -1001,20 +1015,20 @@ export const ImprovedDesignReview = ({
       <div className="flex-1 flex overflow-hidden relative">
         {/* Sidebar - slides in/out with animation */}
         <div
-          className={`flex-shrink-0 flex flex-col bg-[#0f0f0f] overflow-hidden ${isDraggingSidebar ? '' : 'transition-all duration-300 ease-in-out'}`}
+          className={`flex-shrink-0 flex flex-col bg-white dark:bg-[#0f0f0f] overflow-hidden ${isDraggingSidebar ? '' : 'transition-all duration-300 ease-in-out'}`}
           style={{ width: sidebarOpen ? reviewSidebarWidth : 0 }}
         >
           {/* Sidebar inner content - fixed width to prevent content reflow during animation */}
           <div className="h-full flex flex-col" style={{ minWidth: reviewSidebarWidth }}>
             {/* Tabs with filter button */}
-            <div className="flex items-center border-b border-neutral-800">
+            <div className="flex items-center border-b border-neutral-200 dark:border-neutral-800">
               <div className="flex gap-6 px-4">
                 <button
                   onClick={() => setActiveTab('details')}
                   className={`py-3 text-sm font-medium transition-colors ${
                     activeTab === 'details'
-                      ? 'text-white'
-                      : 'text-neutral-500 hover:text-neutral-300'
+                      ? 'text-neutral-900 dark:text-white'
+                      : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300'
                   }`}
                 >
                   Details
@@ -1023,8 +1037,8 @@ export const ImprovedDesignReview = ({
                   onClick={() => setActiveTab('comments')}
                   className={`py-3 text-sm font-medium transition-colors ${
                     activeTab === 'comments'
-                      ? 'text-white'
-                      : 'text-neutral-500 hover:text-neutral-300'
+                      ? 'text-neutral-900 dark:text-white'
+                      : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300'
                   }`}
                 >
                   Comments
@@ -1034,8 +1048,8 @@ export const ImprovedDesignReview = ({
                     onClick={() => setActiveTab('notes')}
                     className={`py-3 text-sm font-medium transition-colors ${
                       activeTab === 'notes'
-                        ? 'text-white'
-                        : 'text-neutral-500 hover:text-neutral-300'
+                        ? 'text-neutral-900 dark:text-white'
+                        : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300'
                     }`}
                   >
                     Notes
@@ -1050,33 +1064,33 @@ export const ImprovedDesignReview = ({
                   <div className="relative">
                     <button
                       onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                      className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+                      className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                       title="Filter"
                     >
-                      <Filter size={16} />
+                      <Icon name="filter" size={16} />
                     </button>
 
                     {filterMenuOpen && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setFilterMenuOpen(false)} />
-                        <div className="absolute top-full right-0 mt-1 w-56 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 p-2">
-                          <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-neutral-800 rounded">
+                        <div className="absolute top-full right-0 mt-1 w-56 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-xl z-50 p-2">
+                          <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded">
                             <input
                               type="checkbox"
                               checked={hideOtherVersions}
                               onChange={(e) => setHideOtherVersions(e.target.checked)}
                               className="w-4 h-4"
                             />
-                            <span className="text-sm text-neutral-300">Hide comments on other versions</span>
+                            <span className="text-sm text-neutral-700 dark:text-neutral-300">Hide comments on other versions</span>
                           </label>
-                          <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-neutral-800 rounded">
+                          <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded">
                             <input
                               type="checkbox"
                               checked={hideCommentBubbles}
                               onChange={(e) => setHideCommentBubbles(e.target.checked)}
                               className="w-4 h-4"
                             />
-                            <span className="text-sm text-neutral-300">Hide comment bubbles</span>
+                            <span className="text-sm text-neutral-700 dark:text-neutral-300">Hide comment bubbles</span>
                           </label>
                         </div>
                       </>
@@ -1086,10 +1100,11 @@ export const ImprovedDesignReview = ({
                 {/* Sidebar toggle button - inside the header */}
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+                  className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                   title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
                 >
-                  <ChevronLeft
+                  <Icon
+                    name="chevron-left"
                     size={16}
                     className={`transition-transform duration-300 ${sidebarOpen ? '' : 'rotate-180'}`}
                   />
@@ -1171,7 +1186,7 @@ export const ImprovedDesignReview = ({
             className="w-1 cursor-col-resize shrink-0 group relative z-10 flex items-center justify-center"
           >
             <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
-            <div className={`w-px h-full transition-colors ${isDraggingSidebar ? 'bg-neutral-500' : 'bg-neutral-800 group-hover:bg-neutral-600'}`} />
+            <div className={`w-px h-full transition-colors ${isDraggingSidebar ? 'bg-neutral-500' : 'bg-neutral-200 dark:bg-neutral-800 group-hover:bg-neutral-400 dark:group-hover:bg-neutral-600'}`} />
           </div>
         )}
 
@@ -1179,19 +1194,19 @@ export const ImprovedDesignReview = ({
         {!sidebarOpen && (
           <button
             onClick={() => setSidebarOpen(true)}
-            className="absolute top-3 left-2 z-20 p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+            className="absolute top-3 left-2 z-20 p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
             title="Open sidebar"
           >
-            <ChevronRight size={16} />
+            <Icon name="chevron-right" size={16} />
           </button>
         )}
 
         {/* Canvas/Preview Area */}
-        <div className="flex-1 flex flex-col bg-neutral-900 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-neutral-100 dark:bg-neutral-900 overflow-hidden">
           {/* Canvas Container */}
           <div
             ref={canvasContainerRef}
-            className="flex-1 flex items-center justify-center bg-neutral-900 overflow-hidden relative"
+            className="flex-1 flex items-center justify-center bg-neutral-100 dark:bg-neutral-900 overflow-hidden relative"
             style={{ cursor: getCursorStyle() }}
             onWheel={handleWheel}
             onMouseDown={handleCanvasMouseDown}
@@ -1227,7 +1242,7 @@ export const ImprovedDesignReview = ({
                       {versionFrames.map((frame, index) => (
                         <div
                           key={frame.id || index}
-                          className="relative bg-neutral-800 rounded-xl overflow-hidden shadow-2xl"
+                          className="relative bg-neutral-200 dark:bg-neutral-800 rounded-xl overflow-hidden shadow-2xl"
                           data-frame-id={frame.id}
                           data-frame-index={index}
                           style={{
@@ -1329,14 +1344,14 @@ export const ImprovedDesignReview = ({
 
                 {/* Loading state for frames */}
                 {loadingFrames && (
-                  <div className="text-center text-neutral-500">
-                    <div className="w-8 h-8 border-2 border-neutral-600 border-t-white rounded-full animate-spin mx-auto mb-2" />
+                  <div className="text-center text-neutral-400 dark:text-neutral-500">
+                    <div className="w-8 h-8 border-2 border-neutral-300 dark:border-neutral-600 border-t-neutral-600 dark:border-t-white rounded-full animate-spin mx-auto mb-2" />
                     <p className="text-sm">Loading frames...</p>
                   </div>
                 )}
               </>
             ) : (
-              <div className="text-center text-neutral-500">
+              <div className="text-center text-neutral-400 dark:text-neutral-500">
                 <p>No version selected</p>
                 <button
                   onClick={() => setShowFigmaImport(true)}
@@ -1393,7 +1408,7 @@ export const ImprovedDesignReview = ({
                 onMouseDown={(e) => e.stopPropagation()}
               >
                 {/* Comment input box - compact design */}
-                <div className="bg-[#1c1c1c] rounded-lg shadow-2xl overflow-hidden">
+                <div className="bg-white dark:bg-[#1c1c1c] rounded-lg shadow-2xl overflow-hidden border border-neutral-200 dark:border-transparent">
                   <div className="flex items-center gap-2 p-2">
                     {/* User avatar - show image if available */}
                     {(() => {
@@ -1421,7 +1436,7 @@ export const ImprovedDesignReview = ({
                       value={positionedCommentText}
                       onChange={(e) => setPositionedCommentText(e.target.value)}
                       placeholder="Leave a comment..."
-                      className="flex-1 bg-transparent text-neutral-300 text-sm focus:outline-none placeholder-neutral-500 min-w-[200px]"
+                      className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-sm focus:outline-none placeholder-neutral-400 dark:placeholder-neutral-500 min-w-[200px]"
                       onKeyDown={(e) => {
                         if (e.key === 'Escape') {
                           setPositionedCommentText('');
@@ -1489,7 +1504,7 @@ export const ImprovedDesignReview = ({
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-                  <Code2 size={18} className="text-neutral-500 dark:text-neutral-400" />
+                  <Icon name="code-01" size={18} className="text-neutral-500 dark:text-neutral-400" />
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Add Embed</h2>
@@ -1500,7 +1515,7 @@ export const ImprovedDesignReview = ({
                 onClick={() => { setShowEmbedModal(false); setEmbedUrlInput(''); }}
                 className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
               >
-                <X size={18} />
+                <Icon name="x-01" size={18} />
               </button>
             </div>
             <div className="p-5 space-y-4">
@@ -1527,7 +1542,7 @@ export const ImprovedDesignReview = ({
                     : 'bg-neutral-900 dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200'
                 }`}
               >
-                {isCreatingVersion ? <><Loader2 size={14} className="animate-spin" /> Adding...</> : 'Add Embed'}
+                {isCreatingVersion ? <><Icon name="loader-01" size={14} className="animate-spin" /> Adding...</> : 'Add Embed'}
               </button>
             </div>
           </div>
@@ -1547,7 +1562,7 @@ export const ImprovedDesignReview = ({
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-                  <Globe size={18} className="text-neutral-500 dark:text-neutral-400" />
+                  <Icon name="globe" size={18} className="text-neutral-500 dark:text-neutral-400" />
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Add Website</h2>
@@ -1558,7 +1573,7 @@ export const ImprovedDesignReview = ({
                 onClick={() => { setShowWebsiteModal(false); setWebsiteUrlInput(''); }}
                 className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
               >
-                <X size={18} />
+                <Icon name="x-01" size={18} />
               </button>
             </div>
             <div className="p-5 space-y-4">
@@ -1585,7 +1600,7 @@ export const ImprovedDesignReview = ({
                     : 'bg-neutral-900 dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200'
                 }`}
               >
-                {isCreatingVersion ? <><Loader2 size={14} className="animate-spin" /> Adding...</> : 'Add Website'}
+                {isCreatingVersion ? <><Icon name="loader-01" size={14} className="animate-spin" /> Adding...</> : 'Add Website'}
               </button>
             </div>
           </div>
@@ -1604,7 +1619,7 @@ export const ImprovedDesignReview = ({
           >
             <div className="p-5">
               <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center mb-4">
-                <Trash2 size={18} className="text-red-500 dark:text-red-400" />
+                <Icon name="trash-01" size={18} className="text-red-500 dark:text-red-400" />
               </div>
               <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-1">Delete version {versionToDelete.version_number}?</h3>
               <p className="text-xs text-neutral-500 mb-5">
@@ -1622,7 +1637,7 @@ export const ImprovedDesignReview = ({
                   disabled={isDeletingVersion}
                   className="flex-1 py-2 text-sm font-medium rounded-lg transition-colors bg-red-500 text-white hover:bg-red-600 flex items-center justify-center gap-2"
                 >
-                  {isDeletingVersion ? <><Loader2 size={14} className="animate-spin" /> Deleting...</> : 'Delete'}
+                  {isDeletingVersion ? <><Icon name="loader-01" size={14} className="animate-spin" /> Deleting...</> : 'Delete'}
                 </button>
               </div>
             </div>
@@ -1790,7 +1805,7 @@ const DetailsTab = ({
       {/* Status */}
       <CustomSelect
         label="Status"
-        icon={Tag}
+        icon={TagIcon}
         value={task.status}
         options={statusOptions}
         onChange={onStatusChange}
@@ -1800,7 +1815,7 @@ const DetailsTab = ({
       {/* Assignee (read-only for clients) */}
       <CustomSelect
         label="Assignee"
-        icon={User}
+        icon={UserIcon}
         value={task.assigned_to_id}
         options={teamOptions}
         onChange={onAssigneeChange}
@@ -1814,7 +1829,7 @@ const DetailsTab = ({
       {!isCustomer && (
       <CustomSelect
         label="Helper"
-        icon={User}
+        icon={UserIcon}
         value={task.helper_id}
         options={teamOptions}
         onChange={onHelperChange}
@@ -1828,7 +1843,7 @@ const DetailsTab = ({
       {!isCustomer && (
       <CustomSelect
         label="Created By"
-        icon={User}
+        icon={UserIcon}
         value={createdById}
         options={teamOptions}
         onChange={onCreatorChange}
@@ -1839,9 +1854,9 @@ const DetailsTab = ({
       )}
 
       {/* Due Date - Editable */}
-      <div className="flex items-center py-1.5 px-2 hover:bg-neutral-800/50 rounded cursor-pointer group">
-        <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
-          <Calendar size={14} /> Due Date
+      <div className="flex items-center py-1.5 px-2 hover:bg-neutral-100 dark:hover:bg-neutral-800/50 rounded cursor-pointer group">
+        <div className="w-32 text-neutral-400 dark:text-neutral-500 flex items-center gap-2 text-sm">
+          <Icon name="calendar-01" size={14} /> Due Date
         </div>
         {isEditingDueDate ? (
           <input
@@ -1857,11 +1872,11 @@ const DetailsTab = ({
               }
             }}
             autoFocus
-            className="flex-1 bg-transparent text-neutral-300 text-sm text-right focus:outline-none"
+            className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-sm text-right focus:outline-none"
           />
         ) : (
           <div
-            className="flex-1 text-neutral-300 text-sm text-right"
+            className="flex-1 text-neutral-700 dark:text-neutral-300 text-sm text-right"
             onClick={() => setIsEditingDueDate(true)}
           >
             {task.dueDate ? (
@@ -1873,7 +1888,7 @@ const DetailsTab = ({
                 minute: '2-digit'
               })
             ) : (
-              <span className="text-neutral-600">Empty</span>
+              <span className="text-neutral-400 dark:text-neutral-600">Empty</span>
             )}
           </div>
         )}
@@ -1881,17 +1896,17 @@ const DetailsTab = ({
 
       {/* Client */}
       <div className="flex items-center py-1.5 px-2">
-        <div className="w-32 text-neutral-500 flex items-center gap-2 text-sm">
-          <Building2 size={14} /> Client
+        <div className="w-32 text-neutral-400 dark:text-neutral-500 flex items-center gap-2 text-sm">
+          <Icon name="bank" size={14} /> Client
         </div>
-        <div className="flex-1 text-neutral-300 text-sm text-right">
-          {task.clientName || <span className="text-neutral-600">Internal</span>}
+        <div className="flex-1 text-neutral-700 dark:text-neutral-300 text-sm text-right">
+          {task.clientName || <span className="text-neutral-400 dark:text-neutral-600">Internal</span>}
         </div>
       </div>
 
       {/* Description Section */}
-      <div className="pt-4 border-t border-neutral-800 mt-4">
-        <h3 className="text-sm font-medium text-neutral-400 mb-3 px-2">Description</h3>
+      <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 mt-4">
+        <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400 mb-3 px-2">Description</h3>
         {isEditingDescription ? (
           <div className="space-y-2">
             {/* Description formatting toolbar */}
@@ -1899,68 +1914,68 @@ const DetailsTab = ({
               <div className="flex items-center gap-1 px-2 pb-2">
                 <button
                   onClick={insertDescBold}
-                  className={`p-1 rounded transition-colors ${activeDescFormats.bold ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                  className={`p-1 rounded transition-colors ${activeDescFormats.bold ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                   title="Bold"
                 >
-                  <Bold size={14} />
+                  <Icon name="bold-01" size={14} />
                 </button>
                 <button
                   onClick={insertDescItalic}
-                  className={`p-1 rounded transition-colors ${activeDescFormats.italic ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                  className={`p-1 rounded transition-colors ${activeDescFormats.italic ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                   title="Italic"
                 >
-                  <Italic size={14} />
+                  <Icon name="italics-01" size={14} />
                 </button>
                 <button
                   onClick={insertDescStrikethrough}
-                  className={`p-1 rounded transition-colors ${activeDescFormats.strikeThrough ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                  className={`p-1 rounded transition-colors ${activeDescFormats.strikeThrough ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                   title="Strikethrough"
                 >
-                  <Strikethrough size={14} />
+                  <Icon name="type-strike-01" size={14} />
                 </button>
                 <button
                   onClick={insertDescUnderline}
-                  className={`p-1 rounded transition-colors ${activeDescFormats.underline ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+                  className={`p-1 rounded transition-colors ${activeDescFormats.underline ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                   title="Underline"
                 >
-                  <Underline size={14} />
+                  <Icon name="underline-01" size={14} />
                 </button>
-                <div className="w-px h-3 bg-neutral-700 mx-0.5" />
-                <button onClick={insertDescBulletList} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Bullet list">
-                  <List size={14} />
+                <div className="w-px h-3 bg-neutral-300 dark:bg-neutral-700 mx-0.5" />
+                <button onClick={insertDescBulletList} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Bullet list">
+                  <Icon name="list" size={14} />
                 </button>
-                <button onClick={insertDescNumberedList} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Numbered list">
-                  <ListOrdered size={14} />
+                <button onClick={insertDescNumberedList} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Numbered list">
+                  <Icon name="list-numbers" size={14} />
                 </button>
-                <button onClick={insertDescChecklist} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Checklist">
-                  <CheckSquare size={14} />
+                <button onClick={insertDescChecklist} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Checklist">
+                  <Icon name="check-square-contained" size={14} />
                 </button>
               </div>
             )}
 
             {/* Description link input */}
             {showDescLinkInput && (
-              <div className="flex items-center gap-2 p-2 mx-2 bg-neutral-900 rounded-lg">
+              <div className="flex items-center gap-2 p-2 mx-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg">
                 <input
                   type="text"
                   value={descLinkText}
                   onChange={(e) => setDescLinkText(e.target.value)}
                   placeholder="Link text"
-                  className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                  className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-xs placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                 />
                 <input
                   type="text"
                   value={descLinkUrl}
                   onChange={(e) => setDescLinkUrl(e.target.value)}
                   placeholder="URL"
-                  className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                  className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-xs placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                   onKeyDown={(e) => { if (e.key === 'Enter') handleDescInsertLink(); }}
                 />
                 <button onClick={handleDescInsertLink} className="p-1 text-blue-500 hover:text-blue-400">
-                  <CheckSquare size={14} />
+                  <Icon name="check-square-contained" size={14} />
                 </button>
-                <button onClick={() => { setShowDescLinkInput(false); setDescLinkUrl(''); setDescLinkText(''); }} className="p-1 text-neutral-500 hover:text-white">
-                  <X size={14} />
+                <button onClick={() => { setShowDescLinkInput(false); setDescLinkUrl(''); setDescLinkText(''); }} className="p-1 text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white">
+                  <Icon name="x-01" size={14} />
                 </button>
               </div>
             )}
@@ -1970,7 +1985,7 @@ const DetailsTab = ({
               ref={descEditorRef}
               contentEditable
               data-placeholder="Add a description..."
-              className="w-full bg-neutral-900 text-neutral-300 text-sm p-3 rounded border border-neutral-800 focus:outline-none focus:border-neutral-600 min-h-[120px] max-h-[200px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-600"
+              className="w-full bg-neutral-50 dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 text-sm p-3 rounded border border-neutral-200 dark:border-neutral-800 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 min-h-[120px] max-h-[200px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-400 dark:empty:before:text-neutral-600"
               onInput={(e) => setEditedDescription(e.currentTarget.innerHTML)}
               onKeyDown={(e) => { if (e.key === 'Escape') handleCancelDescription(); }}
             />
@@ -1980,26 +1995,26 @@ const DetailsTab = ({
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => { setShowDescLinkInput(!showDescLinkInput); setShowDescFormattingToolbar(false); setShowDescEmojiPicker(false); }}
-                  className={`p-1 rounded transition-colors ${showDescLinkInput ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                  className={`p-1 rounded transition-colors ${showDescLinkInput ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                   title="Add link"
                 >
-                  <Paperclip size={14} />
+                  <Icon name="paperclip" size={14} />
                 </button>
                 <button
                   onClick={() => { setShowDescFormattingToolbar(!showDescFormattingToolbar); setShowDescLinkInput(false); setShowDescEmojiPicker(false); }}
-                  className={`p-1 rounded transition-colors ${showDescFormattingToolbar ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                  className={`p-1 rounded transition-colors ${showDescFormattingToolbar ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                   title="Text formatting"
                 >
-                  <Type size={14} />
+                  <Icon name="type-01" size={14} />
                 </button>
                 <div className="relative">
                   <button
                     ref={descEmojiButtonRef}
                     onClick={() => { setShowDescEmojiPicker(!showDescEmojiPicker); setShowDescFormattingToolbar(false); setShowDescLinkInput(false); }}
-                    className={`p-1 rounded transition-colors ${showDescEmojiPicker ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                    className={`p-1 rounded transition-colors ${showDescEmojiPicker ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                     title="Add emoji"
                   >
-                    <Smile size={14} />
+                    <Icon name="smiley-happy" size={14} />
                   </button>
                   {showDescEmojiPicker && (
                     <>
@@ -2014,10 +2029,10 @@ const DetailsTab = ({
                 </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={handleCancelDescription} className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white">
+                <button onClick={handleCancelDescription} className="px-3 py-1.5 text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white">
                   Cancel
                 </button>
-                <button onClick={handleSaveDescription} className="px-3 py-1.5 text-sm text-white hover:text-neutral-300">
+                <button onClick={handleSaveDescription} className="px-3 py-1.5 text-sm text-neutral-900 dark:text-white hover:text-neutral-600 dark:hover:text-neutral-300">
                   Save
                 </button>
               </div>
@@ -2026,7 +2041,7 @@ const DetailsTab = ({
         ) : (
           <div
             onClick={() => setIsEditingDescription(true)}
-            className="text-neutral-300 text-sm cursor-pointer hover:bg-neutral-800/50 p-3 rounded min-h-[60px]"
+            className="text-neutral-700 dark:text-neutral-300 text-sm cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800/50 p-3 rounded min-h-[60px]"
             dangerouslySetInnerHTML={{ __html: task.description || '<span class="text-neutral-600 italic">Click to add description...</span>' }}
           />
         )}
@@ -2034,30 +2049,32 @@ const DetailsTab = ({
 
       {/* AI-Generated Concept Images — visible to designers */}
       {task.properties?.ai_images && task.properties.ai_images.length > 0 && (
-        <div className="mx-4 mt-2 mb-2 border border-neutral-800 rounded-xl overflow-hidden flex flex-col">
-          <div className="px-4 py-2.5 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2 shrink-0">
+        <div className="mx-4 mt-2 mb-2 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden flex flex-col">
+          <div className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800/40 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2 shrink-0">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-            <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Concept Images</span>
+            <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">AI Concept Images</span>
           </div>
-          <div className="p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar" style={{ maxHeight: task.properties.ai_images.length > 2 ? '420px' : undefined }}>
+          <div className="p-4 grid grid-cols-2 gap-3 overflow-y-auto custom-scrollbar" style={{ maxHeight: task.properties.ai_images.length > 4 ? '420px' : undefined }}>
             {task.properties.ai_images.map((img, i) => {
               const imgUrl = typeof img === 'string' ? img : img.url;
               const imgRating = typeof img === 'object' ? img.rating : 0;
+              if (!imgUrl) return null;
               return (
                 <div key={i}>
                   <img
                     src={imgUrl}
                     alt={`AI concept ${i + 1}`}
-                    className="w-full rounded-lg border border-neutral-700 cursor-pointer hover:opacity-90 transition-opacity"
+                    className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={() => window.open(imgUrl, '_blank')}
+                    onError={(e) => { e.target.style.display = 'none'; }}
                   />
                   {imgRating > 0 && (
                     <div className="flex items-center gap-0.5 mt-1.5">
-                      <span className="text-[10px] text-neutral-500 mr-1">Client rating:</span>
+                      <span className="text-[10px] text-neutral-400 dark:text-neutral-500 mr-1">Client rating:</span>
                       {[1, 2, 3, 4, 5].map(s => (
                         <svg key={s} width="12" height="12" viewBox="0 0 24 24" fill={s <= imgRating ? '#D08B00' : 'none'} stroke={s <= imgRating ? '#D08B00' : '#525252'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                       ))}
-                      <span className="text-[10px] text-neutral-500 ml-1">{imgRating}/5</span>
+                      <span className="text-[10px] text-neutral-400 dark:text-neutral-500 ml-1">{imgRating}/5</span>
                     </div>
                   )}
                 </div>
@@ -2069,36 +2086,39 @@ const DetailsTab = ({
 
       {/* AI Brief Conversation — visible to designers */}
       {task.properties?.ai_conversation && task.properties.ai_conversation.length > 0 && (
-        <div className="mx-4 mt-2 mb-2 border border-neutral-800 rounded-xl overflow-hidden flex flex-col" style={{ maxHeight: '350px' }}>
-          <div className="px-4 py-2.5 bg-neutral-800/40 border-b border-neutral-800 flex items-center gap-2 shrink-0">
+        <div className="mx-4 mt-2 mb-2 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden flex flex-col" style={{ maxHeight: '350px' }}>
+          <div className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800/40 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2 shrink-0">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#D08B00]"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-            <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">AI Brief Assistant — Q&A</span>
+            <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">AI Brief Assistant — Q&A</span>
           </div>
           <div className="px-4 py-3 space-y-2.5 overflow-y-auto custom-scrollbar flex-1 min-h-0">
-            {task.properties.ai_conversation.map((msg, i) => (
+            {task.properties.ai_conversation.map((msg, i) => {
+              const hasImages = msg.images && msg.images.length > 0;
+              const isImgMsg = msg.content?.startsWith('[IMG] ') || msg.content?.startsWith('🖼');
+              return (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] px-3 py-1.5 text-xs leading-relaxed whitespace-pre-wrap ${
+                <div className={`${hasImages || isImgMsg ? 'max-w-[55%]' : 'max-w-[85%]'} px-3 py-1.5 text-xs leading-relaxed whitespace-pre-wrap ${
                   msg.role === 'user'
-                    ? 'bg-neutral-800 text-neutral-200 rounded-xl rounded-br-sm'
-                    : 'bg-neutral-800/50 text-neutral-400 rounded-xl rounded-bl-sm'
+                    ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-xl rounded-br-sm'
+                    : 'bg-neutral-50 dark:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 rounded-xl rounded-bl-sm'
                 }`}>
                   {msg.role === 'assistant' && <span className="text-[9px] text-[#D08B00] font-semibold block mb-0.5">AI</span>}
-                  {msg.role === 'user' && <span className="text-[9px] text-neutral-500 font-semibold block mb-0.5">Client</span>}
-                  {msg.content?.startsWith('🖼 ')
-                    ? <span className="italic text-neutral-500">{msg.content.replace('🖼 ', '')}</span>
+                  {msg.role === 'user' && <span className="text-[9px] text-neutral-400 dark:text-neutral-500 font-semibold block mb-0.5">Client</span>}
+                  {isImgMsg
+                    ? <span className="italic text-neutral-400 dark:text-neutral-500">{msg.content.replace(/^\[IMG\] |^🖼 ?/, '')}</span>
                     : msg.content
                   }
-                  {msg.images && msg.images.length > 0 && (
+                  {hasImages && (
                     <div className="mt-2 space-y-1.5">
                       {msg.images.map((img, j) => (
-                        <img key={j} src={img} alt={`AI concept ${j + 1}`} className="w-full rounded-lg border border-neutral-700" />
+                        <img key={j} src={img} alt={`AI concept ${j + 1}`} className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700" onError={(e) => { e.target.style.display = 'none'; }} />
                       ))}
                       {msg.imageRating > 0 && (
                         <div className="flex items-center gap-0.5">
                           {[1,2,3,4,5].map(s => (
                             <span key={s} className={`text-[10px] ${s <= msg.imageRating ? 'text-[#D08B00]' : 'text-neutral-700'}`}>★</span>
                           ))}
-                          <span className="text-[9px] text-neutral-500 ml-1">{msg.imageRating}/5</span>
+                          <span className="text-[9px] text-neutral-400 dark:text-neutral-500 ml-1">{msg.imageRating}/5</span>
                         </div>
                       )}
                     </div>
@@ -2110,23 +2130,24 @@ const DetailsTab = ({
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* Deliverables Section */}
-      <div className="px-4 py-4 border-t border-neutral-800">
-        <h3 className="text-sm font-medium text-neutral-400 mb-3 px-2">Deliverables</h3>
+      <div className="px-4 py-4 border-t border-neutral-200 dark:border-neutral-800">
+        <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400 mb-3 px-2">Deliverables</h3>
         <button
           onClick={onOpenDeliverables}
-          className="w-full text-left p-3 rounded-lg bg-neutral-900/50 border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-800/50 transition-colors group"
+          className="w-full text-left p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800/50 transition-colors group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-sm text-neutral-400 group-hover:text-neutral-300">
+            <span className="text-sm text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-300">
               Click to open deliverables form...
             </span>
-            <ChevronRight size={16} className="text-neutral-600 group-hover:text-neutral-400" />
+            <Icon name="chevron-right" size={16} className="text-neutral-400 dark:text-neutral-600 group-hover:text-neutral-500 dark:group-hover:text-neutral-400" />
           </div>
         </button>
       </div>
@@ -2539,7 +2560,7 @@ const CommentsTab = ({
       {/* Comments List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {filteredComments.length === 0 ? (
-          <div className="text-center text-neutral-500 py-12">
+          <div className="text-center text-neutral-400 dark:text-neutral-500 py-12">
             <p>{isNotesMode ? 'No notes yet' : 'No comments yet'}</p>
             <p className="text-sm mt-1">{isNotesMode ? 'Add internal notes visible only to team members' : 'Add a comment to get started'}</p>
           </div>
@@ -2552,7 +2573,7 @@ const CommentsTab = ({
               <div key={dateKey}>
                 {/* Date separator */}
                 <div className="flex items-center justify-center mb-4">
-                  <div className="text-xs text-neutral-600 bg-neutral-900 px-3 py-1 rounded-full">
+                  <div className="text-xs text-neutral-400 dark:text-neutral-600 bg-neutral-100 dark:bg-neutral-900 px-3 py-1 rounded-full">
                     {dateLabel}
                   </div>
                 </div>
@@ -2576,7 +2597,7 @@ const CommentsTab = ({
                       <div
                         key={comment.id}
                         id={`comment-${comment.id}`}
-                        className={`flex gap-3 p-2 -mx-2 rounded-lg transition-all duration-500 ${isHighlighted ? 'ring-2 ring-white/80' : ''}`}
+                        className={`flex gap-3 p-2 -mx-2 rounded-lg transition-all duration-500 ${isHighlighted ? 'ring-2 ring-neutral-900/80 dark:ring-white/80' : ''}`}
                         onMouseEnter={() => setHoveredCommentId(comment.id)}
                         onMouseLeave={() => setHoveredCommentId(null)}
                       >
@@ -2585,7 +2606,7 @@ const CommentsTab = ({
                           {authorAvatar ? (
                             <img src={authorAvatar} alt={authorName} className="w-8 h-8 rounded-full" />
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-white text-sm">
+                            <div className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-neutral-600 dark:text-white text-sm">
                               {authorName[0]}
                             </div>
                           )}
@@ -2596,8 +2617,8 @@ const CommentsTab = ({
                           {/* Header - fixed height to prevent layout shift */}
                           <div className="flex items-center justify-between h-6">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-white">{authorName}</span>
-                              <span className="text-xs text-neutral-600">{formatTime(comment.created_at)}</span>
+                              <span className="text-sm font-medium text-neutral-900 dark:text-white">{authorName}</span>
+                              <span className="text-xs text-neutral-400 dark:text-neutral-600">{formatTime(comment.created_at)}</span>
                             </div>
 
                             {/* Hover actions - always reserve space, show/hide with opacity */}
@@ -2606,7 +2627,7 @@ const CommentsTab = ({
                               {isOwnComment && (
                                 <button
                                   onClick={() => startEdit(comment)}
-                                  className="px-2 py-0.5 rounded text-xs text-neutral-500 hover:text-white hover:bg-neutral-800"
+                                  className="px-2 py-0.5 rounded text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                 >
                                   Edit
                                 </button>
@@ -2620,9 +2641,9 @@ const CommentsTab = ({
                                     setShowCommentMenuForComment(null);
                                     setShowFullEmojiPickerForComment(null);
                                   }}
-                                  className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800"
+                                  className="p-1 rounded text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                 >
-                                  <Smile size={14} />
+                                  <Icon name="smiley-happy" size={14} />
                                 </button>
 
                                 {/* Quick Reaction Picker */}
@@ -2661,29 +2682,29 @@ const CommentsTab = ({
                                     setShowReactionPickerForComment(null);
                                     setShowFullEmojiPickerForComment(null);
                                   }}
-                                  className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800"
+                                  className="p-1 rounded text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                 >
-                                  <MoreHorizontal size={14} />
+                                  <Icon name="dot-horizontal" size={14} />
                                 </button>
 
                                 {/* Dropdown menu */}
                                 {showCommentMenuForComment === comment.id && (
                                   <>
                                     <div className="fixed inset-0 z-40" onClick={closeAllHoverMenus} />
-                                    <div className="absolute right-0 top-full mt-1 w-44 bg-[#1a1a1a] border border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
+                                    <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden">
                                       <button
                                         onClick={() => handleCopyCommentLink(comment.id)}
-                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
+                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                       >
-                                        <Copy size={14} />
+                                        <Icon name="copy-right" size={14} />
                                         Copy link
                                       </button>
                                       {isOwnComment && (
                                         <button
                                           onClick={() => handleDeleteCommentClick(comment.id)}
-                                          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-neutral-800"
+                                          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         >
-                                          <Trash2 size={14} />
+                                          <Icon name="trash-01" size={14} />
                                           Delete comment
                                         </button>
                                       )}
@@ -2700,54 +2721,54 @@ const CommentsTab = ({
                               {/* Edit formatting toolbar */}
                               {showEditFormattingToolbar && (
                                 <div className="flex items-center gap-1 pb-2">
-                                  <button onClick={() => insertBold(false)} className={`p-1 rounded transition-colors ${activeEditFormats.bold ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Bold">
-                                    <Bold size={14} />
+                                  <button onClick={() => insertBold(false)} className={`p-1 rounded transition-colors ${activeEditFormats.bold ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`} title="Bold">
+                                    <Icon name="bold-01" size={14} />
                                   </button>
-                                  <button onClick={() => insertItalic(false)} className={`p-1 rounded transition-colors ${activeEditFormats.italic ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Italic">
-                                    <Italic size={14} />
+                                  <button onClick={() => insertItalic(false)} className={`p-1 rounded transition-colors ${activeEditFormats.italic ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`} title="Italic">
+                                    <Icon name="italics-01" size={14} />
                                   </button>
-                                  <button onClick={() => insertStrikethrough(false)} className={`p-1 rounded transition-colors ${activeEditFormats.strikeThrough ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Strikethrough">
-                                    <Strikethrough size={14} />
+                                  <button onClick={() => insertStrikethrough(false)} className={`p-1 rounded transition-colors ${activeEditFormats.strikeThrough ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`} title="Strikethrough">
+                                    <Icon name="type-strike-01" size={14} />
                                   </button>
-                                  <button onClick={() => insertUnderline(false)} className={`p-1 rounded transition-colors ${activeEditFormats.underline ? 'text-white bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'}`} title="Underline">
-                                    <Underline size={14} />
+                                  <button onClick={() => insertUnderline(false)} className={`p-1 rounded transition-colors ${activeEditFormats.underline ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`} title="Underline">
+                                    <Icon name="underline-01" size={14} />
                                   </button>
-                                  <div className="w-px h-3 bg-neutral-700 mx-0.5" />
-                                  <button onClick={() => insertBulletList(false)} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Bullet list">
-                                    <List size={14} />
+                                  <div className="w-px h-3 bg-neutral-300 dark:bg-neutral-700 mx-0.5" />
+                                  <button onClick={() => insertBulletList(false)} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Bullet list">
+                                    <Icon name="list" size={14} />
                                   </button>
-                                  <button onClick={() => insertNumberedList(false)} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Numbered list">
-                                    <ListOrdered size={14} />
+                                  <button onClick={() => insertNumberedList(false)} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Numbered list">
+                                    <Icon name="list-numbers" size={14} />
                                   </button>
-                                  <button onClick={() => insertChecklist(false)} className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800" title="Checklist">
-                                    <CheckSquare size={14} />
+                                  <button onClick={() => insertChecklist(false)} className="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800" title="Checklist">
+                                    <Icon name="check-square-contained" size={14} />
                                   </button>
                                 </div>
                               )}
 
                               {/* Edit link input */}
                               {showEditLinkInput && (
-                                <div className="flex items-center gap-2 p-2 bg-neutral-900 rounded-lg">
+                                <div className="flex items-center gap-2 p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg">
                                   <input
                                     type="text"
                                     value={editLinkText}
                                     onChange={(e) => setEditLinkText(e.target.value)}
                                     placeholder="Link text"
-                                    className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                                    className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-xs placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                                   />
                                   <input
                                     type="text"
                                     value={editLinkUrl}
                                     onChange={(e) => setEditLinkUrl(e.target.value)}
                                     placeholder="URL"
-                                    className="flex-1 bg-transparent text-neutral-300 text-xs placeholder-neutral-600 focus:outline-none"
+                                    className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-xs placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                                     onKeyDown={(e) => { if (e.key === 'Enter') handleInsertLink(false); }}
                                   />
                                   <button onClick={() => handleInsertLink(false)} className="p-1 text-blue-500 hover:text-blue-400">
-                                    <CheckSquare size={14} />
+                                    <Icon name="check-square-contained" size={14} />
                                   </button>
-                                  <button onClick={() => { setShowEditLinkInput(false); setEditLinkUrl(''); setEditLinkText(''); }} className="p-1 text-neutral-500 hover:text-white">
-                                    <X size={14} />
+                                  <button onClick={() => { setShowEditLinkInput(false); setEditLinkUrl(''); setEditLinkText(''); }} className="p-1 text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white">
+                                    <Icon name="x-01" size={14} />
                                   </button>
                                 </div>
                               )}
@@ -2756,7 +2777,7 @@ const CommentsTab = ({
                               <div
                                 ref={editCommentEditorRef}
                                 contentEditable
-                                className="w-full bg-transparent text-neutral-300 text-sm focus:outline-none min-h-[40px] max-h-[100px] overflow-y-auto"
+                                className="w-full bg-transparent text-neutral-700 dark:text-neutral-300 text-sm focus:outline-none min-h-[40px] max-h-[100px] overflow-y-auto"
                                 onKeyDown={(e) => { if (e.key === 'Escape') cancelEdit(); }}
                                 onInput={(e) => setEditedContent(e.currentTarget.innerHTML)}
                               />
@@ -2766,26 +2787,26 @@ const CommentsTab = ({
                                 <div className="flex items-center gap-1">
                                   <button
                                     onClick={() => { setShowEditLinkInput(!showEditLinkInput); setShowEditFormattingToolbar(false); setShowEditEmojiPicker(false); }}
-                                    className={`p-1 rounded transition-colors ${showEditLinkInput ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                    className={`p-1 rounded transition-colors ${showEditLinkInput ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                                     title="Add link"
                                   >
-                                    <Paperclip size={14} />
+                                    <Icon name="paperclip" size={14} />
                                   </button>
                                   <button
                                     onClick={() => { setShowEditFormattingToolbar(!showEditFormattingToolbar); setShowEditLinkInput(false); setShowEditEmojiPicker(false); }}
-                                    className={`p-1 rounded transition-colors ${showEditFormattingToolbar ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                    className={`p-1 rounded transition-colors ${showEditFormattingToolbar ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                                     title="Text formatting"
                                   >
-                                    <Type size={14} />
+                                    <Icon name="type-01" size={14} />
                                   </button>
                                   <div className="relative">
                                     <button
                                       ref={editEmojiButtonRef}
                                       onClick={() => { setShowEditEmojiPicker(!showEditEmojiPicker); setShowEditFormattingToolbar(false); setShowEditLinkInput(false); }}
-                                      className={`p-1 rounded transition-colors ${showEditEmojiPicker ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-white hover:bg-neutral-800'}`}
+                                      className={`p-1 rounded transition-colors ${showEditEmojiPicker ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
                                       title="Add emoji"
                                     >
-                                      <Smile size={14} />
+                                      <Icon name="smiley-happy" size={14} />
                                     </button>
                                     {showEditEmojiPicker && (
                                       <>
@@ -2800,10 +2821,10 @@ const CommentsTab = ({
                                   </div>
                                 </div>
                                 <div className="flex gap-2">
-                                  <button onClick={cancelEdit} className="text-xs text-neutral-400 hover:text-white">
+                                  <button onClick={cancelEdit} className="text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white">
                                     Cancel
                                   </button>
-                                  <button onClick={() => saveEdit(comment.id)} className="text-xs text-white hover:text-neutral-300">
+                                  <button onClick={() => saveEdit(comment.id)} className="text-xs text-neutral-900 dark:text-white hover:text-neutral-600 dark:hover:text-neutral-300">
                                     Save
                                   </button>
                                 </div>
@@ -2812,7 +2833,7 @@ const CommentsTab = ({
                           ) : (
                             <>
                               <div
-                                className="text-sm text-neutral-300"
+                                className="text-sm text-neutral-700 dark:text-neutral-300"
                                 dangerouslySetInnerHTML={{ __html: comment.content }}
                               />
 
@@ -2825,8 +2846,8 @@ const CommentsTab = ({
                                       onClick={() => handleReactionClick(comment.id, reaction.emoji)}
                                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${
                                         reaction.hasCurrentUser
-                                          ? 'bg-transparent border border-white/60 text-white'
-                                          : 'bg-transparent border border-neutral-600 text-neutral-400 hover:border-neutral-500'
+                                          ? 'bg-transparent border border-neutral-900/60 dark:border-white/60 text-neutral-900 dark:text-white'
+                                          : 'bg-transparent border border-neutral-300 dark:border-neutral-600 text-neutral-500 dark:text-neutral-400 hover:border-neutral-400 dark:hover:border-neutral-500'
                                       }`}
                                       title={`${reaction.count} reaction${reaction.count > 1 ? 's' : ''}`}
                                     >
@@ -2859,87 +2880,87 @@ const CommentsTab = ({
                 onClick={() => insertBold(true)}
                 className={`p-1.5 rounded transition-colors ${
                   activeFormats.bold
-                    ? 'text-white bg-neutral-700'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                    ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700'
+                    : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
                 }`}
                 title="Bold"
               >
-                <Bold size={16} />
+                <Icon name="bold-01" size={16} />
               </button>
               <button
                 onClick={() => insertItalic(true)}
                 className={`p-1.5 rounded transition-colors ${
                   activeFormats.italic
-                    ? 'text-white bg-neutral-700'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                    ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700'
+                    : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
                 }`}
                 title="Italic"
               >
-                <Italic size={16} />
+                <Icon name="italics-01" size={16} />
               </button>
               <button
                 onClick={() => insertStrikethrough(true)}
                 className={`p-1.5 rounded transition-colors ${
                   activeFormats.strikeThrough
-                    ? 'text-white bg-neutral-700'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                    ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700'
+                    : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
                 }`}
                 title="Strikethrough"
               >
-                <Strikethrough size={16} />
+                <Icon name="type-strike-01" size={16} />
               </button>
               <button
                 onClick={() => insertUnderline(true)}
                 className={`p-1.5 rounded transition-colors ${
                   activeFormats.underline
-                    ? 'text-white bg-neutral-700'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                    ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-700'
+                    : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
                 }`}
                 title="Underline"
               >
-                <Underline size={16} />
+                <Icon name="underline-01" size={16} />
               </button>
-              <div className="w-px h-4 bg-neutral-700 mx-1" />
+              <div className="w-px h-4 bg-neutral-300 dark:bg-neutral-700 mx-1" />
               <button
                 onClick={() => insertBulletList(true)}
-                className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+                className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                 title="Bullet list"
               >
-                <List size={16} />
+                <Icon name="list" size={16} />
               </button>
               <button
                 onClick={() => insertNumberedList(true)}
-                className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+                className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                 title="Numbered list"
               >
-                <ListOrdered size={16} />
+                <Icon name="list-numbers" size={16} />
               </button>
               <button
                 onClick={() => insertChecklist(true)}
-                className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800"
+                className="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
                 title="Checklist"
               >
-                <CheckSquare size={16} />
+                <Icon name="check-square-contained" size={16} />
               </button>
             </div>
           )}
 
           {/* Link input - shown inline */}
           {showLinkInput && (
-            <div className="flex items-center gap-2 p-2 bg-neutral-900 rounded-lg">
+            <div className="flex items-center gap-2 p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg">
               <input
                 type="text"
                 value={linkText}
                 onChange={(e) => setLinkText(e.target.value)}
                 placeholder="Link text (optional)"
-                className="flex-1 bg-transparent text-neutral-300 text-sm placeholder-neutral-600 focus:outline-none"
+                className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
               />
               <input
                 type="text"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
                 placeholder="URL"
-                className="flex-1 bg-transparent text-neutral-300 text-sm placeholder-neutral-600 focus:outline-none"
+                className="flex-1 bg-transparent text-neutral-700 dark:text-neutral-300 text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleInsertLink(true);
@@ -2950,7 +2971,7 @@ const CommentsTab = ({
                 onClick={() => handleInsertLink(true)}
                 className="p-1 text-blue-500 hover:text-blue-400"
               >
-                <CheckSquare size={16} />
+                <Icon name="check-square-contained" size={16} />
               </button>
               <button
                 onClick={() => {
@@ -2958,16 +2979,16 @@ const CommentsTab = ({
                   setLinkUrl('');
                   setLinkText('');
                 }}
-                className="p-1 text-neutral-500 hover:text-white"
+                className="p-1 text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
               >
-                <X size={16} />
+                <Icon name="x-01" size={16} />
               </button>
             </div>
           )}
 
           {/* Notes mode label */}
           {isNotesMode && (
-            <div className="text-xs text-neutral-500 mb-1">Only visible to team members</div>
+            <div className="text-xs text-neutral-400 dark:text-neutral-500 mb-1">Only visible to team members</div>
           )}
 
           {/* Message editor */}
@@ -2975,7 +2996,7 @@ const CommentsTab = ({
             ref={newCommentEditorRef}
             contentEditable
             data-placeholder={isNotesMode ? "Add a private note..." : "Leave a message..."}
-            className="w-full bg-transparent text-neutral-300 text-sm focus:outline-none min-h-[20px] max-h-[120px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-600"
+            className="w-full bg-transparent text-neutral-700 dark:text-neutral-300 text-sm focus:outline-none min-h-[20px] max-h-[120px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-400 dark:empty:before:text-neutral-600"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -2996,12 +3017,12 @@ const CommentsTab = ({
                 }}
                 className={`p-1.5 rounded transition-colors ${
                   showLinkInput
-                    ? 'text-white bg-neutral-800'
-                    : 'text-neutral-500 hover:text-white hover:bg-neutral-800'
+                    ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800'
+                    : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
                 }`}
                 title="Add link"
               >
-                <Paperclip size={16} />
+                <Icon name="paperclip" size={16} />
               </button>
               <button
                 onClick={() => {
@@ -3011,12 +3032,12 @@ const CommentsTab = ({
                 }}
                 className={`p-1.5 rounded transition-colors ${
                   showFormattingToolbar
-                    ? 'text-white bg-neutral-800'
-                    : 'text-neutral-500 hover:text-white hover:bg-neutral-800'
+                    ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800'
+                    : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
                 }`}
                 title="Text formatting"
               >
-                <Type size={16} />
+                <Icon name="type-01" size={16} />
               </button>
               <div className="relative">
                 <button
@@ -3028,12 +3049,12 @@ const CommentsTab = ({
                   }}
                   className={`p-1.5 rounded transition-colors ${
                     showNewCommentEmojiPicker
-                      ? 'text-white bg-neutral-800'
-                      : 'text-neutral-500 hover:text-white hover:bg-neutral-800'
+                      ? 'text-neutral-900 dark:text-white bg-neutral-200 dark:bg-neutral-800'
+                      : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
                   }`}
                   title="Add emoji"
                 >
-                  <Smile size={16} />
+                  <Icon name="smiley-happy" size={16} />
                 </button>
                 {showNewCommentEmojiPicker && (
                   <>
@@ -3052,8 +3073,8 @@ const CommentsTab = ({
               disabled={!newComment.trim() || newComment === '<br>'}
               className={`transition-colors ${
                 newComment.trim() && newComment !== '<br>'
-                  ? 'text-neutral-400 hover:text-white'
-                  : 'text-neutral-700 cursor-not-allowed'
+                  ? 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                  : 'text-neutral-300 dark:text-neutral-700 cursor-not-allowed'
               }`}
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
@@ -3068,16 +3089,16 @@ const CommentsTab = ({
       {showDeleteConfirmModal && (
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={cancelDeleteComment} />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#1a1a1a] border border-neutral-800 rounded-xl shadow-2xl z-50 w-80 overflow-hidden">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-2xl z-50 w-80 overflow-hidden">
             <div className="p-4">
-              <h3 className="text-lg font-semibold text-white mb-2">Delete Comment</h3>
-              <p className="text-sm text-neutral-400 mb-4">
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">Delete Comment</h3>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
                 Are you sure you want to delete this comment? This action cannot be undone.
               </p>
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={cancelDeleteComment}
-                  className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
+                  className="px-4 py-2 text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
                 >
                   Cancel
                 </button>

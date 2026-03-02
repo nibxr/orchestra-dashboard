@@ -1,5 +1,5 @@
 import React from 'react';
-import { Monitor, Tablet, Smartphone } from 'lucide-react';
+import { Icon } from './Icon';
 import { DEVICE_SIZES } from '../utils/canvasTransforms';
 
 /**
@@ -13,14 +13,14 @@ const DevicePreviewToggle = ({ currentDevice, onDeviceChange, embedType }) => {
   }
 
   const devices = [
-    { key: 'desktop', icon: Monitor, label: DEVICE_SIZES.desktop.label },
-    { key: 'tablet', icon: Tablet, label: DEVICE_SIZES.tablet.label },
-    { key: 'mobile', icon: Smartphone, label: DEVICE_SIZES.mobile.label }
+    { key: 'desktop', iconName: 'computer', label: DEVICE_SIZES.desktop.label },
+    { key: 'tablet', iconName: 'iphone-02', label: DEVICE_SIZES.tablet.label },
+    { key: 'mobile', iconName: 'phone', label: DEVICE_SIZES.mobile.label }
   ];
 
   return (
     <div className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
-      {devices.map(({ key, icon: Icon, label }) => (
+      {devices.map(({ key, iconName, label }) => (
         <button
           key={key}
           onClick={() => onDeviceChange(key)}
@@ -33,7 +33,7 @@ const DevicePreviewToggle = ({ currentDevice, onDeviceChange, embedType }) => {
           `}
           title={label}
         >
-          <Icon className="w-4 h-4" />
+          <Icon name={iconName} size={16} />
           <span className="hidden sm:inline">{label}</span>
         </button>
       ))}

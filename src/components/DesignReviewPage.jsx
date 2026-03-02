@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Icon } from './Icon';
 import { supabase } from '../supabaseClient';
 import { getTaskVersions, getCurrentVersion } from '../utils/versionService';
 import { useCanvasComments } from '../hooks/useCanvasComments';
@@ -494,7 +494,7 @@ const DesignReviewPage = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-neutral-50 dark:bg-neutral-900">
         <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <Icon name="alert-circle" className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">
             Error Loading Task
           </h2>
@@ -515,7 +515,7 @@ const DesignReviewPage = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-neutral-50 dark:bg-neutral-900">
         <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
+          <Icon name="alert-circle" className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">
             Task Not Found
           </h2>

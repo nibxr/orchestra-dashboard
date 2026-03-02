@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
+import { Icon } from './Icon';
 
 const ToastContext = createContext();
 
@@ -60,14 +60,14 @@ const Toast = ({ toast, onRemove }) => {
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle size={18} className="text-emerald-500" />;
+        return <Icon name="check-contained" size={18} className="text-emerald-500" />;
       case 'error':
-        return <XCircle size={18} className="text-red-500" />;
+        return <Icon name="x-circle-contained" size={18} className="text-red-500" />;
       case 'warning':
-        return <AlertCircle size={18} className="text-amber-500" />;
+        return <Icon name="alert-circle" size={18} className="text-amber-500" />;
       case 'info':
       default:
-        return <Info size={18} className="text-blue-500" />;
+        return <Icon name="information-circle-contained" size={18} className="text-blue-500" />;
     }
   };
 
@@ -95,7 +95,7 @@ const Toast = ({ toast, onRemove }) => {
         onClick={() => onRemove(id)}
         className="flex-shrink-0 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
       >
-        <X size={16} />
+        <Icon name="x-01" size={16} />
       </button>
     </div>
   );
