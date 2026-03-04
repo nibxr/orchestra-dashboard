@@ -58,40 +58,10 @@ serve(async (req) => {
         let invoices: any[] = []
         let upcomingInvoice = null
 
-        // Resolve subscription ID — fallback to Stripe lookup if not stored
-        let subscriptionId = membership.stripe_subscription_id
-        if (!subscriptionId && membership.stripe_customer_id) {
-            try {
-                // Try active/trialing/past_due first, then fall back to all statuses (including canceled)
-                let subscriptions = await stripe.subscriptions.list({
-                    customer: membership.stripe_customer_id,
-                    limit: 1,
-                })
-                if (subscriptions.data.length === 0) {
-                    subscriptions = await stripe.subscriptions.list({
-                        customer: membership.stripe_customer_id,
-                        status: 'all',
-                        limit: 1,
-                    })
-                }
-                if (subscriptions.data.length > 0) {
-                    subscriptionId = subscriptions.data[0].id
-                    // Save it back for future use
-                    await supabase
-                        .from('client_memberships')
-                        .update({ stripe_subscription_id: subscriptionId, updated_at: new Date().toISOString() })
-                        .eq('id', membershipId)
-                    console.log('Found and saved subscription:', subscriptionId)
-                }
-            } catch (err) {
-                console.warn('Could not look up subscription from Stripe:', err.message)
-            }
-        }
-
         // Fetch Stripe subscription details if subscription exists
-        if (subscriptionId) {
+        if (membership.stripe_subscription_id) {
             try {
-                const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+                const subscription = await stripe.subscriptions.retrieve(membership.stripe_subscription_id)
                 subscriptionData = {
                     id: subscription.id,
                     status: subscription.status,

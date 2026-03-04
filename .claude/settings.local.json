@@ -29,7 +29,8 @@
       "WebFetch(domain:deepwiki.com)",
       "Bash(python3:*)",
       "Bash(npx supabase functions deploy:*)",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "Bash(where gh)"
     ]
   }
 }
